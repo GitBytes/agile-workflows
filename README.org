@@ -1,0 +1,8 @@
+* AGILE Workflows
+** Installation Instructions
+
+   #+BEGIN_SRC: bash
+   install
+   #+END_SRC
+   
+** Acknowledgments
