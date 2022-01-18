@@ -1,0 +1,20 @@
+services:
+  head:
+    build: .
+    image: agile_node
+    ports:
+      - "2022:22"
+    volumes:
+      - home_volume:/home/agile/
+      - ../:/home/agile/agile-workflows 
+    links:
+      - node
+
+  node:
+    image: agile_node
+    volumes:
+      - home_volume:/home/agile/
+      - ../:/home/agile/agile-workflows 
+
+volumes:
+  home_volume: {}
