@@ -1,8 +1,22 @@
 * AGILE Workflows
-** Installation Instructions
+** Installation Instructions on a Docker Cluster
 
-   #+BEGIN_SRC: bash
-   install
-   #+END_SRC
+*** Create the docker development cluster
    
+    #+BEGIN_SRC: bash
+    docker compose -f docker/docker-compose.yml build
+    docker compose -f docker/docker-compose.yml up -d --scale node=2
+    bash docker/gen_machines_list.sh
+    #+END_SRC
+
+*** Build the software from the head node
+
+    #+BEGIN_SRC: bash
+    ssh -p 2022 -i docker/ssh/id_rsa.mpi agile@localhost
+    conan create conan/gmt user/stable
+    conan create conan/shad user/stable
+    conan install --install-folder build .
+    conan build --build-folder build .
+    #+END_SRC
+
 ** Acknowledgments
