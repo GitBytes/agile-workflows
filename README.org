@@ -19,4 +19,22 @@
     conan build --build-folder build .
     #+END_SRC
 
+** Installation Instructions on the Puma Cluster
+
+*** Load the modules and prepare for the build
+   #+BEGIN_SRC: bash
+   source scripts/puma_modules.sh
+   #+END_SRC
+*** First time setup and dependency installation
+   #+BEGIN_SRC: bash
+   source scripts/puma_setup.sh
+   #+END_SRC
+*** Build the agile-workflow package
+    The conan install command is only needed the first time or after updating dependencies.
+   
+    #+BEGIN_SRC: bash
+    conan install --install-folder build .
+    conan build --build-folder
+    #+END_SRC
+
 ** Acknowledgments
