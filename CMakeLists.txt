@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
-project(agile-workflows VERSION 0.0.1 LANGUAGES CXX)
+project(agile-workflows VERSION 0.0.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup(TARGETS KEEP_RPATHS)
@@ -36,10 +35,15 @@ endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 ")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} ${CMAKE_CXX_FLAGS_DEBUG}")
+
+find_package(MPI REQUIRED)
+find_package(Threads REQUIRED)
+
+add_subdirectory(tools)
 
 enable_testing()
 include(CTest)

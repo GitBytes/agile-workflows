@@ -20,9 +20,6 @@ class GmtConan(ConanFile):
 
     def source(self):
         self.run("git clone https://github.com/pnnl/gmt.git")
-        # This small hack might be useful to guarantee proper /MT /MD linkage
-        # in MSVC if the packaged project doesn't have variables to set it
-        # properly
         tools.replace_in_file("gmt/CMakeLists.txt", "cmake_minimum_required(VERSION 2.8.12)",
                               '''cmake_minimum_required(VERSION 2.8.12)
 project(GMT LANGUAGES CXX)
@@ -39,5 +36,5 @@ conan_basic_setup()''')
         cmake.install()
 
     def package_info(self):
-        self.cpp_info.libs = ["gmt"]
-
+        self.cpp_info.libdirs = ["lib"]
+        self.cpp_info.libs = ["gmt", "rt", "pthread"]

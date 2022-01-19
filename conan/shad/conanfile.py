@@ -10,16 +10,13 @@ class ShadConan(ConanFile):
     description = "<Description of Shad here>"
     topics = ("<Put some tag here>", "<here>", "<and here>")
     settings = "os", "compiler", "build_type", "arch"
-    options = {"shared": [True, False], "fPIC": [True, False]}
-    default_options = {"shared": False, "fPIC": True}
+    options = {"runtime": ["GMT", "TBB"]}
+    default_options = {"runtime": "GMT"}
     generators = "cmake"
 
-    def config_options(self):
-        if self.settings.os == "Windows":
-            del self.options.fPIC
-
     def requirements(self):
-        self.requires('gmt/2.0.0@user/stable')
+        if self.options.runtime == 'GMT':
+            self.requires('gmt/2.0.0@user/stable')
 
     def source(self):
         self.run("git clone https://github.com/pnnl/SHAD.git")
@@ -47,5 +44,6 @@ set(GMT_ROOT ${CONAN_GMT_ROOT})
         cmake.install()
 
     def package_info(self):
-        self.cpp_info.libs = ["shad"]
-
+        self.cpp_info.libdirs = ["lib"] + self.deps_cpp_info['gmt'].lib_paths
+        self.cpp_info.libs = ["gmt_runtime"] + self.deps_cpp_info['gmt'].libs + ["runtime"]
+        self.cpp_info.defines = ["HAVE_GMT"]
