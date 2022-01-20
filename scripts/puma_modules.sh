@@ -1,7 +1,7 @@
 #!/bin/bash
 
 module purge
-module load cmake/3.8.2
+module load cmake/3.18.2
 module load git/2.17.0
 module load gcc/8.2.0
 module load openmpi/3.1.3
