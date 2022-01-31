@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y openssh-server sudo build-essential libopenmpi-dev git \
+    apt-get install -y openssh-server sudo build-essential libmpich-dev git \
     wget cmake libgoogle-perftools-dev libgtest-dev python3-pip && \
     pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org conan
 
