@@ -18,9 +18,14 @@ class AgileWorkflowsConan(ConanFile):
         if self.settings.os == "Windows":
             del self.options.fPIC
 
+    def configure(self):
+        self.options["gtest"].build_gmock = False
+        self.options["gtest"].no_main = True
+
     def requirements(self):
         self.requires('gmt/2.0.0@user/stable')
         self.requires('shad/1.0.0@user/stable')
+        self.requires('gtest/1.11.0')
 
     def build(self):
         cmake = CMake(self)

@@ -15,7 +15,7 @@
     ssh -p 2022 -i docker/ssh/id_rsa.mpi agile@localhost
     conan create conan/gmt user/stable
     conan create conan/shad user/stable
-    conan install --install-folder build .
+    conan install --install-folder build . --build missing
     conan build --build-folder build .
     #+END_SRC
 
@@ -33,7 +33,7 @@
     The conan install command is only needed the first time or after updating dependencies.
    
     #+BEGIN_SRC: bash
-    conan install --install-folder build .
+    conan install --install-folder build . --build missing
     conan build --build-folder build .
     #+END_SRC
 
