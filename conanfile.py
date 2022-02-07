@@ -21,11 +21,13 @@ class AgileWorkflowsConan(ConanFile):
     def configure(self):
         self.options["gtest"].build_gmock = False
         self.options["gtest"].no_main = True
+        self.options["rapidcheck"].enable_gtest = True
 
     def requirements(self):
         self.requires('gmt/2.0.0@user/stable')
         self.requires('shad/1.0.0@user/stable')
         self.requires('gtest/1.11.0')
+        self.requires('rapidcheck/cci.20210702')
 
     def build(self):
         cmake = CMake(self)
