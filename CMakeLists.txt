@@ -44,6 +44,7 @@ find_package(MPI REQUIRED)
 find_package(Threads REQUIRED)
 
 add_subdirectory(workflow1)
+add_subdirectory(workflow2)
 add_subdirectory(tools)
 
 enable_testing()
