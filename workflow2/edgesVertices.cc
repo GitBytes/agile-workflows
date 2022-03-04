@@ -12,6 +12,7 @@ struct args_t {
   uint64_t arrayOID;
 };
 
+// Exclusive scan for vertex class array
 static void exclusiveRecursiveScan(shad::rt::Handle & handle, uint64_t pos, Vertex & elem, args_t & args) {
     auto arrayPtr = VertexType::GetPtr((VertexOID) args.arrayOID);
 
@@ -34,7 +35,6 @@ static void exclusiveRecursiveScan(shad::rt::Handle & handle, uint64_t pos, Vert
 }
 
 
-// Exclusive scan for vertex class array
 void exclusiveScanVertices(uint64_t arrayOID) {
   auto arrayPtr = VertexType::GetPtr((VertexOID) arrayOID);
 
@@ -84,12 +84,58 @@ void moveVertex_(shad::rt::Handle & handle, const uint64_t & key, Vertex & value
 }
 
 
+// Move edges to Edges
+void moveEdges_(shad::rt::Handle & handle, const uint64_t & key, Vertex & value, args_t & args) {
+/*
+  uint64_t id    = value.id;
+  uint64_t start = value.edges;
+  auto Edges  = EdgeType::GetPtr((EdgeOID) args.arrayOID);
+
+  if      (value.type == TYPES:PERSON)         {     // move purchase, sale, and author edges
+     Purchases->AsyncApply(handle, id, MoveEdges_, start);
+     std::vector<PurchaseEdge> purchaseEdges;
+     std::vector<SaleEdge> saleEdges;
+     std::vector<AuthorEdge> authorEdges;
+
+     Purchases->Lookup(id, purchaseEdges);
+     Sales->Lookup(id, purchaseEdges);
+     Authors->Lookup(id, purchaseEdges);
+
+     for (auto x : Purchases) {
+       Edge entry(x.src(), x.dst(), 0.0, TYPES::PURCHASE);
+       Edges->AsyncInsert(start, entry);
+       start ++;
+     }
+
+  } else if (value.type == TYPES::FORUM_EVENT) {     // move occurs_at and has_topic edges
+     std::vector<OccursAtEdge> occursAtEdges;
+     std::vector<HasTopicEdge> hasTopicEdges;
+
+     OccursAt->Lookup(id, occursAtEdges);
+     HasTopic->Lookup(id, hasTopicEdges);
+
+  } else if (value.type == TYPES::FORUM)       {     // move has_topic edges
+     std::vector<HasTopicEdge> hasTopicEdges;
+
+     HasTopic->Lookup(id, hasTopicEdges);
+
+  } else if (value.type == TYPES::PUBLICATION) {     // move has_organization and has_topic edges
+     std::vector<HasOrgEdge> hasOrgEdges;
+     std::vector<HasTopicEdge> hasTopicEdges;
+
+     HasOrg->Lookup(id, hasOrgEdges);
+     HasTopic->Lookup(id, hasTopicEdges);
+  }
+*/
+}
+
+
 /********** CREATE COMPRESSED EDGE ARRAY AND VERTEX ARRAY **********/
 void edgesVertices(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
   shad::rt::Handle handle;
   auto GlobalIDS = GlobalIDType::GetPtr((GlobalIDOID) graph["GlobalIDS"]);
 
-// ***** allocate space for Vertices, fill pointers, and add to graph*****/
+// ***** allocate space for Vertices, fill pointers, and add to graph *****/
   num_vertices = GlobalIDS->Size();
   auto Vertices = VertexType::Create(num_vertices + 1, Vertex());
 
@@ -109,10 +155,17 @@ void edgesVertices(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & grap
   waitForCompletion(handle);
   exclusiveScanVertices(graph["Vertices"]);     // exclusive scan of edges to convert # edges to start location
 
+// ***** allocate space for Edges, fill pointers, and add to graph *****/
   num_edges = ( Vertices->At(num_vertices) ).edges;
-  // auto Edges = EdgeType::Create(num_edges, Edge());
-  // graph["Edges"] = (uint64_t) (Edges->GetGlobalID());
+  auto Edges = EdgeType::Create(num_edges, Edge());
 
+  Edges->FillPtrs();
+  graph["Edges"] = (uint64_t) (Edges->GetGlobalID());
+
+  args.arrayOID = graph["Edges"];
+  Vertices->AsyncForEachEntry(handle, MoveEdges_, args);
+
+  waitForCompletion(handle);
 }
 
 } // namespace agile::workflow2
