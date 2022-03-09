@@ -3,6 +3,7 @@
 
 #include "agile/workflow2/main.h"
 #include "agile/workflow2/graph.h"
+#include "agile/workflow2/edgesVertices.h"
 
 namespace agile::workflow2 {
 
@@ -11,6 +12,18 @@ struct args_t {
   uint64_t delta;
   uint64_t arrayOID;
 };
+
+
+struct ME_args_t {
+  uint64_t purchasesOID;
+  uint64_t salesOID;
+  uint64_t authorsOID;
+  uint64_t occursAtOID;
+  uint64_t hasOrgOID;
+  uint64_t hasTopicOID;
+  uint64_t edgesOID;
+};
+
 
 // Exclusive scan for vertex class array
 static void exclusiveRecursiveScan(shad::rt::Handle & handle, uint64_t pos, Vertex & elem, args_t & args) {
@@ -60,7 +73,7 @@ void exclusiveScanVertices(uint64_t arrayOID) {
 void updateIDS_(shad::rt::Handle & handle, const args_t & args) {
   auto GlobalIDS = GlobalIDType::GetPtr((GlobalIDOID) args.arrayOID);
   uint64_t local = (uint32_t) shad::rt::thisLocality();
-  auto localMap  = GlobalIDS->getLocalMap();
+  auto localMap  = GlobalIDS->GetLocalHashmap();
 
   auto updateLambda = [] (const uint64_t & key, Vertex & value, const uint64_t & delta) {
     value.id += delta;
@@ -77,7 +90,7 @@ void updateIDS_(shad::rt::Handle & handle, const args_t & args) {
 
 
 // Move entry to Vertices ... store entry at index value.id ... replace value.id with key
-void moveVertex_(shad::rt::Handle & handle, const uint64_t & key, Vertex & value, args_t & args) {
+void moveVertex(shad::rt::Handle & handle, const uint64_t & key, Vertex & value, args_t & args) {
   uint64_t ndx = value.id;
   auto Vertices = VertexType::GetPtr((VertexOID) args.arrayOID);
   Vertices->AsyncInsertAt(handle, ndx, Vertex(key, value.edges, value.type));
@@ -85,49 +98,67 @@ void moveVertex_(shad::rt::Handle & handle, const uint64_t & key, Vertex & value
 
 
 // Move edges to Edges
-void moveEdges_(shad::rt::Handle & handle, const uint64_t & key, Vertex & value, args_t & args) {
-/*
-  uint64_t id    = value.id;
-  uint64_t start = value.edges;
-  auto Edges  = EdgeType::GetPtr((EdgeOID) args.arrayOID);
+void moveEdges(uint64_t pos, Vertex & value, ME_args_t & args) {
+  uint64_t NE = 0;
+  uint32_t retSize;
+  uint64_t id = value.id;
+  shad::rt::Handle handle;
 
-  if      (value.type == TYPES:PERSON)         {     // move purchase, sale, and author edges
-     Purchases->AsyncApply(handle, id, MoveEdges_, start);
-     std::vector<PurchaseEdge> purchaseEdges;
-     std::vector<SaleEdge> saleEdges;
-     std::vector<AuthorEdge> authorEdges;
+  auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.purchasesOID);
+  auto Sales     = SaleEdgeType::GetPtr((SaleEdgeOID) args.salesOID);
+  auto Authors   = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.authorsOID);
+  auto OccursAt  = OccursAtEdgeType::GetPtr((OccursAtEdgeOID) args.occursAtOID);
+  auto HasOrg    = HasOrgEdgeType::GetPtr((HasOrgEdgeOID) args.hasOrgOID);
+  auto HasTopic  = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.hasTopicOID);
 
-     Purchases->Lookup(id, purchaseEdges);
-     Sales->Lookup(id, purchaseEdges);
-     Authors->Lookup(id, purchaseEdges);
+  if (value.type == TYPES::PERSON)        {     // Person has purchase, sale, and author edges
+     MTE_args_t args = {TYPES::PURCHASE, value.edges, args.edgesOID};
+     Purchases->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<PurchaseEdge>, (uint8_t *) & NE, & retSize, args);
+     waitForCompletion(handle);
 
-     for (auto x : Purchases) {
-       Edge entry(x.src(), x.dst(), 0.0, TYPES::PURCHASE);
-       Edges->AsyncInsert(start, entry);
-       start ++;
-     }
+     args.start += NE;
+     args.type = TYPES::SALE;
 
-  } else if (value.type == TYPES::FORUM_EVENT) {     // move occurs_at and has_topic edges
-     std::vector<OccursAtEdge> occursAtEdges;
-     std::vector<HasTopicEdge> hasTopicEdges;
+     NE = 0;
+     Sales->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<SaleEdge>, (uint8_t *) & NE, & retSize, args);
+     waitForCompletion(handle);
 
-     OccursAt->Lookup(id, occursAtEdges);
-     HasTopic->Lookup(id, hasTopicEdges);
+     args.start += NE;
+     args.type = TYPES::AUTHOR;
 
-  } else if (value.type == TYPES::FORUM)       {     // move has_topic edges
-     std::vector<HasTopicEdge> hasTopicEdges;
+     NE = 0;
+     Authors->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<AuthorEdge>, (uint8_t *) & NE, & retSize, args);
+     waitForCompletion(handle);
 
-     HasTopic->Lookup(id, hasTopicEdges);
+  } else if (value.type == TYPES::FORUMEVENT) {     // ForumEvent has occurs_at and has_topic edges
+     MTE_args_t args = {TYPES::OCCURSAT, value.edges, args.edgesOID};
+     OccursAt->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<OccursAtEdge>, (uint8_t *) & NE, & retSize, args);
+     waitForCompletion(handle);
 
-  } else if (value.type == TYPES::PUBLICATION) {     // move has_organization and has_topic edges
-     std::vector<HasOrgEdge> hasOrgEdges;
-     std::vector<HasTopicEdge> hasTopicEdges;
+     args.start += NE;
+     args.type  = TYPES::HASTOPIC;
 
-     HasOrg->Lookup(id, hasOrgEdges);
-     HasTopic->Lookup(id, hasTopicEdges);
-  }
-*/
-}
+     NE = 0;
+     HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, args);
+     waitForCompletion(handle);
+
+  } else if (value.type == TYPES::FORUM)       {     // Forum has has_topic edges
+     MTE_args_t args = {TYPES::HASTOPIC, value.edges, args.edgesOID};
+     HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, args);
+     waitForCompletion(handle);
+
+  } else if (value.type == TYPES::PUBLICATION) {     // Publication has has_org and has_topic edges
+     MTE_args_t args = {TYPES::HASORG, value.edges, args.edgesOID};
+     HasOrg->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasOrgEdge>, (uint8_t *) & NE, & retSize, args);
+     waitForCompletion(handle);
+
+     args.start += NE;
+     args.type  = TYPES::HASTOPIC;
+
+     NE = 0;
+     HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, args);
+     waitForCompletion(handle);
+} }
 
 
 /********** CREATE COMPRESSED EDGE ARRAY AND VERTEX ARRAY **********/
@@ -150,7 +181,7 @@ void edgesVertices(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & grap
 
 // ***** allocate space for Vertices and copy vertex classes from GlobalIDS *****/
   args.arrayOID = graph["Vertices"];
-  GlobalIDS->AsyncForEachEntry(handle, moveVertex_, args);
+  GlobalIDS->AsyncForEachEntry(handle, moveVertex, args);
 
   waitForCompletion(handle);
   exclusiveScanVertices(graph["Vertices"]);     // exclusive scan of edges to convert # edges to start location
@@ -162,10 +193,19 @@ void edgesVertices(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & grap
   Edges->FillPtrs();
   graph["Edges"] = (uint64_t) (Edges->GetGlobalID());
 
-  args.arrayOID = graph["Edges"];
-  Vertices->AsyncForEachEntry(handle, MoveEdges_, args);
+// ***** move edges from edge tables to Edges *****/
+  ME_args_t me_args = {
+    graph["Purchases"],
+    graph["Sales"],
+    graph["Authors"],
+    graph["OccursAt"],
+    graph["HasOrg"],
+    graph["HasTopic"],
+    graph["Edges"]
+  };
 
-  waitForCompletion(handle);
+  Vertices->ForEach(moveEdges, me_args);
+  Edges->WaitForBufferedInsert();
 }
 
 } // namespace agile::workflow2
