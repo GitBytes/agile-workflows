@@ -22,6 +22,7 @@ uint64_t String_to_Uint(std::string &);
 double String_to_Double(std::string &);
 double String_to_Date(std::string &);
 void readFile(std::string & filename, Graph_t & graph);
+void approxMatching();
 
 void WMD_pattern(Graph_t &);
 } // namespace agile::workflow2
