@@ -18,7 +18,8 @@ void TwoHopFeatures(const uint64_t & seed, std::vector<Edge> & edges, Args_1_t &
 
   for (auto & edge : edges) {
     Vertex neighbor;
-    Vertices->Lookup(edge.get_dst(), & neighbor);     // get neighbor vertex
+    // Vertices->Lookup(edge.get_dst(), & neighbor);     // get neighbor vertex
+    Vertices->Lookup(edge.dst, & neighbor);     // get neighbor vertex
 
     features[ (uint64_t) edge.get_type() ] ++;        // increment edge type feature
     features[ (uint64_t) neighbor.get_type() ] ++;    // increment vertex type feature

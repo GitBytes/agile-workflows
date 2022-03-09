@@ -5,37 +5,6 @@
 #include "agile/workflow2/graph.h"
 
 namespace agile::workflow2 {
-uint64_t String_to_Uint(std::string & str) {
-  if (str == "") return std::numeric_limits<uint64_t>::max();
-
-  uint64_t val;
-  try {val = stoull(str);}
-  catch(...) {val = 0;}
-  return val;
-}
-
-double String_to_Double(std::string & str) {
-  if (str == "") return std::numeric_limits<uint64_t>::max();
-
-  double val;
-  try {val = stod(str);}
-  catch(...) {val = 0.0;}
-  return val;
-}
-
-double String_to_Date(std::string & str) {
-  if (str == "") return std::numeric_limits<uint64_t>::max();
-
-  double val;
-  struct tm date{};
-  date.tm_isdst = -1;
-  strptime(str.c_str(), "%m/%d/%y", & date);
-
-  try {val = (double) mktime(& date);}
-  catch(...) {val = 0.0;}
-
-  return val;
-}
 
 std::vector <std::string> split(std::string & line, char delim, uint64_t size = 0) {
   uint64_t ndx = 0, start = 0;
@@ -54,8 +23,6 @@ std::vector <std::string> split(std::string & line, char delim, uint64_t size = 
 
 void readFile(std::string & filename, Graph_t & graph) {
   std::string line;
-  uint64_t size = 10;
-  char delimiter = ',';
   shad::rt::Handle handle;
   std::ifstream file(filename);
 
@@ -72,57 +39,68 @@ void readFile(std::string & filename, Graph_t & graph) {
   auto Publications = PublicationVertexType::GetPtr( (PublicationVertexOID) graph["Publications"] );
   auto Topics       = TopicVertexType::GetPtr( (TopicVertexOID) graph["Topics"] );
 
-  auto AllEdges     = AllEdgeType::GetPtr( (AllEdgeOID) graph["AllEdges"] );
   auto Purchases    = PurchaseEdgeType::GetPtr( (PurchaseEdgeOID) graph["Purchases"] );
   auto Sales        = SaleEdgeType::GetPtr( (SaleEdgeOID) graph["Sales"] );
   auto Authors      = AuthorEdgeType::GetPtr( (AuthorEdgeOID) graph["Authors"] );
   auto OccursAt     = OccursAtEdgeType::GetPtr( (OccursAtEdgeOID) graph["OccursAt"] );
   auto HasTopic     = HasTopicEdgeType::GetPtr( (HasTopicEdgeOID) graph["HasTopics"] );
   auto HasOrg       = HasOrgEdgeType::GetPtr( (HasOrgEdgeOID) graph["HasOrgs"] );
+  auto GlobalIDS    = GlobalIDType::GetPtr( (GlobalIDOID) graph["GlobalIDS"] );
 
   while (getline(file, line)) {
     if (line[0] == '#') continue;     // skip comments
-    std::vector <std::string> tokens = split(line, ',', size);
+    std::vector <std::string> tokens = split(line, ',', 10);     // delimiter and # tokens set for wmd data file
 
     if (tokens[0] == "Person") {
          PersonVertex record(tokens);
          Persons->BufferedAsyncInsert(handle, record.key(), record);
+         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::PERSON));
     } else if (tokens[0] == "ForumEvent") {
          ForumEventVertex record(tokens);
          ForumEvents->BufferedAsyncInsert(handle, record.key(), record);
+         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::FORUMEVENT));
     } else if (tokens[0] == "Forum") {
          ForumVertex record(tokens);
          Forums->BufferedAsyncInsert(handle, record.key(), record);
+         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::FORUM));
     } else if (tokens[0] == "Publication") {
          PublicationVertex record(tokens);
          Publications->BufferedAsyncInsert(handle, record.key(), record);
+         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::PUBLICATION));
     } else if (tokens[0] == "Topic") {
          TopicVertex record(tokens);
          Topics->BufferedAsyncInsert(handle, record.key(), record);
+         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::TOPIC));
     } else if (tokens[0] == "Purchase") {
          PurchaseEdge record(tokens);
          Purchases->BufferedAsyncInsert(handle, record.key(), record);
-         AllEdges->BufferedAsyncInsert(handle, record.src(), std::make_tuple(record.dst(), "Purchases"));
+         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::PERSON));
+         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::PERSON));
     } else if (tokens[0] == "Sale") {
          SaleEdge record(tokens);
          Sales->BufferedAsyncInsert(handle, record.key(), record);
-         AllEdges->BufferedAsyncInsert(handle, record.src(), std::make_tuple(record.dst(), "Sales"));
+         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::PERSON));
+         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::PERSON));
     } else if (tokens[0] == "Author") {
          AuthorEdge record(tokens);
          Authors->BufferedAsyncInsert(handle, record.key(), record);
-         AllEdges->BufferedAsyncInsert(handle, record.src(), std::make_tuple(record.dst(), "Authors"));
+         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::PERSON));
+         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.document_type));
     } else if (tokens[0] == "OccursAt") {
          OccursAtEdge record(tokens);
          OccursAt->BufferedAsyncInsert(handle, record.key(), record);
-         AllEdges->BufferedAsyncInsert(handle, record.src(), std::make_tuple(record.dst(), "OccursAt"));
+         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::FORUMEVENT));
+         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::FORUM));
     } else if (tokens[0] == "HasTopic") {
          HasTopicEdge record(tokens);
          HasTopic->BufferedAsyncInsert(handle, record.key(), record);
-         AllEdges->BufferedAsyncInsert(handle, record.src(), std::make_tuple(record.dst(), "HasTopic"));
+         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, record.item_type));
+         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::TOPIC));
     } else if (tokens[0] == "HasOrg") {
          HasOrgEdge record(tokens);
          HasOrg->BufferedAsyncInsert(handle, record.key(), record);
-         AllEdges->BufferedAsyncInsert(handle, record.src(), std::make_tuple(record.dst(), "HasOrg"));
+         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::PUBLICATION));
+         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::TOPIC));
   } }
 
   shad::rt::waitForCompletion(handle);
@@ -133,12 +111,12 @@ void readFile(std::string & filename, Graph_t & graph) {
   Publications->WaitForBufferedInsert();
   Topics->WaitForBufferedInsert();
 
-  AllEdges->WaitForBufferedInsert();
   Purchases->WaitForBufferedInsert();
   Sales->WaitForBufferedInsert();
   Authors->WaitForBufferedInsert();
   OccursAt->WaitForBufferedInsert();
   HasTopic->WaitForBufferedInsert();
   HasOrg->WaitForBufferedInsert();
+  GlobalIDS->WaitForBufferedInsert();
 }
 } // namespace agile::workflow2
