@@ -17,6 +17,16 @@
 #define LARGE  50000000
 
 namespace agile::workflow2 {
+using Graph_t     = std::map<std::string, uint64_t>;
+using AllEdge     = std::tuple<uint64_t, std::string>;
+using AllEdgeType = shad::Multimap<uint64_t, AllEdge>;
+using AllEdgeOID  = shad::ObjectIdentifier<AllEdgeType>;
+
+uint64_t String_to_Uint(std::string &);
+double String_to_Double(std::string &);
+double String_to_Date(std::string &);
+void readFile(std::string & filename, Graph_t & graph);
+void approxMatching();
 
 using Graph_t = std::map<std::string, uint64_t>;
 using IntArray = shad::Array<int64_t>;
