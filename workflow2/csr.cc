@@ -1,9 +1,6 @@
-#include <limits>
-#include <string>
-
 #include "agile/workflow2/main.h"
 #include "agile/workflow2/graph.h"
-#include "agile/workflow2/edgesVertices.h"
+#include "agile/workflow2/csr.h"
 
 namespace agile::workflow2 {
 
@@ -18,7 +15,7 @@ struct ME_args_t {
   uint64_t purchasesOID;
   uint64_t salesOID;
   uint64_t authorsOID;
-  uint64_t occursAtOID;
+  uint64_t includesOID;
   uint64_t hasOrgOID;
   uint64_t hasTopicOID;
   uint64_t edgesOID;
@@ -107,11 +104,11 @@ void moveEdges(uint64_t pos, Vertex & value, ME_args_t & args) {
   auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.purchasesOID);
   auto Sales     = SaleEdgeType::GetPtr((SaleEdgeOID) args.salesOID);
   auto Authors   = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.authorsOID);
-  auto OccursAt  = OccursAtEdgeType::GetPtr((OccursAtEdgeOID) args.occursAtOID);
+  auto Includes  = IncludesEdgeType::GetPtr((IncludesEdgeOID) args.includesOID);
   auto HasOrg    = HasOrgEdgeType::GetPtr((HasOrgEdgeOID) args.hasOrgOID);
   auto HasTopic  = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.hasTopicOID);
 
-  if (value.type == TYPES::PERSON)        {     // Person has purchase, sale, and author edges
+  if (value.type == TYPES::PERSON)        {          // Person has purchase, sale, and author edges
      MTE_args_t args = {TYPES::PURCHASE, value.edges, args.edgesOID};
      Purchases->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<PurchaseEdge>, (uint8_t *) & NE, & retSize, args);
      waitForCompletion(handle);
@@ -130,20 +127,20 @@ void moveEdges(uint64_t pos, Vertex & value, ME_args_t & args) {
      Authors->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<AuthorEdge>, (uint8_t *) & NE, & retSize, args);
      waitForCompletion(handle);
 
-  } else if (value.type == TYPES::FORUMEVENT) {     // ForumEvent has occurs_at and has_topic edges
-     MTE_args_t args = {TYPES::OCCURSAT, value.edges, args.edgesOID};
-     OccursAt->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<OccursAtEdge>, (uint8_t *) & NE, & retSize, args);
+  } else if (value.type == TYPES::FORUMEVENT) {      // ForumEvent has has_topic edges
+     MTE_args_t args = {TYPES::HASTOPIC, value.edges, args.edgesOID};
+     HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, args);
+     waitForCompletion(handle);
+
+  } else if (value.type == TYPES::FORUM) {           // Forum has include and has_topic edges
+     MTE_args_t args = {TYPES::INCLUDES, value.edges, args.edgesOID};
+     Includes->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<IncludesEdge>, (uint8_t *) & NE, & retSize, args);
      waitForCompletion(handle);
 
      args.start += NE;
      args.type  = TYPES::HASTOPIC;
 
      NE = 0;
-     HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, args);
-     waitForCompletion(handle);
-
-  } else if (value.type == TYPES::FORUM)       {     // Forum has has_topic edges
-     MTE_args_t args = {TYPES::HASTOPIC, value.edges, args.edgesOID};
      HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, args);
      waitForCompletion(handle);
 
@@ -162,7 +159,7 @@ void moveEdges(uint64_t pos, Vertex & value, ME_args_t & args) {
 
 
 /********** CREATE COMPRESSED EDGE ARRAY AND VERTEX ARRAY **********/
-void edgesVertices(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
+void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
   shad::rt::Handle handle;
   auto GlobalIDS = GlobalIDType::GetPtr((GlobalIDOID) graph["GlobalIDS"]);
 
@@ -198,7 +195,7 @@ void edgesVertices(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & grap
     graph["Purchases"],
     graph["Sales"],
     graph["Authors"],
-    graph["OccursAt"],
+    graph["Includes"],
     graph["HasOrg"],
     graph["HasTopic"],
     graph["Edges"]

@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
   auto Purchases    = PurchaseEdgeType::Create(MEDIUM);
   auto Sales        = SaleEdgeType::Create(MEDIUM);
   auto Authors      = AuthorEdgeType::Create(LARGE);
-  auto OccursAt     = OccursAtEdgeType::Create(MEDIUM);
+  auto Includes     = IncludesEdgeType::Create(LARGE);
   auto HasTopic     = HasTopicEdgeType::Create(LARGE);
   auto HasOrg       = HasOrgEdgeType::Create(MEDIUM);
   auto GlobalIDS    = GlobalIDType::Create(LARGE);
@@ -34,13 +34,13 @@ int main(int argc, char *argv[]) {
   graph["Purchases"]    = (uint64_t) (Purchases->GetGlobalID());
   graph["Sales"]        = (uint64_t) (Sales->GetGlobalID());
   graph["Authors"]      = (uint64_t) (Authors->GetGlobalID());
-  graph["OccursAt"]     = (uint64_t) (OccursAt->GetGlobalID());
+  graph["Includes"]     = (uint64_t) (Includes->GetGlobalID());
   graph["HasTopic"]     = (uint64_t) (HasTopic->GetGlobalID());
   graph["HasOrg"]       = (uint64_t) (HasOrg->GetGlobalID());
   graph["GlobalIDS"]    = (uint64_t) (GlobalIDS->GetGlobalID());
 
-  readFile(dataFile, graph);                         // read file, create vertex and edge tables, assign locale ids
-  edgesVertices(num_edges, num_vertices, graph);     // create vertex and compressed edge data structures
+  readFile(dataFile, graph);               // read file, create vertex and edge tables, assign locale ids
+  CSR(num_edges, num_vertices, graph);     // create vertex and compressed edge data structures
 
   printf("Time for graph construction = %lf\n", my_timer() - time1);
 
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
   printf("Number of purchase edges = %lu\n", Purchases->Size());
   printf("Number of sale edges     = %lu\n", Sales->Size());
   printf("Number of author edges   = %lu\n", Authors->Size());
-  printf("Number of occursAt edges = %lu\n", OccursAt->Size());
+  printf("Number of include edges  = %lu\n", Includes->Size());
   printf("Number of hasTopic edges = %lu\n", HasTopic->Size());
   printf("Number of hasOrg edges   = %lu\n", HasOrg->Size());
 

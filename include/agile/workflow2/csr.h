@@ -1,5 +1,5 @@
-#ifndef EDGESVERTICES_H_
-#define EDGESVERTICES_H_
+#ifndef CSR_H_
+#define CSR_H_
 
 #include <cstdint>
 #include <limits>
@@ -37,4 +37,4 @@ void MoveTableEdges(shad::rt::Handle & handle, const uint64_t & key,
 
 } // namespace agile::workflow2
 
-#endif // EDGESVERTICES_H
+#endif // CSR_H

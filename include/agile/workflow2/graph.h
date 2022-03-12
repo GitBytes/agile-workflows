@@ -39,18 +39,22 @@ class PersonVertex {
 class ForumEventVertex {
   public:
     uint64_t id;
+    uint64_t forum;
     time_t   date;
     uint64_t GLBID;
 
     ForumEventVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
+      forum = shad::data_types::kNullValue<uint64_t>;
       date  = shad::data_types::kNullValue<time_t>;
       GLBID = shad::data_types::kNullValue<uint64_t>;
     }
 
     ForumEventVertex (std::vector <std::string> & tokens) {
-      id   = ENCODE<uint64_t, std::string, UINT>  (tokens[4]);
-      date = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      id    = ENCODE<uint64_t, std::string, UINT>  (tokens[4]);
+      forum = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
+      date  = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      printf("forum = %lu\n", forum);
     }
 
     uint64_t key() { return id; }
@@ -60,6 +64,7 @@ class ForumVertex {
   public:
     uint64_t id;
     uint64_t GLBID; 
+
     ForumVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
       GLBID = shad::data_types::kNullValue<uint64_t>;
@@ -117,8 +122,8 @@ class TopicVertex {
 
 class PurchaseEdge {
   public:
-    uint64_t buyer;        // vertex id
-    uint64_t seller;       // vertex id
+    uint64_t buyer;            // vertex id
+    uint64_t seller;           // vertex id
     uint64_t product;
     time_t   date;
 
@@ -143,8 +148,8 @@ class PurchaseEdge {
 
 class SaleEdge {
   public:
-    uint64_t seller;       // vertex id
-    uint64_t buyer;        // vertex id
+    uint64_t seller;           // vertex id
+    uint64_t buyer;            // vertex id
     uint64_t product;
     time_t   date;
 
@@ -169,57 +174,57 @@ class SaleEdge {
 
 class AuthorEdge {
   public:
-    uint64_t author;            // vertex id
-    uint64_t document;          // vertex id
-    TYPES document_type;     // forum_event or publication
+    uint64_t author;           // vertex id
+    uint64_t item;             // vertex id
+    TYPES item_type;           // forum_event or publication
 
     AuthorEdge () {
-      author        = shad::data_types::kNullValue<uint64_t>;
-      document      = shad::data_types::kNullValue<uint64_t>;
-      document_type = TYPES::NONE;
+      author    = shad::data_types::kNullValue<uint64_t>;
+      item      = shad::data_types::kNullValue<uint64_t>;
+      item_type = TYPES::NONE;
     }
 
     AuthorEdge (std::vector <std::string> & tokens) {
       if (tokens[4] != "") {
-         author        = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
-         document      = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
-         document_type = TYPES::FORUMEVENT;
+         author    = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+         item      = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
+         item_type = TYPES::FORUMEVENT;
       } else {
-         author        = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
-         document      = ENCODE<uint64_t, std::string, UINT>(tokens[5]);
-         document_type = TYPES::PUBLICATION;
+         author    = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+         item      = ENCODE<uint64_t, std::string, UINT>(tokens[5]);
+         item_type = TYPES::PUBLICATION;
     } }
 
     uint64_t key() { return author; }
     uint64_t src() { return author; }
-    uint64_t dst() { return document; }
+    uint64_t dst() { return item; }
 };
 
-class OccursAtEdge {
+class IncludesEdge {
   public:
-    uint64_t forum;           // vertex id
-    uint64_t forum_event;     // vertex id
+    uint64_t forum;            // vertex id
+    uint64_t forum_event;      // vertex id
 
-    OccursAtEdge () {
+    IncludesEdge () {
       forum       = shad::data_types::kNullValue<uint64_t>;
       forum_event = shad::data_types::kNullValue<uint64_t>;
     }
 
-    OccursAtEdge (std::vector <std::string> & tokens) {
+    IncludesEdge (std::vector <std::string> & tokens) {
       forum         = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
       forum_event   = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
     }
 
-    uint64_t key() { return forum_event; }
-    uint64_t src() { return forum_event; }
-    uint64_t dst() { return forum; }
+    uint64_t key() { return forum; }
+    uint64_t src() { return forum; }
+    uint64_t dst() { return forum_event; }
 };
 
 class HasTopicEdge {
   public:
-    uint64_t item;         // vertex id
-    uint64_t topic;        // vertex id
-    TYPES item_type;     // forum, forum_event, or publication
+    uint64_t item;             // vertex id
+    uint64_t topic;            // vertex id
+    TYPES item_type;           // forum, forum_event, or publication
  
     HasTopicEdge () {
       item      = shad::data_types::kNullValue<uint64_t>;
@@ -292,8 +297,8 @@ using SaleEdgeOID  = shad::ObjectIdentifier<SaleEdgeType>;
 using AuthorEdgeType = shad::Multimap<uint64_t, AuthorEdge>;
 using AuthorEdgeOID  = shad::ObjectIdentifier<AuthorEdgeType>;
 
-using OccursAtEdgeType = shad::Multimap<uint64_t, OccursAtEdge>;
-using OccursAtEdgeOID  = shad::ObjectIdentifier<OccursAtEdgeType>;
+using IncludesEdgeType = shad::Multimap<uint64_t, IncludesEdge>;
+using IncludesEdgeOID  = shad::ObjectIdentifier<IncludesEdgeType>;
 
 using HasTopicEdgeType = shad::Multimap<uint64_t, HasTopicEdge>;
 using HasTopicEdgeOID  = shad::ObjectIdentifier<HasTopicEdgeType>;

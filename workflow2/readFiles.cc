@@ -42,7 +42,7 @@ void readFile(std::string & filename, Graph_t & graph) {
   auto Purchases    = PurchaseEdgeType::GetPtr( (PurchaseEdgeOID) graph["Purchases"] );
   auto Sales        = SaleEdgeType::GetPtr( (SaleEdgeOID) graph["Sales"] );
   auto Authors      = AuthorEdgeType::GetPtr( (AuthorEdgeOID) graph["Authors"] );
-  auto OccursAt     = OccursAtEdgeType::GetPtr( (OccursAtEdgeOID) graph["OccursAt"] );
+  auto Includes     = IncludesEdgeType::GetPtr( (IncludesEdgeOID) graph["Includes"] );
   auto HasTopic     = HasTopicEdgeType::GetPtr( (HasTopicEdgeOID) graph["HasTopics"] );
   auto HasOrg       = HasOrgEdgeType::GetPtr( (HasOrgEdgeOID) graph["HasOrgs"] );
   auto GlobalIDS    = GlobalIDType::GetPtr( (GlobalIDOID) graph["GlobalIDS"] );
@@ -85,12 +85,12 @@ void readFile(std::string & filename, Graph_t & graph) {
          AuthorEdge record(tokens);
          Authors->BufferedAsyncInsert(handle, record.key(), record);
          GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::PERSON));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.document_type));
-    } else if (tokens[0] == "OccursAt") {
-         OccursAtEdge record(tokens);
-         OccursAt->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::FORUMEVENT));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::FORUM));
+         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.item_type));
+    } else if (tokens[0] == "Includes") {
+         IncludesEdge record(tokens);
+         Includes->BufferedAsyncInsert(handle, record.key(), record);
+         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::FORUM));
+         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::FORUMEVENT));
     } else if (tokens[0] == "HasTopic") {
          HasTopicEdge record(tokens);
          HasTopic->BufferedAsyncInsert(handle, record.key(), record);
@@ -114,7 +114,7 @@ void readFile(std::string & filename, Graph_t & graph) {
   Purchases->WaitForBufferedInsert();
   Sales->WaitForBufferedInsert();
   Authors->WaitForBufferedInsert();
-  OccursAt->WaitForBufferedInsert();
+  Includes->WaitForBufferedInsert();
   HasTopic->WaitForBufferedInsert();
   HasOrg->WaitForBufferedInsert();
   GlobalIDS->WaitForBufferedInsert();

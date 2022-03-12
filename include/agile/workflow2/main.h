@@ -23,7 +23,7 @@ using IntArray = shad::Array<int64_t>;
 using IntArrayOID = shad::ObjectIdentifier<IntArray>;
 
 void readFile(std::string & filename, Graph_t & graph);
-void edgesVertices(uint64_t &m, uint64_t &, Graph_t & graph);
+void CSR(uint64_t &m, uint64_t &, Graph_t & graph);
 void WMD_pattern(Graph_t &);
 
 } // namespace agile::workflow2

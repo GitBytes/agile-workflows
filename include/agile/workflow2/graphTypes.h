@@ -12,7 +12,7 @@ enum class TYPES {
   PURCHASE,
   SALE,
   AUTHOR,
-  OCCURSAT,
+  INCLUDES,
   HASTOPIC,
   HASORG,
   VERTEX,
