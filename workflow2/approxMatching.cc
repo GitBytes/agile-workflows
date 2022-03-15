@@ -31,9 +31,10 @@
 #include "shad/data_structures/multimap.h"
 #include "shad/core/algorithm.h"
 #include "shad/core/numeric.h"
-#include "agile/workflow1/main.h"
+#include "agile/workflow2/main.h"
+#include "agile/workflow2/graph.h"
 
-
+/*
 void createSquareMatrix(Graph_t &A, Graph_t &B, GraphL &L)
 {
     Vector<int> Aneighbors;
@@ -221,10 +222,12 @@ void netAlign(uint64_t argc, char* argv[])
     
     Graph_t A;
     Graph_t B;
-    
-    readFile((char*)Afilename.c_str(), &A);
+
+    readFile(std::string & Afilename, Graph_t & A);
+    CSR(uint64_t &m, uint64_t &, Graph_t & A);
     cout<<"File A reading done..!!"<<endl;
-    readFile((char*)Bfilename.c_str(), &B);
+    readFile(std::string & Bfilename, Graph_t & B);
+    CSR(uint64_t &m, uint64_t &, Graph_t & B);
     cout<<"File B reading done..!!"<<endl;
 
     GraphL L;
@@ -237,7 +240,7 @@ void netAlign(uint64_t argc, char* argv[])
     
     createSquareMatrix(&A,&B,&L);
     
-    
+    /**
     // Graph data Structures
     //gmt_data_t buffer=gmt_alloc(nvectors*sizeof(gmt_data_t),GMT_ALLOC_REPLICATE);
     /gmt_data_t nMate=gmt_alloc(nvectors*sizeof(gmt_data_t),GMT_ALLOC_REPLICATE);
@@ -246,10 +249,10 @@ void netAlign(uint64_t argc, char* argv[])
     /gmt_data_t nQ2=gmt_alloc(nvectors*sizeof(gmt_data_t),GMT_ALLOC_REPLICATE);
     /gmt_data_t nLock=gmt_alloc(nvectors*sizeof(gmt_data_t),GMT_ALLOC_REPLICATE);
     /gmt_data_t nCur=gmt_alloc(nvectors*sizeof(gmt_data_t),GMT_ALLOC_REPLICATE);
-    
+    */
     
     /*************** Creating parameter structure *************/
-    
+    /*
     args_t args;
 
     args.size=size;
@@ -287,7 +290,7 @@ void netAlign(uint64_t argc, char* argv[])
     
     
     cout<<"Initialization Ends"<<endl;
-
+    */
     /*************** Its Solution Time..!! ************************/
     double* ind;
     double* mbest;
@@ -295,7 +298,7 @@ void netAlign(uint64_t argc, char* argv[])
     ///// Call Half Aprox Method
     
     time2=my_timer();
-    mbest=gmt_netAlignMP(&args,&objective);
+    //mbest=gmt_netAlignMP(&args,&objective);
     time3=my_timer();
     cout<<"Set Up Time: "<<time2-time1<<" "<<time4-time1<<endl;
     cout<<"Solve Time: "<<time3-time2<<endl;
@@ -307,6 +310,7 @@ void netAlign(uint64_t argc, char* argv[])
     delete[] mbest;
     delete[] ind;
 /************* Global arrays clean up ***********/
+    /*
     gmt_free(dt);
     gmt_free(yt);
     gmt_free(zt);
@@ -341,5 +345,5 @@ void netAlign(uint64_t argc, char* argv[])
     gmt_free(objT);
     gmt_free(curr);
     gmt_free(overlaps);
-    gmt_waitCommands();
+    gmt_waitCommands();*/
 }
