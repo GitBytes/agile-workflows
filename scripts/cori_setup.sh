@@ -3,8 +3,11 @@
 echo 'Running the first time setup script'
 
 pip install --user conan
+
 conan profile new default --detect &> /dev/null
 conan profile update settings.compiler.libcxx=libstdc++11 default
+conan profile update env.CC=$(which gcc) default
+conan profile update env.CXX=$(which g++) default
 
 if [ -d $HOME/.conan/data ]; then
     rm -rf $HOME/.conan/data
@@ -14,7 +17,7 @@ if grep riscv $HOME/.conan/settings.yml; then
     echo RISCV support already added. Skipping.
 else
     echo RISCV support added.
-    sed --in-place=.bkp 's/x86/x86, riscv/' $HOME/.conan/settings.yml
+    sed -i .bkp s/x86/x86, riscv/ $HOME/.conan/settings.yml
 fi
 
 conan create conan/gmt user/stable
