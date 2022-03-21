@@ -85,7 +85,7 @@ void readFile(std::string & filename, Graph_t & graph) {
          AuthorEdge record(tokens);
          Authors->BufferedAsyncInsert(handle, record.key(), record);
          GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::PERSON));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.item_type));
+         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.type));
     } else if (tokens[0] == "Includes") {
          IncludesEdge record(tokens);
          Includes->BufferedAsyncInsert(handle, record.key(), record);
@@ -94,7 +94,7 @@ void readFile(std::string & filename, Graph_t & graph) {
     } else if (tokens[0] == "HasTopic") {
          HasTopicEdge record(tokens);
          HasTopic->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, record.item_type));
+         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, record.type));
          GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::TOPIC));
     } else if (tokens[0] == "HasOrg") {
          HasOrgEdge record(tokens);
