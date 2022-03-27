@@ -8,12 +8,12 @@ namespace agile::workflow2 {
 
 struct Pattern_args_t {
   uint64_t PersonsOID;
-  uint64_t ForumEventsOID;
   uint64_t ForumsOID;
+  uint64_t ForumEventsOID;
   uint64_t PublicationsOID;
   uint64_t TopicsOID;
-  uint64_t PurchasesOID;
   uint64_t SalesOID;
+  uint64_t PurchasesOID;
   uint64_t AuthorsOID;
   uint64_t IncludesOID;
   uint64_t HasOrgOID;
@@ -101,7 +101,7 @@ void patternForum_2A_(shad::rt::Handle & handle, const uint64_t & FE,
    if (topic_1 && topic_2) {                           // FE discusses both topics
       ForumEventVertex FEV;
       ForumEvents->Lookup(FE, & FEV);
-      Forums_2A->Insert(FEV.forum);
+      Forums_2A->AsyncInsert(handle, FEV.forum);
 } }
 
 
@@ -117,14 +117,14 @@ void patternForum_2B_(shad::rt::Handle & handle, const uint64_t & FE,
 
   for (auto & T : FET) {                             // for each topic
     if      (T.topic == 771572) topic_1 = true;      // ... topic is Williamsburg
-    else if (T.topic == 179057)  topic_2 = true;     // ... topic is Explosion
-    else if (T.topic == 127197)  topic_3 = true;     // ... topic is Bomb
+    else if (T.topic == 179057) topic_2 = true;      // ... topic is Explosion
+    else if (T.topic == 127197) topic_3 = true;      // ... topic is Bomb
   }
 
   if (topic_1 && topic_2 && topic_3) {               // FE discusses all topics
      ForumEventVertex FEV;
      ForumEvents->Lookup(FE, & FEV);
-     Forums_2B->Insert(FEV.forum, FEV.date);
+     Forums_2B->AsyncInsert(handle, FEV.forum, FEV.date);
 } }
 
 
@@ -132,20 +132,18 @@ void patternForum_2B_(shad::rt::Handle & handle, const uint64_t & FE,
 void patternForum_2A(shad::rt::Handle & handle, const uint64_t & forum,
      std::vector<IncludesEdge> & includes, Pattern_args_t & args) {
 
-  for (auto FFE : includes) {
-    HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopicOID)->
-         AsyncApply(handle, FFE.forum_event, patternForum_2A_, args);
-} }
+  auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopicOID);
+  for (auto FFE : includes) HasTopic->AsyncApply(handle, FFE.forum_event, patternForum_2A_, args);
+}
 
 
 // Check if forum includes a forum event with topics Williamsburg, Explosion, and Bomb
 void patternForum_2B(shad::rt::Handle & handle, const uint64_t & forum,
      std::vector<IncludesEdge> & includes, Pattern_args_t & args) {
 
-  for (auto FFE : includes) {
-    HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopicOID)->
-         AsyncApply(handle, FFE.forum_event, patternForum_2B_, args);
-} }
+  auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopicOID);
+  for (auto FFE : includes) HasTopic->AsyncApply(handle, FFE.forum_event, patternForum_2B_, args);
+}
 
 
 // Check if person bought ammunition from a distributor (... defined as a seller of ammunition with
@@ -239,30 +237,32 @@ void transEvents(const uint64_t & key, PersonVertex & person, Pattern_args_t & a
     if (forum_1 && forum_2) break;
   }
 
-  if ( ! (forum_1 && forum_2) ) return;                      // person failed forum subpattern
-
+  if ( ! (forum_1 && forum_2) ) return;                   // person failed forum subpattern
   printf("pattern found for person %lu\n", person.id);
 }
 
 
 void WMD_pattern(Graph_t & graph) {
+  Pattern_args_t args;
   shad::rt::Handle handle;
   auto Forums_2A = intSet::Create(TINY);
   auto Forums_2B = intTimeMap::Create(TINY);
   auto Persons   = PersonVertexType::GetPtr((PersonVertexOID) graph["Persons"]);
   auto Includes  = IncludesEdgeType::GetPtr((IncludesEdgeOID) graph["Includes"]);
-  auto Forums    = ForumVertexType::GetPtr((ForumVertexOID) graph["Forums"])->Size();
 
-  Pattern_args_t args = {
-       graph["Persons"],  graph["ForumEvents"],
-       graph["Forums"],   graph["Publications"],
-       graph["Topics"],   graph["Purchases"],
-       graph["Sales"],    graph["Authors"],
-       graph["Includes"], graph["HasTopic"],
-       graph["HasOrg"],
-       (uint64_t) (Forums_2A->GetGlobalID()),
-       (uint64_t) (Forums_2B->GetGlobalID())
-  };
+  args.PersonsOID      = graph["Persons"];
+  args.ForumsOID       = graph["Forums"];
+  args.ForumEventsOID  = graph["ForumEvents"];
+  args.PublicationsOID = graph["Publications"];
+  args.TopicsOID       = graph["Topics"];
+  args.SalesOID        = graph["Sales"];
+  args.PurchasesOID    = graph["Purchases"];
+  args.AuthorsOID      = graph["Authors"];
+  args.IncludesOID     = graph["Includes"];
+  args.HasOrgOID       = graph["HasOrg"];
+  args.HasTopicOID     = graph["HasTopic"];
+  args.Forums_2A_OID   = (uint64_t) (Forums_2A->GetGlobalID());
+  args.Forums_2B_OID   = (uint64_t) (Forums_2B->GetGlobalID());
 
   Includes->AsyncForEachEntry(handle, patternForum_2A, args);     // F -> FE {Prospect Park, Outdoors}
   Includes->AsyncForEachEntry(handle, patternForum_2B, args);     // F -> FE {Bomb, Explosion, Williamsburg}

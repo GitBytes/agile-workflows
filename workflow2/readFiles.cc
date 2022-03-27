@@ -71,16 +71,16 @@ void readFile(std::string & filename, Graph_t & graph) {
          TopicVertex record(tokens);
          Topics->BufferedAsyncInsert(handle, record.key(), record);
          GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::TOPIC));
-    } else if (tokens[0] == "Purchase") {
-         PurchaseEdge record(tokens);
-         Purchases->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::PERSON));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::PERSON));
     } else if (tokens[0] == "Sale") {
-         SaleEdge record(tokens);
-         Sales->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, TYPES::PERSON));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, TYPES::PERSON));
+         SaleEdge record_Sale(tokens);
+         Sales->BufferedAsyncInsert(handle, record_Sale.key(), record_Sale);
+         GlobalIDS->BufferedAsyncInsert(handle, record_Sale.src(), Vertex(0, 1, TYPES::PERSON));
+         GlobalIDS->BufferedAsyncInsert(handle, record_Sale.dst(), Vertex(0, 0, TYPES::PERSON));
+
+         PurchaseEdge record_Purchase(tokens);
+         Purchases->BufferedAsyncInsert(handle, record_Purchase.key(), record_Purchase);
+         GlobalIDS->BufferedAsyncInsert(handle, record_Purchase.src(), Vertex(0, 1, TYPES::PERSON));
+         GlobalIDS->BufferedAsyncInsert(handle, record_Purchase.dst(), Vertex(0, 0, TYPES::PERSON));
     } else if (tokens[0] == "Author") {
          AuthorEdge record(tokens);
          Authors->BufferedAsyncInsert(handle, record.key(), record);

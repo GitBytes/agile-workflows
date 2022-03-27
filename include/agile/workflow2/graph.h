@@ -134,8 +134,8 @@ class PurchaseEdge {
     }
 
     PurchaseEdge (std::vector <std::string> & tokens) {
-      buyer   = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
-      seller  = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
+      buyer   = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
+      seller  = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
       product = ENCODE<uint64_t, std::string, UINT>  (tokens[6]);
       date    = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
     }
