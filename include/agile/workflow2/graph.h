@@ -19,6 +19,57 @@
 
 namespace agile::workflow2 {
 
+class VertexL {          // used by both GlobalIDS and Vertices
+  public:
+    uint64_t id;        // GlobalIDS: global id ... Vertices: vertex id
+    uint64_t edges;     // GlobalIDS: number of edges ... Vertices: start index in Edges
+    TYPES    type;
+    uint64_t mate;
+    uint64_t indx;
+
+    VertexL () {
+      id    = shad::data_types::kNullValue<uint64_t>;
+      edges = shad::data_types::kNullValue<uint64_t>;
+      type  = TYPES::NONE;
+      mate  = -1;
+      indx  = -1;
+    }
+
+    VertexL (uint64_t id_, uint64_t edges_, TYPES type_, uint64_t mate_, uint64_t indx_) {
+      id    = id_;
+      edges = edges_;
+      type  = type_;
+      mate  = mate_;
+      indx  = indx_;
+    }
+};
+
+class GraphL {
+  public:
+    shad::Array<VertexL>::ObjectID vertexOID;
+    shad::Array<Edge>::ObjectID edgeOID;
+    uint64_t vertexNumber;
+    uint64_t a_num_vertices;
+    uint64_t edgeNumber;
+
+    GraphL()
+      : vertexOID(shad::rt::Locality(), 0),
+        edgeOID(shad::rt::Locality(), 0),
+        vertexNumber(0),
+        a_num_vertices(0),
+        edgeNumber(0) {}
+
+    shad::Array<VertexL>::ShadArrayPtr vertexPtr() const {
+      return shad::Array<VertexL>::GetPtr(vertexOID);
+    }
+
+    shad::Array<Edge>::ShadArrayPtr edgePtr() const {
+      return shad::Array<Edge>::GetPtr(edgeOID);
+    }
+
+};
+
+
 class PersonVertex {
   public:
     uint64_t id;
@@ -305,6 +356,9 @@ using HasTopicEdgeOID  = shad::ObjectIdentifier<HasTopicEdgeType>;
 
 using HasOrgEdgeType = shad::Multimap<uint64_t, HasOrgEdge>;
 using HasOrgEdgeOID  = shad::ObjectIdentifier<HasOrgEdgeType>;
+
+using VertexLType = shad::Array<VertexL>;                // index == vertex GLBID
+using VertexLOID  = shad::ObjectIdentifier<VertexLType>;
 
 } // namespace agile::workflow2
 
