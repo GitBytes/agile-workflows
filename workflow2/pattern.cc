@@ -1,22 +1,19 @@
 #include "agile/workflow2/main.h"
 #include "agile/workflow2/graph.h"
-
-using intMap = std::map<uint64_t, uint64_t>;
+#include "agile/workflow2/pattern.h"
 
 namespace agile::workflow2 {
 
 struct Pattern_args_t {
-  uint64_t personsOID;
-  uint64_t forumEventsOID;
-  uint64_t forumsOID;
-  uint64_t publicationsOID;
-  uint64_t topicsOID;
-  uint64_t purchasesOID;
-  uint64_t salesOID;
-  uint64_t authorsOID;
-  uint64_t includesOID;
-  uint64_t hasOrgOID;
-  uint64_t hasTopicOID;
+  uint64_t ForumEventsOID;
+  uint64_t TopicsOID;
+  uint64_t SalesOID;
+  uint64_t PurchasesOID;
+  uint64_t AuthorsOID;
+  uint64_t IncludesOID;
+  uint64_t HasOrgOID;
+  uint64_t HasTopicOID;
+  uint64_t Forums_2_OID;
 };
 
 
@@ -28,139 +25,118 @@ bool proximity(TopicVertex & A, TopicVertex & B) {
 }
 
 
-/*
-// Check to see if person authored a forum event that occurred at a forum that included:
-//     1) a forum event with {topics outdoors and Prospect Park} and
-//     2) a forum event with topics {Williamsburg, Explosion, and Bomb} that occured before PD
-bool event_pattern_1(uint64_t PD, uint64_t & forum_event, Patterns_args_t args) {
-  auto Forums = ForumVertexType::GetPtr((ForumVertexType::ObjectID) args.forumsOID);
-  auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeType::ObjectID) args.hasTopicOID);
+// Check to see forum event has topic Jihad and occurred at a forum with topic NYC
+// if yes, insert the forum id in jihadForums
+//    if insertion fails, then second such forum event found for that forum, so RETURN TRUE
+bool forum_1_subpattern(std::set<uint64_t> & jihadForums, uint64_t forum_event, Pattern_args_t & args) {
+  auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeType::ObjectID) args.HasTopicOID);
+  auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID) args.ForumEventsOID);
 
-  OccursAtEdgeType::LookupResult forum;            // get forum event's forum
-  OccursAt->Lookup(forum_event, & forum);
-  bool FE_topics_0 = false, FE_topics_1 = false;
+  // check if forum event has topic Jihad
+  HasTopicEdgeType::LookupResult topics;
+  HasTopic->Lookup(forum_event, & topics);          // get forum event's topics
 
-  OccursAtEdgeType::LookupResult forum_events;     // get the forum's events
-  OccursAt->Lookup(forum.id, & forum_events);
+  for (auto & T1 : topics.value) {                  // for each forum event topic
+    if (T1.topic != 44311) continue;                // ... topic is not Jihad
 
-  for (auto & FE : forum_events.value) {           // for each event included in this forum
-    bool topics_0_0 = false;                       // ... does forum event discuss outdoors
-    bool topics_0_1 = false;                       // ................... and Prospect Park
-    bool topics_1_0 = false;                       // ... does forum event discuss Williamsburg 
-    bool topics_1_1 = false;                       // ........................... and Explosion
-    bool topics_1_2 = false;                       // ................................ and Bomb
+    // check if forum has topic NYC
+    ForumEventVertex FEV;                           // ... get forum event vertex
+    ForumEvents->Lookup(forum_event, & FEV);
 
-    HasTopicEdgeType::LookupResult FE_topic_edges;
-    HasTopic->Lookup(FE.item, & FE_topic_edges);
+    HasTopicEdgeType::LookupResult forum_topics;    // ... get forum's topics
+    HasTopic->Lookup(FEV.forum, & forum_topics);
 
-    for (auto & FET : FE_topic_edges.value) {                // ... for each topic of this forum event
-      if      (FET.topic == 69871376) topics_0_0 |= true;
-      else if (FET.topic == 1049632)  topics_0_1 |= true;
-      else if (FET.topic == 771572)   topics_1_0 |= true;
-      else if (FET.topic == 179057)   topics_1_1 |= true;
-      else if (FET.topic == 127197)   topics_1_2 |= true;
-    }
+    for (auto & FT : forum_topics.value) {          // ... for each forum topic
+      if (FT.topic != 60) continue; ;               // ... ... topic is not NYC
 
-  FE_topics_0 |= (topics_0_0 && topics_0_1);
-  FE_topics_1 |= (topics_1_0 && topics_1_1 && topics_1_2);
-
-  if (FE_topics_0 && FE_topics_1) return true;
-  }
-
-  return false;     // did not find 2 events at this forum that discuss the right topics
-}
-
-
-// Check to see this forum event had topic Jihad and occurred at a forum with topic NYC
-bool event_pattern_1(intMap & forum_map, uint64_t & forum_event, Pattern_args_t & args) {
-  auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeType::ObjectID) args.hasTopicOID);
-  auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID) args.forumEventsOID);
-
-  ForumEventVertex FEV;                              // get this forum event's vertex
-  ForumEvents->Lookup(forum_event, & FEV);
-  HasTopicEdgeType::LookupResult FE_topics;          // get topics linked to this forum event
-  HasTopic->Lookup(forum_event, & FE_topics);
-  HasTopicEdgeType::LookupResult forum_topics;       // get topics linked to forum event's forum
-  HasTopic->Lookup(FEV.forum, & forum_topics);
-
-  for (auto & FET : FE_topics.value) {               // for each forum event topic
-    if (FET.topic != 44311) continue;                // ... this topic is not Jihad
-
-
-    for (auto & FT : forum_topics.value) {           // ... for each forum topic
-      if (FT.topic != 60) continue;                  // ... ... this forum did not discuss NYC
-
-      uint64_t count = forum_map[forum.value[0].forum] ++;
-      if (count == 1) return true;     // found a forum with topic NYC with two events that discussed Jihad
+      auto insert = jihadForums.insert(FEV.forum);
+      return (insert.second == false);              // false -> second insertion of forum id
   } }
 
-  return false;                        // did not find a forum that discussed NYC with two events that discussed Jihad
+  return false;                                     // forum event does not have topic Jihad
 }
 
 
-bool event_pattern(uint64_t person, time_t PD, Pattern_args_t args) {
-  bool event_1 = false;
-  bool event_2 = false;
-  intMap jihad_nyc_forums;                      // map of jihad events at NYC forums <forum, # of events>
-  auto Authors = AuthorsEdgeType::GetPtr((AuthorsEdgeType::ObjectID) args.authorsOID);
+// Check if forum event is in a forum that satisfies forum 2 subpattern
+bool forum_2_subpattern(time_t trans_date, uint64_t forum_event, Pattern_args_t args) {
+  auto Forums_2    = intTimeMap::GetPtr((intTimeMapOID) args.Forums_2_OID);
+  auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID) args.ForumEventsOID);
 
-  AttendEdgeType::LookupResult authored;
-  Authors->Lookup(person, & authored);
-  if (authored.size < 2) return false;            // this person can not satissfy the forum event filters
+  ForumEventVertex FEV;                                // get forum event vertex
+  ForumEvents->Lookup(forum_event, & FEV);
 
-  for (auto & forum_event : authored.value) {             // for each forum event authored by this person
-    if (forum_event.document_type != TYPES::forum_event) continue;     // this entry is not a forum event
-    event_1 |= event_pattern_1(PD, forum_event.document, args);
-    event_2 |= event_pattern_2(forum_map, forum_event.document, args);
+  time_t forum_event_date;         
+  Forums_2->Lookup(FEV.forum, & forum_event_date);     // forum's value stored in Forums_2
+
+return (trans_date > forum_event_date);
+}
+
+
+// Check if person authored two forum events satisfying forum 1 SP and a forum event satisfying forum 2 SP
+bool forumEvent_subpattern(uint64_t person, time_t date, Pattern_args_t & args) {
+  std::set<uint64_t> jihadForums;
+  bool forum_1 = false, forum_2 = false;
+  auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.AuthorsOID);
+
+  AuthorEdgeType::LookupResult events;             // get person's events
+  Authors->Lookup(person, & events);
+
+  for (auto & EV : events.value) {                 // for each forum event
+    if (EV.type != TYPES::FORUMEVENT) continue;
+
+    if (! forum_1) forum_1 = forum_1_subpattern(jihadForums, EV.item, args);
+    if (! forum_2) forum_2 = forum_2_subpattern(date, EV.item, args);
+    if (forum_1 && forum_2) return true;            // ... forum event subpattern satisfied
   }
 
-  return event_1 && event_2;     // found forum event subpattern
-}
-*/
+  return false;                                     // person failed forum subpattern
 
-
-// Check if person bought ammunition from a distributor (... defined as a seller of ammunition with
-// at least two different customers
-bool ammunition_subpattern(uint64_t buyer, uint64_t seller, Pattern_args_t & args) {
-  SaleEdgeType::LookupResult sales;                 // get seller's sales
-  SaleEdgeType::GetPtr((SaleEdgeOID) args.salesOID)->Lookup(seller, & sales);
-
-  for (auto & sale : sales.value)     // if sale is ammunition and buyer is not person, return true
-    if ( (sale.product == 185785) && (sale.buyer != buyer) ) return true;
-
-  return false;
 }
 
 
 // Check if person bought an electronic product from a seller who published an item
 // on electronic engineering associated with an organization near NYC
 bool electronic_subpattern(uint64_t seller, Pattern_args_t & args) {
-  auto Topics   = TopicVertexType::GetPtr((TopicVertexOID) args.topicsOID);
-  auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.authorsOID);
-  auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.hasTopicOID);
-  auto HasOrg   = HasOrgEdgeType::GetPtr((HasOrgEdgeOID) args.hasOrgOID);
+  auto Topics   = TopicVertexType::GetPtr((TopicVertexOID) args.TopicsOID);
+  auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.AuthorsOID);
+  auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopicOID);
+  auto HasOrg   = HasOrgEdgeType::GetPtr((HasOrgEdgeOID) args.HasOrgOID);
 
-  AuthorEdgeType::LookupResult authored;              // get seller's authored items
-  Authors->Lookup(seller, & authored);
+  AuthorEdgeType::LookupResult documents;             // get seller's documents
+  Authors->Lookup(seller, & documents);
 
-  for (auto & publication : authored.value) {         // for each authored item by seller
-    uint64_t pub_id = publication.item;
-    HasTopicEdgeType::LookupResult topics;            // ... get topics linked to publication
-    HasTopic->Lookup(pub_id, & topics);
+  for (auto & PUB : documents.value) {                // for each publication
+    if (PUB.type != TYPES::PUBLICATION) continue;
+
+    HasTopicEdgeType::LookupResult topics;            // ... get publication's topics
+    HasTopic->Lookup(PUB.item, & topics);
 
     for (auto & PT : topics.value) {                  // ... for each publication topic
-      if (PT.topic != 43035) continue;                // ... ... if topic is not electrical engineering, continue
+      if (PT.topic != 43035) continue;                // ... ... topic is not electrical engineering
 
-      HasOrgEdgeType::LookupResult organizations;     // ... ... get organizations linked to publication
-      HasOrg->Lookup(pub_id, & organizations);
+      HasOrgEdgeType::LookupResult organizations;     // ... ... get publication's organizations
+      HasOrg->Lookup(PUB.item, & organizations);
 
       for (auto & PO : organizations.value) {         // ... ... ... for each organization
         TopicVertex NYC, org;
         Topics->Lookup(60, & NYC);
         Topics->Lookup(PO.organization, & org);
 
-        if (proximity(org, NYC)) return true;         // ... ... ... ... if organization close to NYC return true
+        if (proximity(org, NYC)) return true;         // ... ... ... ... organization is close to NYC
   } } }
+
+  return false;
+}
+
+
+// Check if person bought ammunition from a distributor (... defined as a seller of ammunition with
+// at least two different customers
+bool ammunition_subpattern(uint64_t buyer, uint64_t seller, Pattern_args_t & args) {
+  SaleEdgeType::LookupResult sales;                 // get seller's sales
+  SaleEdgeType::GetPtr((SaleEdgeOID) args.SalesOID)->Lookup(seller, & sales);
+
+  for (auto & S1 : sales.value)     // if sale is ammunition and buyer is not person, return true
+    if ( (S1.product == 185785) && (S1.buyer != buyer) ) return true;
 
   return false;
 }
@@ -168,49 +144,126 @@ bool electronic_subpattern(uint64_t seller, Pattern_args_t & args) {
 
 void transEvents(const uint64_t & key, PersonVertex & person, Pattern_args_t & args) {
   bool ESP = false;
-  time_t latest_0 = 0, latest_1 = 0, latest_2 = 0;
-  auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.purchasesOID);
+  time_t latest_BB = 0, latest_PC = 0, latest_AMO = 0;
+  auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.PurchasesOID);
 
-  PurchaseEdgeType::LookupResult purchases;
+  PurchaseEdgeType::LookupResult purchases;         // get person's purchases
   Purchases->Lookup(person.id, & purchases);
 
-  for (auto & purchase : purchases.value) {                      // for each purchase
+// ***** TRANSACTION SUBPATTERN ***** //
+  for (auto & PO : purchases.value) {               // for each purchase
 
-    if (purchase.product == 2869238) {                           // ... product = bath bomb
-       latest_0 = std::max(latest_0, purchase.date);
+    if (PO.product == 2869238) {                    // ... product is a bath bomb
+       latest_BB = std::max(latest_BB, PO.date);
 
-    } else if (purchase.product == 271997) {                     // ... product = pressure cooker
-       latest_1 = std::max(latest_1, purchase.date);
+    } else if (PO.product == 271997) {              // ... product is a pressure cooker
+       latest_PC = std::max(latest_PC, PO.date);
 
-    } else if (purchase.product == 185785) {                     // ... product = ammunication, 
-       if (purchase.date <= latest_2) continue;                                 // ... this purchase is covered  
-       if (! ammunition_subpattern(purchase.buyer, purchase.seller, args));     // ... seller is not a distributor
-       latest_2 = std::max(latest_2, purchase.date);
+    } else if (PO.product == 185785) {              // ... product is a ammunition 
+       if (PO.date > latest_AMO)
+          if (ammunition_subpattern(PO.buyer, PO.seller, args)) latest_AMO = PO.date;
 
-    } else if (purchase.product == 11650) {                      // ... product = electronics
-       ESP |= electronic_subpattern(purchase.seller, args);
-
+    } else if (PO.product == 11650) {               // ... product is a electronics
+       if (! ESP) ESP = electronic_subpattern(PO.seller, args);
   } }
 
-  if (! electronic_subpattern) return;                           // person failed the electronic subpattern
-  time_t PD = std::min( std::min(latest_0, latest_1), latest_2 );
+  // earliest of the lastest individual transaction dates
+  time_t trans_date = std::min( std::min(latest_BB, latest_PC), latest_AMO );
+  if (( trans_date == 0) || (! ESP)) return;        // person failed the transaction or electronic subpattern
 
-  // if (event_pattern(purchase.buyer, PD, args))  printf("pattern found\n");
+// ***** FORUM SUBPATTERN ***** //
+  if (forumEvent_subpattern(person.id, trans_date, args)) {
+     printf("pattern found for person %lu\n", person.id);
+     return;
+} };
+
+
+// Check if forum includes a forum event with topics Williamsburg, Explosion, and Bomb
+void forumPattern_2B(const uint64_t & forum, time_t & date, Pattern_args_t & args) {
+  shad::rt::Handle handle;
+  auto Includes = IncludesEdgeType::GetPtr((IncludesEdgeOID) args.IncludesOID);
+
+  auto Lambda2B = []             // for each forum -> FE
+  (shad::rt::Handle & handle, const uint64_t & forum, std::vector<IncludesEdge> & includes, Pattern_args_t & args) {
+
+    auto lambdaLambda2B = []     // for each FE -> topic
+    (shad::rt::Handle & handle, const uint64_t & FE, std::vector<HasTopicEdge> & FET, Pattern_args_t & args) {
+      bool topic_1  = false;                             // does forum event discuss Williamsburg
+      bool topic_2  = false;                             // ................ and Explosion
+      bool topic_3  = false;                             // ................ and Bomb
+      auto Forums_2 = intTimeMap::GetPtr((intTimeMapOID) args.Forums_2_OID);
+      auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexOID) args.ForumEventsOID);
+
+      for (auto & T : FET) {                             // for each topic
+        if      (T.topic == 771572) topic_1 = true;      // ... topic is Williamsburg
+        else if (T.topic == 179057) topic_2 = true;      // ... topic is Explosion
+        else if (T.topic == 127197) topic_3 = true;      // ... topic is Bomb
+      }
+
+      if (topic_1 && topic_2 && topic_3) {               // FE discusses all topics
+         ForumEventVertex FEV;
+         ForumEvents->Lookup(FE, & FEV);
+         Forums_2->AsyncInsert(handle, FEV.forum, FEV.date);
+    } };     // lambdaLambda_2B ... FE -> topic
+
+    auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopicOID);
+    for (auto FFE : includes) HasTopic->AsyncApply(handle, FFE.forum_event, lambdaLambda2B, args);
+  };         // Lambda_2B ... forum -> FE
+
+  Includes->AsyncApply(handle, forum, Lambda2B, args);
+  waitForCompletion(handle);
+}
+
+
+// Check if forum includes a forum event with topics Outdoors and Prospect Park
+void forumPattern_2A(const uint64_t & forum, std::vector<IncludesEdge> & includes, Pattern_args_t & args) {
+  shad::rt::Handle handle;
+  auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopicOID);
+
+  auto Lambda2A = []     // for each FE -> topic
+  (shad::rt::Handle & handle, const uint64_t & FE, std::vector<HasTopicEdge> & FET, Pattern_args_t & args) {
+    bool topic_1 = false;                               // does forum event discuss outdoors
+    bool topic_2 = false;                               // ................ and Prospect Park
+    auto Forums_2 = intTimeMap::GetPtr((intTimeMapOID) args.Forums_2_OID);
+    auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexOID) args.ForumEventsOID);
+
+    for (auto & T : FET) {                              // for each topic
+      if      (T.topic == 69871376) topic_1 = true;     // ... topic is Outdoors
+      else if (T.topic == 1049632)  topic_2 = true;     // ... topic is Prospect Park
+    }
+
+    if (topic_1 && topic_2) {     // FE discusses both topics, so forum satisfies forum 2A subpattern
+       ForumEventVertex FEV;
+       ForumEvents->Lookup(FE, & FEV);
+       Forums_2->AsyncInsert(handle, FEV.forum, shad::data_types::kNullValue<time_t>);
+  } };      // Lambda2A ... FE -> topic
+
+  for (auto FFE : includes) HasTopic->AsyncApply(handle, FFE.forum_event, Lambda2A, args);
+  waitForCompletion(handle);
 }
 
 
 void WMD_pattern(Graph_t & graph) {
-  Pattern_args_t args = {
-       graph["Persons"],  graph["ForumEvents"],
-       graph["Forums"],   graph["Publications"],
-       graph["Topics"],   graph["Purchases"],
-       graph["Sales"],    graph["Authors"],
-       graph["Includes"], graph["HasTopic"],
-       graph["HasOrg"]
-  };
+  Pattern_args_t args;
+  auto Forums_2 = intTimeMap::Create(TINY);     // for each forum, the earliest date of a included FE4 vertex
+  auto Persons  = PersonVertexType::GetPtr((PersonVertexOID) graph["Persons"]);
+  auto Includes = IncludesEdgeType::GetPtr((IncludesEdgeOID) graph["Includes"]);
+
+  args.ForumEventsOID  = graph["ForumEvents"];
+  args.TopicsOID       = graph["Topics"];
+  args.SalesOID        = graph["Sales"];
+  args.PurchasesOID    = graph["Purchases"];
+  args.AuthorsOID      = graph["Authors"];
+  args.IncludesOID     = graph["Includes"];
+  args.HasOrgOID       = graph["HasOrg"];
+  args.HasTopicOID     = graph["HasTopic"];
+  args.Forums_2_OID    = (uint64_t) (Forums_2->GetGlobalID());
+
+  Includes->ForEachEntry(forumPattern_2A, args);     // F -> FE {Prospect Park, Outdoors}
+  Forums_2->ForEachEntry(forumPattern_2B, args);     // F -> FE {Bomb, Explosion, Williamsburg}
+  if (Forums_2->Size() == 0) return;
 
 // find all persons with the right financial transaction and forum event attendence
-  auto Persons = PersonVertexType::GetPtr((PersonVertexOID) graph["Persons"]);
   Persons->ForEachEntry(transEvents, args);
 }
 

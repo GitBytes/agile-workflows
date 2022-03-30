@@ -105,7 +105,6 @@ class ForumEventVertex {
       id    = ENCODE<uint64_t, std::string, UINT>  (tokens[4]);
       forum = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
       date  = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
-      printf("forum = %lu\n", forum);
     }
 
     uint64_t key() { return id; }
@@ -122,7 +121,7 @@ class ForumVertex {
     }
 
     ForumVertex (std::vector <std::string> & tokens) {
-      id = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
+      id   = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
     }
 
     uint64_t key() { return id; }
@@ -186,8 +185,8 @@ class PurchaseEdge {
     }
 
     PurchaseEdge (std::vector <std::string> & tokens) {
-      buyer   = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
-      seller  = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
+      buyer   = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
+      seller  = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
       product = ENCODE<uint64_t, std::string, UINT>  (tokens[6]);
       date    = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
     }
@@ -225,25 +224,25 @@ class SaleEdge {
 
 class AuthorEdge {
   public:
-    uint64_t author;           // vertex id
-    uint64_t item;             // vertex id
-    TYPES item_type;           // forum_event or publication
+    uint64_t author;     // vertex id
+    uint64_t item;       // vertex id
+    TYPES    type;       // forum_event or publication
 
     AuthorEdge () {
-      author    = shad::data_types::kNullValue<uint64_t>;
-      item      = shad::data_types::kNullValue<uint64_t>;
-      item_type = TYPES::NONE;
+      author = shad::data_types::kNullValue<uint64_t>;
+      item   = shad::data_types::kNullValue<uint64_t>;
+      type   = TYPES::NONE;
     }
 
     AuthorEdge (std::vector <std::string> & tokens) {
       if (tokens[4] != "") {
-         author    = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
-         item      = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
-         item_type = TYPES::FORUMEVENT;
+         author = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+         item   = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
+         type   = TYPES::FORUMEVENT;
       } else {
-         author    = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
-         item      = ENCODE<uint64_t, std::string, UINT>(tokens[5]);
-         item_type = TYPES::PUBLICATION;
+         author = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+         item   = ENCODE<uint64_t, std::string, UINT>(tokens[5]);
+         type   = TYPES::PUBLICATION;
     } }
 
     uint64_t key() { return author; }
@@ -273,29 +272,29 @@ class IncludesEdge {
 
 class HasTopicEdge {
   public:
-    uint64_t item;             // vertex id
-    uint64_t topic;            // vertex id
-    TYPES item_type;           // forum, forum_event, or publication
+    uint64_t item;      // vertex id
+    uint64_t topic;     // vertex id
+    TYPES    type;      // forum, forum_event, or publication
  
     HasTopicEdge () {
-      item      = shad::data_types::kNullValue<uint64_t>;
-      topic     = shad::data_types::kNullValue<uint64_t>;
-      item_type = TYPES::NONE;
+      item  = shad::data_types::kNullValue<uint64_t>;
+      topic = shad::data_types::kNullValue<uint64_t>;
+      type  = TYPES::NONE;
     }
 
     HasTopicEdge (std::vector <std::string> & tokens) {
       if (tokens[3] != "") {
-         item      = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
-         topic     = ENCODE<uint64_t, std::string, UINT>(tokens[6]);
-         item_type = TYPES::FORUM;
+         item   = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
+         topic  = ENCODE<uint64_t, std::string, UINT>(tokens[6]);
+         type   = TYPES::FORUM;
       } else if (tokens[4] != "") {
-         item      = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
-         topic     = ENCODE<uint64_t, std::string, UINT>(tokens[6]);
-         item_type = TYPES::FORUMEVENT;
+         item   = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
+         topic  = ENCODE<uint64_t, std::string, UINT>(tokens[6]);
+         type   = TYPES::FORUMEVENT;
       } else {
-         item      = ENCODE<uint64_t, std::string, UINT>(tokens[5]);
-         topic     = ENCODE<uint64_t, std::string, UINT>(tokens[6]);
-         item_type = TYPES::PUBLICATION;
+         item   = ENCODE<uint64_t, std::string, UINT>(tokens[5]);
+         topic  = ENCODE<uint64_t, std::string, UINT>(tokens[6]);
+         type   = TYPES::PUBLICATION;
     } }
 
     uint64_t key() { return item; }

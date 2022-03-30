@@ -20,14 +20,17 @@ class GmtConan(ConanFile):
 
     def source(self):
         self.run("git clone https://github.com/pnnl/gmt.git")
-        tools.replace_in_file("gmt/CMakeLists.txt", "cmake_minimum_required(VERSION 2.8.12)",
-                              '''cmake_minimum_required(VERSION 2.8.12)
+        tools.replace_in_file("gmt/CMakeLists.txt", "cmake_minimum_required(VERSION 3.3.0)",
+                              '''cmake_minimum_required(VERSION 3.3.0)
 project(GMT LANGUAGES CXX)
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()''')
 
     def build(self):
         cmake = CMake(self)
+        if self.settings.arch == "riscv":
+            cmake.definitions['GMT_TARGET_ARCH'] = "RISCV"
+            cmake.definitions['GMT_ENABLE_UCONTEXT'] = False
         cmake.configure(source_folder="gmt")
         cmake.build()
 

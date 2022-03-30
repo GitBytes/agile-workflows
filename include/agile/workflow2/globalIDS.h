@@ -30,10 +30,10 @@ struct globalIdInserter {
        temp.id = counter ++;
        * lhs = std::move(temp);
     }
-       
+
     return true;
   }
-      
+
   std::atomic<uint64_t> counter;
 };
 

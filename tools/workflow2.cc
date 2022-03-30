@@ -61,9 +61,12 @@ int main(int argc, char *argv[]) {
 
   printf("\n");
   printf("Total number of edges    = %lu\n", num_edges);
-  printf("Total number of vertices = %lu\n", num_vertices);
+  printf("Total number of vertices = %lu\n\n", num_vertices);
 
-  // WMD_pattern(graph);
+  time1 = my_timer();
+
+  WMD_pattern(graph);
+  printf("Time for exact pattern matching = %lf\n", my_timer() - time1);
   return 0;
 }
 
