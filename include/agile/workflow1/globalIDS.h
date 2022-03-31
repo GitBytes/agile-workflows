@@ -4,7 +4,7 @@
 #include "shad/data_structures/hashmap.h"
 #include "shad/extensions/data_types/data_types.h"
 
-namespace agile::workflow2 {
+namespace agile::workflow1 {
 
 template <typename T>
 struct globalIdInserter {
@@ -94,6 +94,6 @@ using VertexOID  = shad::ObjectIdentifier<VertexType>;
 using GlobalIDType = shad::Hashmap<uint64_t, Vertex, shad::MemCmp<uint64_t>, globalIdInserter<Vertex> >;
 using GlobalIDOID  = shad::ObjectIdentifier<GlobalIDType>;
 
-} // namespace agile::workflow2
+} // namespace agile::workflow1
 
 #endif // GLOBALIDS_H

@@ -1,8 +1,8 @@
-#include "agile/workflow2/main.h"
-#include "agile/workflow2/graph.h"
-#include "agile/workflow2/csr.h"
+#include "agile/workflow1/main.h"
+#include "agile/workflow1/graph.h"
+#include "agile/workflow1/csr.h"
 
-namespace agile::workflow2 {
+namespace agile::workflow1 {
 
 struct args_t {
   uint64_t size;
@@ -155,8 +155,7 @@ void moveEdges(uint64_t pos, Vertex & value, ME_args_t & args) {
 
      my_args.type = TYPES::HASTOPIC;                 // ... HASTOPIC edges
      HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, my_args);
-
-  } else return;
+  }
 
   waitForCompletion(handle);
 }
@@ -208,4 +207,4 @@ void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
   Edges->WaitForBufferedInsert();
 }
 
-} // namespace agile::workflow2
+} // namespace agile::workflow1

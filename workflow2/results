@@ -1,4 +1,4 @@
-salloc: Granted job allocation 155176
+salloc: Granted job allocation 155183
 ----------------------------------------------------------------------------------------------------
                                         GMT config
 ----------------------------------------------------------------------------------------------------
@@ -52,13 +52,13 @@ dta_prealloc_helper_chunks       yes             256
          COMPILER_VERSION                          
 ----------------------------------------------------------------------------------------------------
 reading file /lustre/scratch/feo/wmd/data.csv
-Time for graph construction = 119.745886
+Time for graph construction = 116.091178
 
 Number of persons      = 4892914
 Number of forum_events = 5058040
 Number of forums       = 46
 Number of publications = 287227
-Number of topics       = 172004
+Number of topics       = 172005
 
 Number of purchase edges = 3423825
 Number of sale edges     = 3423825
@@ -86,10 +86,10 @@ WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 pattern found for person 1128501731262832684
 WARNING: Called wait on a NULL handle
-Time for exact pattern matching = 11.617540
+Time for exact pattern matching = 11.015445
 ----------------------------------------------------------------------------------------------------
-salloc: Relinquishing job allocation 155176
-salloc: Granted job allocation 155177
+salloc: Relinquishing job allocation 155183
+salloc: Granted job allocation 155184
 ----------------------------------------------------------------------------------------------------
                                         GMT config
 ----------------------------------------------------------------------------------------------------
@@ -143,13 +143,13 @@ dta_prealloc_helper_chunks       yes             256
          COMPILER_VERSION                          
 ----------------------------------------------------------------------------------------------------
 reading file /lustre/scratch/feo/wmd/data.10.csv
-Time for graph construction = 18.542894
+Time for graph construction = 18.978047
 
 Number of persons      = 888268
 Number of forum_events = 505808
 Number of forums       = 46
 Number of publications = 28724
-Number of topics       = 53286
+Number of topics       = 53287
 
 Number of purchase edges = 342387
 Number of sale edges     = 342387
@@ -165,10 +165,10 @@ WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 pattern found for person 1128501731262832684
-Time for exact pattern matching = 2.694662
+Time for exact pattern matching = 2.638634
 ----------------------------------------------------------------------------------------------------
-salloc: Relinquishing job allocation 155177
-salloc: Granted job allocation 155178
+salloc: Relinquishing job allocation 155184
+salloc: Granted job allocation 155185
 ----------------------------------------------------------------------------------------------------
                                         GMT config
 ----------------------------------------------------------------------------------------------------
@@ -222,23 +222,23 @@ dta_prealloc_helper_chunks       yes             256
          COMPILER_VERSION                          
 ----------------------------------------------------------------------------------------------------
 reading file /lustre/scratch/feo/wmd/data.200.csv
-Time for graph construction = 214.230834
+Time for graph construction = 212.882562
 
 Number of persons      = 5861533
-Number of forum_events = 12706519
+Number of forum_events = 12706520
 Number of forums       = 46
 Number of publications = 688623
-Number of topics       = 172004
+Number of topics       = 172005
 
 Number of purchase edges = 8785104
 Number of sale edges     = 8785104
-Number of author edges   = 22274416
-Number of include edges  = 12063811
-Number of hasTopic edges = 24951259
+Number of author edges   = 22274417
+Number of include edges  = 12063812
+Number of hasTopic edges = 24951260
 Number of hasOrg edges   = 2098558
 
-Total number of edges    = 78958252
-Total number of vertices = 19428726
+Total number of edges    = 78958255
+Total number of vertices = 19428727
 
 WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
@@ -256,10 +256,10 @@ WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 pattern found for person 1128501731262832684
-Time for exact pattern matching = 13.075069
+Time for exact pattern matching = 13.790925
 ----------------------------------------------------------------------------------------------------
-salloc: Relinquishing job allocation 155178
-salloc: Granted job allocation 155179
+salloc: Relinquishing job allocation 155185
+salloc: Granted job allocation 155186
 ----------------------------------------------------------------------------------------------------
                                         GMT config
 ----------------------------------------------------------------------------------------------------
@@ -313,13 +313,13 @@ dta_prealloc_helper_chunks       yes             256
          COMPILER_VERSION                          
 ----------------------------------------------------------------------------------------------------
 reading file /lustre/scratch/feo/wmd/data.csv
-Time for graph construction = 122.972692
+Time for graph construction = 125.098616
 
 Number of persons      = 4892914
 Number of forum_events = 5058040
 Number of forums       = 46
 Number of publications = 287227
-Number of topics       = 172004
+Number of topics       = 172005
 
 Number of purchase edges = 3423825
 Number of sale edges     = 3423825
@@ -345,12 +345,12 @@ WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
 pattern found for person 1128501731262832684
-Time for exact pattern matching = 11.576281
+WARNING: Called wait on a NULL handle
+Time for exact pattern matching = 11.577121
 ----------------------------------------------------------------------------------------------------
-salloc: Relinquishing job allocation 155179
-salloc: Granted job allocation 155180
+salloc: Relinquishing job allocation 155186
+salloc: Granted job allocation 155187
 ----------------------------------------------------------------------------------------------------
                                         GMT config
 ----------------------------------------------------------------------------------------------------
@@ -404,13 +404,13 @@ dta_prealloc_helper_chunks       yes             256
          COMPILER_VERSION                          
 ----------------------------------------------------------------------------------------------------
 reading file /lustre/scratch/feo/wmd/data.10.csv
-Time for graph construction = 18.917169
+Time for graph construction = 18.702989
 
 Number of persons      = 888268
 Number of forum_events = 505808
 Number of forums       = 46
 Number of publications = 28724
-Number of topics       = 53286
+Number of topics       = 53287
 
 Number of purchase edges = 342387
 Number of sale edges     = 342387
@@ -426,10 +426,10 @@ WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 pattern found for person 1128501731262832684
-Time for exact pattern matching = 2.661046
+Time for exact pattern matching = 2.532730
 ----------------------------------------------------------------------------------------------------
-salloc: Relinquishing job allocation 155180
-salloc: Granted job allocation 155181
+salloc: Relinquishing job allocation 155187
+salloc: Granted job allocation 155188
 ----------------------------------------------------------------------------------------------------
                                         GMT config
 ----------------------------------------------------------------------------------------------------
@@ -483,23 +483,23 @@ dta_prealloc_helper_chunks       yes             256
          COMPILER_VERSION                          
 ----------------------------------------------------------------------------------------------------
 reading file /lustre/scratch/feo/wmd/data.200.csv
-Time for graph construction = 209.678832
+Time for graph construction = 216.558594
 
 Number of persons      = 5861533
-Number of forum_events = 12706519
+Number of forum_events = 12706520
 Number of forums       = 46
 Number of publications = 688623
-Number of topics       = 172004
+Number of topics       = 172005
 
 Number of purchase edges = 8785104
 Number of sale edges     = 8785104
-Number of author edges   = 22274416
-Number of include edges  = 12063811
-Number of hasTopic edges = 24951259
+Number of author edges   = 22274417
+Number of include edges  = 12063812
+Number of hasTopic edges = 24951260
 Number of hasOrg edges   = 2098558
 
-Total number of edges    = 78958252
-Total number of vertices = 19428726
+Total number of edges    = 78958255
+Total number of vertices = 19428727
 
 WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
@@ -517,6 +517,6 @@ WARNING: Called wait on a NULL handle
 WARNING: Called wait on a NULL handle
 pattern found for person 1128501731262832684
 WARNING: Called wait on a NULL handle
-Time for exact pattern matching = 12.885425
+Time for exact pattern matching = 13.448077
 ----------------------------------------------------------------------------------------------------
-salloc: Relinquishing job allocation 155181
+salloc: Relinquishing job allocation 155188
