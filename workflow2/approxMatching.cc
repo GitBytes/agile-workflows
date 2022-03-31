@@ -95,6 +95,8 @@ struct args_t {
   uint64_t delta;
   uint64_t arrayOID;
 };
+
+
 // Exclusive scan for vertex class array
 static void exclusiveRecursiveScan(shad::rt::Handle & handle, uint64_t pos, Vertex & elem, args_t & args) {
     auto arrayPtr = VertexType::GetPtr((VertexOID) args.arrayOID);
@@ -148,6 +150,7 @@ struct indices_args_t {
     int &target;
     int &a_num_vertices;
 };
+/*
 void addIndices(shad::rt::Handle & handle, size_t i, VertexL &val, indices_args_t & args)
 {
     int type;
@@ -170,7 +173,7 @@ void addIndices(shad::rt::Handle & handle, size_t i, VertexL &val, indices_args_
 
     shad::rt::waitForCompletion(handle);    
 }
-
+*/
 
 void createSquareMatrix(Graph_t &A, Graph_t &B, GraphL &L)
 {
@@ -179,11 +182,10 @@ void createSquareMatrix(Graph_t &A, Graph_t &B, GraphL &L)
         handle, 0, L.edgeNumber,
         [](shad::rt::Handle &handle, size_t k, Edge & edge,Graph_t &A, Graph_t &B, GraphL &L)
         {
-            std::vector<uint64_t> Aneighbors;
-            std::vector<uint64_t> AneighborsType;
-            std::vector<uint64_t> Bneighbors;
-            std::vector<uint64_t> BneighborsType;
-
+            
+            std::vector<Edge> Aneighbors;
+            std::vector<Edge> Bneighbors;
+            
             shad::rt::Handle handle1;
             /// get the two end points (i, j)
             uint64_t i=edge.src;
@@ -196,45 +198,19 @@ void createSquareMatrix(Graph_t &A, Graph_t &B, GraphL &L)
             //// Buffered Get: getElements()...
             ///// NOTE: create another handle
             
-            EdgeType::GetPtr((EdgeOID) A["Edges"])->AsyncForEachInRange(
-                  handle1, start, end,
-                  [](shad::rt::Handle &handle, size_t, Edge &edge, std::vector<uint64_t> &Aneighbors,
-                     std::vector<uint64_t> &AneighborsType) 
-                     {
-                        Aneighbors.push_back(edge.dst);
-                        AneighborsType.push_back((uint64_t)edge.type);
-                     },
-            Bneighbors,BneighborsType);
-
+            Aneighbors.resize(end-start+1);
+            EdgeType::GetPtr((EdgeOID) A["Edges"])->AsyncGetElements(handle1,&Aneighbors[0],start,end-start+1);
             shad::rt::waitForCompletion(handle1);
 
-            /*
-            for(uint64_t indx=start;indx<end;indx++)
-            {
-                uint64_t nb=(uint64_t)(EdgeType::GetPtr((EdgeOID) A["Edges"])->At(indx).dst);
-                Aneighbors.push_back(nb);
-
-                nb=(uint64_t)(EdgeType::GetPtr((EdgeOID) A["Edges"])->At(indx).type);
-                AneighborsType.push_back((uint64_t)nb);
-            }*/
             
             /// Get degree of j in B and resize nB, then get the neighbors in nB
             start=(uint64_t)(VertexType::GetPtr((VertexOID) B["Vertices"])->At(j).edges);
             end=(uint64_t)(VertexType::GetPtr((VertexOID) B["Vertices"])->At(j+1).edges);
             
-            //// NOTE: SHOULD I DO Async on B->edgePtr() ??
-            ///// NOTE: create another handle
-            EdgeType::GetPtr((EdgeOID) B["Edges"])->AsyncForEachInRange(
-                  handle1, start, end,
-                  [](shad::rt::Handle &handle, size_t, Edge &edge, std::vector<uint64_t> &Bneighbors,
-                     std::vector<uint64_t> &BneighborsType) 
-                     {
-                        Bneighbors.push_back(edge.dst);
-                        BneighborsType.push_back((uint64_t)edge.type);
-                     },
-            Bneighbors,BneighborsType);
-            
+            Bneighbors.resize(end-start+1);
+            EdgeType::GetPtr((EdgeOID) B["Edges"])->AsyncGetElements(handle1,&Bneighbors[0],start,end-start+1);
             shad::rt::waitForCompletion(handle1);
+            
 
             /*
             for(uint64_t indx=start;indx<end;indx++)
@@ -250,24 +226,67 @@ void createSquareMatrix(Graph_t &A, Graph_t &B, GraphL &L)
             /// and update the L.edge weight of (i,j)  
 
             for(int indx1=0;indx1<Aneighbors.size();indx1++)
-            {
-                uint64_t avType= (uint64_t)(VertexType::GetPtr((VertexOID) A["Vertices"])->At(Aneighbors[indx1]).type);
                 for(int indx2=indx1;indx2<Bneighbors.size();indx2++)
-                {
-                    if(AneighborsType[indx1]==BneighborsType[indx2])
-                    {
-                        uint64_t bvType=(uint64_t)(VertexType::GetPtr((VertexOID) B["Vertices"])->At(Aneighbors[indx2]).type);
-                        if(avType==bvType)
-                            edge.weight++;
-                    }
-                }
-
-            }
+                    if((Aneighbors[indx1].type==Bneighbors[indx2].type) && (Aneighbors[indx1].type==Bneighbors[indx2].type)) ///Edge
+                        edge.weight++;
+            
         },
     A,B,L);   
     shad::rt::waitForCompletion(handle); 
 }
 
+
+struct args_L_t {
+    uint64_t start;
+    uint64_t src;
+    TYPES type;
+    uint64_t typeOID;
+    uint64_t a_num_vertices;
+    Graph_t A;
+    Graph_t B;
+    Graph_t G;
+    GraphL L;
+};
+
+void addIndices(shad::rt::Handle & handle, args_L_t & args)
+{
+    uint64_t locale = (uint32_t) shad::rt::thisLocality();
+    if(locale != shad::rt::numLocalities())
+    {
+        args_L_t my_args=args;
+        
+
+        auto typeID   = PersonVertexType::GetPtr((PersonVertexOID) args.typeOID);
+        auto localMap  = typeID->GetLocalHashmap();
+        my_args.start = args.start + localMap->Size();;
+        
+
+        shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices, my_args);
+        
+        //// For loop
+
+    }
+
+
+}
+
+void create_LEdges(size_t i, VertexL &vertex, args_L_t & args)
+{
+    shad::rt::Handle handle;
+    args.start=vertex.edges;
+    args.src=i;
+    args.type=vertex.type;
+    
+    args.typeOID=0;
+    
+    
+    if(i < args.a_num_vertices)
+        args.G=args.B;
+    else
+        args.G=args.A;
+
+    shad::rt::asyncExecuteAt(handle, shad::rt::Locality(0), addIndices, args);
+}
 
 void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
 {
@@ -283,7 +302,7 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
 
     L.vertexNumber=a_num_vertices+b_num_vertices;
     L.a_num_vertices=a_num_vertices;
-    L.vertexOID=shad::Array<VertexL>::Create(L.vertexNumber + 1, VertexL(0,0,TYPES::NONE,-1, -1))->GetGlobalID();
+    L.vertexOID=shad::Array<VertexL>::Create(L.vertexNumber + 1, VertexL(0,0,0,TYPES::NONE,-1, -1))->GetGlobalID();
     
     
     int typeSize=5; /// Tells the number of vertex type
@@ -314,40 +333,28 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
     //L.edgeWID=shad::Array<float>::Create(L.edgeNumber, 0.0)->GetGlobalID();
     
     ///// For each vertex in the pattern ... 3...
-    
-    L.vertexPtr()->AsyncForEachInRange( //// EXCLUSIVE scan shift check
-        handle, 1, L.vertexNumber+1,
-        [](shad::rt::Handle &, size_t i, VertexL &val, Graph_t &A, Graph_t &B, Freq &fA, Freq &fB, int &ns)
+
+    auto A_Vertices =VertexType::GetPtr((VertexOID) A["Vertices"]);
+    A_Vertices->AsyncForEach(handle,
+        [](shad::rt::Handle &, size_t i, Vertex &vertex, GraphL &L, Freq &fB)
         {
-            
-            if(i<ns)  ///// CREATE a static array#
-            {
-                //val.id=GlobalIDType::GetPtr((GlobalIDOID) A["GlobalIDS"])->At(i).id;
-
-                /// AsyncApplywithRETBUFF
-                val.id=VertexType::GetPtr((VertexOID) A["Vertices"])->At(i).id; ///// This has to be global ID
-                val.type=VertexType::GetPtr((VertexOID) A["Vertices"])->At(i).type;
-                
-                int type=(int)(VertexType::GetPtr((VertexOID) A["Vertices"])->At(i-1).type);
-                auto count=fB.counter[type];
-                val.edges=count;
-                
-                
-            }
-            else
-            {
-                val.id=VertexType::GetPtr((VertexOID) B["Vertices"])->At(i-ns).id; ///// This has to be global ID
-                val.type=VertexType::GetPtr((VertexOID) B["Vertices"])->At(i-ns).type;
-
-                int type=int(VertexType::GetPtr((VertexOID) B["Vertices"])->At(i-1-ns).type);
-                auto count=fA.counter[type];
-                val.edges=count;  
-                
-            }
+            shad::rt::Handle handle1;
+            size_t pos=i;
+            auto count=fB.counter[(uint64_t)vertex.type];
+            L.vertexPtr()->AsyncInsertAt(handle1, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
         },
-        A,B,AtypeFreq, BtypeFreq, a_num_vertices);
+    L,BtypeFreq);
 
-       
+    auto B_Vertices =VertexType::GetPtr((VertexOID) B["Vertices"]);
+    B_Vertices->AsyncForEach(handle,
+        [](shad::rt::Handle &, size_t i, Vertex &vertex, GraphL &L, Freq &fA)
+        {
+            shad::rt::Handle handle1;
+            auto count=fA.counter[(uint64_t)vertex.type];
+            size_t pos=i+L.a_num_vertices;
+            L.vertexPtr()->AsyncInsertAt(handle1, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
+        },
+    L,AtypeFreq);
     
     shad::rt::waitForCompletion(handle);
     
@@ -355,6 +362,18 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
     //exclusiveScanVertices(L.vertexOID);     // exclusive scan for the vertex pointer array of L
     exclusiveScanVertices((uint64_t)L.vertexOID);
     /// Now get the all vertices (global ids) of a vertex type
+
+
+    ///// Adding the  edge pointer array
+    args_L_t args;
+    args.A=A;
+    args.B=B;
+    args.L=L;
+    args.a_num_vertices=L.a_num_vertices;
+    L.vertexPtr()->ForEach(create_LEdges, args);
+
+
+
     
     std::vector<uint64_t> colIndices; /// SHAD ARRAY <GLBID> #Number of Persons in DATA 
     
@@ -560,12 +579,16 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
                     uint64_t heavyIndx=-1;
                     double heaviest=0.0;
                     double weight=0.0;
+                    Edge edge;
 
                     //// NOTE: SHOULD I DO Async on L->edgePtr() ??
                     for(int indx=start;indx<end;indx++)
                     {
-                        weight=L.edgePtr()->At(indx).weight;
-                        id=L.edgePtr()->At(indx).dst;
+                        edge=L.edgePtr()->At(indx);
+                        weight=edge.weight;
+                        //weight=L.edgePtr()->At(indx).weight;
+                        id=edge.dst;
+                        //id=L.edgePtr()->At(indx).dst;
                         if((weight > 0.0) &&( weight > heaviest) || (weight == heaviest && id > partner ))
                         {
                             partner=id;
@@ -594,19 +617,17 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
                 {
                     //// We got a match, RESET edges we need this for multiple matches
                     ///L.edgePtr()->At(vertex.indx).weight=-1.0;
-                    uint64_t start=(uint64_t)L.vertexPtr()->At(i).edges;
-                    uint64_t end=(uint64_t)L.vertexPtr()->At(i+1).edges;
-                    
                     //// NOTE: L.edgePtr()->AsyncApply(indx,function(), args);
-                    L.edgePtr()->AsyncForEachInRange(
-                        handle, start,end,
-                        [](shad::rt::Handle &, size_t i, Edge &edge, uint64_t &indx)
+                    shad::rt::Handle handle1;
+                    double val=-1.00;
+                    L.edgePtr()->AsyncApply(handle1, indx,
+                        [](shad::rt::Handle &, size_t i, Edge &edge, double &val)
                         {
-                            if(i==indx)
-                                edge.weight=-1.0;
+                            edge.weight=val;
                         },
-                    indx);
-
+                    val);
+                    shad::rt::waitForCompletion(handle1);
+                    
                     localCounter++;
                 }
                 else
@@ -616,17 +637,7 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
 
         shad::rt::waitForCompletion(handle);
 
-        /*
-        counter->AsyncForEachInRange(
-        handle, 0, total_ranks,
-        [](shad::rt::Handle &, size_t i, int &count, int &localCounter) 
-        {
-            count=localCounter;
-        },
-        localCounter);
-
-        shad::rt::waitForCompletion(handle);
-        */
+        
         /////// This reducer is copied from the SHAD PNNL GIT examples
         // This performs a reduction into a single counter.
         std::vector<double> reducer(shad::rt::numLocalities());
@@ -655,13 +666,16 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
     }
 
     //// Now get the matching and reset the mates
+    ///// NOTE: SHOULD we do HANDLE 1 ??
     L.vertexPtr()->AsyncForEach(handle,
         [](shad::rt::Handle &handle, size_t i, VertexL &vertex, shad::Array<int>::ObjectID &mateID, uint64_t &ns)
         {
             auto mate = shad::Array<int>::GetPtr(mateID);
+            shad::rt::Handle handle1;
             if(vertex.mate != -1 && i < ns)
-                mate->AsyncInsertAt(handle,i, vertex.mate);
+                mate->AsyncInsertAt(handle1,i, vertex.mate);
             
+            shad::rt::waitForCompletion(handle1);
             vertex.mate=-1;
         },
     mateID,L.a_num_vertices);
