@@ -81,8 +81,8 @@ bool forumEvent_subpattern(uint64_t person, time_t date, Pattern_args_t & args) 
   AuthorEdgeType::LookupResult events;             // get person's events
   Authors->Lookup(person, & events);
 
-  for (auto & EV : events.value) {                 // for each forum event
-    if (EV.type != TYPES::FORUMEVENT) continue;
+  for (auto & EV : events.value) {                 // for each P -> FE
+    if (EV.dst_type != TYPES::FORUMEVENT) continue;
 
     if (! forum_1) forum_1 = forum_1_subpattern(jihadForums, EV.item, args);
     if (! forum_2) forum_2 = forum_2_subpattern(date, EV.item, args);
@@ -106,12 +106,12 @@ bool electronic_subpattern(uint64_t seller, Pattern_args_t & args) {
   Authors->Lookup(seller, & documents);
 
   for (auto & PUB : documents.value) {                // for each publication
-    if (PUB.type != TYPES::PUBLICATION) continue;
+    if (PUB.dst_type != TYPES::PUBLICATION) continue;
 
     HasTopicEdgeType::LookupResult topics;            // ... get publication's topics
     HasTopic->Lookup(PUB.item, & topics);
 
-    for (auto & PT : topics.value) {                  // ... for each publication topic
+    for (auto & PT : topics.value) {                  // ... for each topic
       if (PT.topic != 43035) continue;                // ... ... topic is not electrical engineering
 
       HasOrgEdgeType::LookupResult organizations;     // ... ... get publication's organizations

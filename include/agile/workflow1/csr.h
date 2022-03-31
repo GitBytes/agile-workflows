@@ -5,11 +5,11 @@
 #include <limits>
 #include <vector>
 
-#include "agile/workflow2/main.h"
+#include "agile/workflow1/main.h"
 #include "shad/data_structures/hashmap.h"
 #include "shad/extensions/data_types/data_types.h"
 
-namespace agile::workflow2 {
+namespace agile::workflow1 {
 
 struct MTE_args_t {
   TYPES type;
@@ -36,6 +36,6 @@ void MoveTableEdges(shad::rt::Handle & handle, const uint64_t & key,
   memcpy(ret, & NE, sizeof(uint64_t));
 };
 
-} // namespace agile::workflow2
+} // namespace agile::workflow1
 
 #endif // CSR_H
