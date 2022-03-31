@@ -85,6 +85,7 @@ class Edge {
     }
 };
 
+
 using EdgeType = shad::Array<Edge>;
 using EdgeOID  = shad::ObjectIdentifier<EdgeType>;
 
