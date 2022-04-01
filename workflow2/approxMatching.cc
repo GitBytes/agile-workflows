@@ -150,7 +150,7 @@ struct indices_args_t {
     int &target;
     int &a_num_vertices;
 };
-/*
+
 void addIndices(shad::rt::Handle & handle, size_t i, VertexL &val, indices_args_t & args)
 {
     int type;
@@ -162,7 +162,7 @@ void addIndices(shad::rt::Handle & handle, size_t i, VertexL &val, indices_args_
     std::vector<Edge> edges;
     for(int j=0;j<args.values.size();j++)
     {
-        edges.push_back(Edge((uint64_t)i,(uint64_t)args.values[j],(double)0.0, TYPES::NONE));
+        edges.push_back(Edge((uint64_t)i,(uint64_t)args.values[j],(double)0.0, TYPES::NONE,TYPES::NONE,TYPES::NONE));
     }
     if(type == args.target)
     {
@@ -173,7 +173,7 @@ void addIndices(shad::rt::Handle & handle, size_t i, VertexL &val, indices_args_
 
     shad::rt::waitForCompletion(handle);    
 }
-*/
+
 
 void createSquareMatrix(Graph_t &A, Graph_t &B, GraphL &L)
 {
@@ -227,7 +227,7 @@ void createSquareMatrix(Graph_t &A, Graph_t &B, GraphL &L)
 
             for(int indx1=0;indx1<Aneighbors.size();indx1++)
                 for(int indx2=indx1;indx2<Bneighbors.size();indx2++)
-                    if((Aneighbors[indx1].type==Bneighbors[indx2].type) && (Aneighbors[indx1].type==Bneighbors[indx2].type)) ///Edge
+                    if((Aneighbors[indx1].dst_type==Bneighbors[indx2].dst_type) && (Aneighbors[indx1].type==Bneighbors[indx2].type)) ///Edge
                         edge.weight++;
             
         },
@@ -237,56 +237,101 @@ void createSquareMatrix(Graph_t &A, Graph_t &B, GraphL &L)
 
 
 struct args_L_t {
+    Graph_t &A;
+    Graph_t &B;
+    Graph_t &G;
+    GraphL &L;
     uint64_t start;
     uint64_t src;
     TYPES type;
-    uint64_t typeOID;
     uint64_t a_num_vertices;
-    Graph_t A;
-    Graph_t B;
-    Graph_t G;
-    GraphL L;
+    uint64_t offset;
+    
 };
 
-void addIndices(shad::rt::Handle & handle, args_L_t & args)
+void addEdge()
+{
+    
+
+}
+
+void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
 {
     uint64_t locale = (uint32_t) shad::rt::thisLocality();
     if(locale != shad::rt::numLocalities())
     {
         args_L_t my_args=args;
-        
-
-        auto typeID   = PersonVertexType::GetPtr((PersonVertexOID) args.typeOID);
-        auto localMap  = typeID->GetLocalHashmap();
-        my_args.start = args.start + localMap->Size();;
-        
-
-        shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices, my_args);
-        
-        //// For loop
+        uint64_t my_start=args.start;
+        if(args.type == TYPES::PERSON)
+        {
+            auto typeID   = PersonVertexType::GetPtr((PersonVertexOID) args.G["Persons"]);
+            auto localMap  = typeID->GetLocalHashmap();
+            my_args.start = args.start + localMap->Size();;
+            shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
+            
+            for(auto it = typeID->local_begin(); it != typeID->local_end(); ++it )
+            {
+                uint64_t dst=(*it).second.GLBID+args.offset;
+                args.L.edgePtr()->BufferedAsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type));
+                my_start++; 
+            }
+        }
+        else if(args.type == TYPES::TOPIC)
+        {
+            auto typeID   = TopicVertexType::GetPtr( (TopicVertexOID) args.G["Topics"]);
+            auto localMap  = typeID->GetLocalHashmap();
+            my_args.start = args.start + localMap->Size();;
+            shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
+        }
+        else if(args.type == TYPES::PUBLICATION)
+        {
+            auto typeID   = PublicationVertexType::GetPtr( (PublicationVertexOID) args.G["Publications"]);
+            auto localMap  = typeID->GetLocalHashmap();
+            my_args.start = args.start + localMap->Size();;
+            shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
+        }
+        else if(args.type == TYPES::FORUMEVENT)
+        {
+            auto typeID   = ForumEventVertexType::GetPtr( (ForumEventVertexOID) args.G["ForumEvents"]);
+            auto localMap  = typeID->GetLocalHashmap();
+            my_args.start = args.start + localMap->Size();;
+            shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
+        }
+        else if(args.type == TYPES::FORUM)
+        {
+            auto typeID   = ForumVertexType::GetPtr( (ForumVertexOID) args.G["Forums"]);
+            auto localMap  = typeID->GetLocalHashmap();
+            my_args.start = args.start + localMap->Size();;
+            shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
+        }
 
     }
 
 
 }
 
-void create_LEdges(size_t i, VertexL &vertex, args_L_t & args)
+
+void create_LEdges(size_t i, VertexL &vertex, args_L_t &args)
 {
     shad::rt::Handle handle;
     args.start=vertex.edges;
     args.src=i;
     args.type=vertex.type;
-    
-    args.typeOID=0;
-    
-    
+        
     if(i < args.a_num_vertices)
+    {
         args.G=args.B;
+        args.offset=args.a_num_vertices;
+    }
     else
+    {
         args.G=args.A;
+        args.offset=0;
+    }
 
-    shad::rt::asyncExecuteAt(handle, shad::rt::Locality(0), addIndices, args);
+    shad::rt::asyncExecuteAt(handle, shad::rt::Locality(0), addIndices_L, args);
 }
+
 
 void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
 {
@@ -363,16 +408,15 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
     exclusiveScanVertices((uint64_t)L.vertexOID);
     /// Now get the all vertices (global ids) of a vertex type
 
-
+    
     ///// Adding the  edge pointer array
-    args_L_t args;
-    args.A=A;
-    args.B=B;
-    args.L=L;
+    args_L_t args={A,B,B,L,0,0,TYPES::NONE,0,0};
     args.a_num_vertices=L.a_num_vertices;
     L.vertexPtr()->ForEach(create_LEdges, args);
+    
 
-
+    
+    
 
     
     std::vector<uint64_t> colIndices; /// SHAD ARRAY <GLBID> #Number of Persons in DATA 
@@ -661,8 +705,6 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
             size_t(0));
 
         shad::rt::waitForCompletion(handle);
-
-
     }
 
     //// Now get the matching and reset the mates
@@ -685,13 +727,6 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
 void netAlign(uint64_t argc, char* argv[])
 {
 
-    /*
-    netalign_parameters opts;
-    if (!opts.parse(argc, argv)) {
-        return;
-    }
-    
-    */
 
     auto my_rank=shad::rt::thisLocality();
     auto total_ranks =shad::rt::numLocalities();
