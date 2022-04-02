@@ -38,7 +38,7 @@ using intSetOID = shad::ObjectIdentifier<intSet>;
 using Graph_t = std::map<std::string, uint64_t>;
 
 void readFile(std::string & filename, Graph_t & graph);
-void CSR(uint64_t &m, uint64_t &, Graph_t & graph);
+void CSR(uint64_t &, uint64_t &, Graph_t & graph);
 void WMD_pattern(Graph_t &);
 
 } // namespace agile::workflow2

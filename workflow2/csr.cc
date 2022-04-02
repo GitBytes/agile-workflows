@@ -129,10 +129,12 @@ void moveEdges(uint64_t pos, Vertex & value, ME_args_t & args) {
 
      my_args.type = TYPES::AUTHOR;       // ... AUTHOR edges
      Authors->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<AuthorEdge>, (uint8_t *) & NE, & retSize, my_args);
+     waitForCompletion(handle);
 
   } else if (value.type == TYPES::FORUMEVENT) {     // ForumEvent has has_topic edges
-     my_args.type     = TYPES::HASTOPIC;            // ... HASTOPIC edges
+     my_args.type = TYPES::HASTOPIC;                // ... HASTOPIC edges
      HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, my_args);
+     waitForCompletion(handle);
 
   } else if (value.type == TYPES::FORUM) {     // Forum has includes and has_topic edges
      my_args.type = TYPES::INCLUDES;           // ... INLCUDES edges
@@ -144,6 +146,7 @@ void moveEdges(uint64_t pos, Vertex & value, ME_args_t & args) {
 
      my_args.type = TYPES::HASTOPIC;           // ... HASTOPIC edges
      HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, my_args);
+     waitForCompletion(handle);
 
   } else if (value.type == TYPES::PUBLICATION) {     // Publication has has_org and has_topic edges
      my_args.type = TYPES::HASORG;                   // ... HASORG edges
@@ -155,11 +158,8 @@ void moveEdges(uint64_t pos, Vertex & value, ME_args_t & args) {
 
      my_args.type = TYPES::HASTOPIC;                 // ... HASTOPIC edges
      HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, my_args);
-
-  } else return;
-
-  waitForCompletion(handle);
-}
+     waitForCompletion(handle);
+} }
 
 
 /********** CREATE COMPRESSED EDGE ARRAY AND VERTEX ARRAY **********/
@@ -168,7 +168,7 @@ void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
   auto GlobalIDS = GlobalIDType::GetPtr((GlobalIDOID) graph["GlobalIDS"]);
 
 // ***** allocate space for Vertices, fill pointers, and add to graph *****/
-  num_vertices = GlobalIDS->Size();
+  num_vertices  = GlobalIDS->Size();
   auto Vertices = VertexType::Create(num_vertices + 1, Vertex());
 
   Vertices->FillPtrs();
@@ -188,7 +188,7 @@ void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
   exclusiveScanVertices(graph["Vertices"]);     // exclusive scan of edges to convert # edges to start location
 
 // ***** allocate space for Edges, fill pointers, and add to graph *****/
-  num_edges = ( Vertices->At(num_vertices) ).edges;
+  num_edges  = (Vertices->At(num_vertices)).edges;
   auto Edges = EdgeType::Create(num_edges, Edge());
 
   Edges->FillPtrs();

@@ -1,7 +1,7 @@
 #include "agile/workflow1/main.h"
 #include "agile/workflow1/graph.h"
 
-#define NUM_FEATURES 22
+#define NUM_FEATURES 11
 
 namespace agile::workflow1 {
 using Emb_t = shad::Array<uint64_t>;
@@ -15,48 +15,47 @@ struct Args_t {
   uint64_t EmbeddingsOID;
 };
 
-void TwoHopFeatures(const uint64_t & ndx, Vertex & vertex, Args_t & args) {
-  auto Edges = args.Edges;
-  auto Vertices = args.Vertices;
+
+// Histogram of two hop edge and neigbor vertex types
+void TwoHopFeatures(shad::rt::Handle & handle, const uint64_t ndx, Vertex & vertex, Args_t & args) {
+  auto Edges = EdgeType::GetPtr((EdgeOID) args.EdgesOID);
+  auto Vertices = VertexType::GetPtr((VertexOID) args.VerticesOID);
+  auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID) args.EmbeddingsOID);
+
   Vertex nextVertex = Vertices->At(ndx + 1);
   uint64_t num_edges = nextVertex.edges - vertex.edges;
+  if (num_edges == 0) return;
 
-  shad::rt::Handle handle;
+  shad::rt::Handle my_handle;
   std::vector<Edge> edges(num_edges);
   std::vector<uint64_t> features(NUM_FEATURES, 0);
-  Edges->AsyncGetElements(handle, vertex.edges, edges.data(), num_edges);
+
+  Edges->AsyncGetElements(my_handle, edges.data(), vertex.edges, num_edges);
+  waitForCompletion(my_handle);
 
   for (auto & edge : edges) {
-    feature[ (uint64_t) edge.type ] ++;
-    Vertex neighbor;
-    neighbor = Vertices->At(edge.dst);             // get neighbor vertex
+       features[ (uint64_t) edge.type ] ++;
+       features[ (uint64_t) edge.dst_type ] ++;
+  }
 
-    features[ (uint64_t) edge.type ] ++;           // increment edge type feature
-    features[ (uint64_t) neighbor.type ] ++;       // increment vertex type feature
-
-     EdgeType::LookupResult neighborEdges;
-     Edges->At(edge.dst, & neighborEdges);         // get neighbor's edges
-
-    for (auto & edge : neighborEdges.value) {
-      Vertex neighbor;
-      Vertices->At(edge.dst, & neighbor);          // get neighbor's neighbor vertex
-
-      features[ (uint64_t) edge.type ] ++;         // increment neighbor's edge type feature
-      features[ (uint64_t) neighbor.type ] ++;     // increment neighbor's vertex type feature
-} } }
+  Embeddings->AsyncInsertAt(handle, ndx * NUM_FEATURES, features.data(), NUM_FEATURES);
+}
 
 
-void GNN(Graph_t & graph) {
-  auto Embeddings = EmbeddingType::Create(Vertices->Size() * NUM_FEATURES, 0);
+void GNN(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
+  shad::rt::Handle handle;
+  auto Vertices = VertexType::GetPtr((VertexOID) graph["Vertices"]);
+  auto Embeddings = EmbeddingType::Create(num_vertices * NUM_FEATURES, 0);
 
   Embeddings->FillPtrs();
   graph["Embeddings"] = (uint64_t) (Embeddings->GetGlobalID());
 
   Args_t args;
-  args.Edges = graph["Edges"];
-  args.Vertices = graph["Vertices"];
-  args.Embeddings = graph["Embeddings"];
+  args.EdgesOID = graph["Edges"];
+  args.VerticesOID = graph["Vertices"];
+  args.EmbeddingsOID = graph["Embeddings"];
 
-  Vertices->ForEachEntry(TwoHopFeatures, args_1);
+  Vertices->AsyncForEachInRange(handle, 0, num_vertices, TwoHopFeatures, args);
+  waitForCompletion(handle);
 }
 }
