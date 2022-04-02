@@ -21,13 +21,15 @@ namespace agile::workflow2 {
 
 class VertexL {          // used by both GlobalIDS and Vertices
   public:
+    uint64_t label;
     uint64_t id;        // GlobalIDS: global id ... Vertices: vertex id
     uint64_t edges;     // GlobalIDS: number of edges ... Vertices: start index in Edges
     TYPES    type;
-    uint64_t mate;
-    uint64_t indx;
+    int mate;
+    int indx;
 
     VertexL () {
+      label = shad::data_types::kNullValue<uint64_t>;
       id    = shad::data_types::kNullValue<uint64_t>;
       edges = shad::data_types::kNullValue<uint64_t>;
       type  = TYPES::NONE;
@@ -35,7 +37,8 @@ class VertexL {          // used by both GlobalIDS and Vertices
       indx  = -1;
     }
 
-    VertexL (uint64_t id_, uint64_t edges_, TYPES type_, uint64_t mate_, uint64_t indx_) {
+    VertexL (uint64_t label_, uint64_t id_, uint64_t edges_, TYPES type_, int mate_, int indx_) {
+      label = label_;
       id    = id_;
       edges = edges_;
       type  = type_;
