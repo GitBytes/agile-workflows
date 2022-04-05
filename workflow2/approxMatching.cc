@@ -282,6 +282,13 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
             auto localMap  = typeID->GetLocalHashmap();
             my_args.start = args.start + localMap->Size();;
             shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
+
+            for(auto it = typeID->local_begin(); it != typeID->local_end(); ++it )
+            {
+                uint64_t dst=(*it).second.GLBID+args.offset;
+                args.L.edgePtr()->BufferedAsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type));
+                my_start++; 
+            }
         }
         else if(args.type == TYPES::PUBLICATION)
         {
@@ -289,6 +296,13 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
             auto localMap  = typeID->GetLocalHashmap();
             my_args.start = args.start + localMap->Size();;
             shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
+
+            for(auto it = typeID->local_begin(); it != typeID->local_end(); ++it )
+            {
+                uint64_t dst=(*it).second.GLBID+args.offset;
+                args.L.edgePtr()->BufferedAsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type));
+                my_start++; 
+            }
         }
         else if(args.type == TYPES::FORUMEVENT)
         {
@@ -296,6 +310,13 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
             auto localMap  = typeID->GetLocalHashmap();
             my_args.start = args.start + localMap->Size();;
             shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
+
+            for(auto it = typeID->local_begin(); it != typeID->local_end(); ++it )
+            {
+                uint64_t dst=(*it).second.GLBID+args.offset;
+                args.L.edgePtr()->BufferedAsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type));
+                my_start++; 
+            }
         }
         else if(args.type == TYPES::FORUM)
         {
@@ -303,6 +324,13 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
             auto localMap  = typeID->GetLocalHashmap();
             my_args.start = args.start + localMap->Size();;
             shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
+
+            for(auto it = typeID->local_begin(); it != typeID->local_end(); ++it )
+            {
+                uint64_t dst=(*it).second.GLBID+args.offset;
+                args.L.edgePtr()->BufferedAsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type));
+                my_start++; 
+            }
         }
 
     }
@@ -330,6 +358,7 @@ void create_LEdges(size_t i, VertexL &vertex, args_L_t &args)
     }
 
     shad::rt::asyncExecuteAt(handle, shad::rt::Locality(0), addIndices_L, args);
+    shad::rt::waitForCompletion(handle);
 }
 
 
@@ -349,6 +378,7 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
     L.a_num_vertices=a_num_vertices;
     L.vertexOID=shad::Array<VertexL>::Create(L.vertexNumber + 1, VertexL(0,0,0,TYPES::NONE,-1, -1))->GetGlobalID();
     
+    std::cout<<"Num Vertices: "<<L.vertexNumber<<" "<<L.a_num_vertices<<std::endl;
     
     int typeSize=5; /// Tells the number of vertex type
     
@@ -373,6 +403,7 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
         count+=AtypeFreq.counter[i]*BtypeFreq.counter[i];
     
     L.edgeNumber=2*count;
+    std::cout<<"Edges: "<<L.edgeNumber<<std::endl;
     //L.edgeOID=shad::Array<uint64_t>::Create(L.edgeNumber, 0)->GetGlobalID();
     L.edgeOID=shad::Array<Edge>::Create(L.edgeNumber,Edge())->GetGlobalID();
     //L.edgeWID=shad::Array<float>::Create(L.edgeNumber, 0.0)->GetGlobalID();
@@ -386,9 +417,12 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
             shad::rt::Handle handle1;
             size_t pos=i;
             auto count=fB.counter[(uint64_t)vertex.type];
-            L.vertexPtr()->AsyncInsertAt(handle1, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
+            L.vertexPtr()->BufferedAsyncInsertAt(handle1, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
+            shad::rt::waitForCompletion(handle1);
         },
     L,BtypeFreq);
+
+    shad::rt::waitForCompletion(handle);
 
     auto B_Vertices =VertexType::GetPtr((VertexOID) B["Vertices"]);
     B_Vertices->AsyncForEach(handle,
@@ -397,7 +431,8 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
             shad::rt::Handle handle1;
             auto count=fA.counter[(uint64_t)vertex.type];
             size_t pos=i+L.a_num_vertices;
-            L.vertexPtr()->AsyncInsertAt(handle1, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
+            L.vertexPtr()->BufferedAsyncInsertAt(handle1, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
+            shad::rt::waitForCompletion(handle1);
         },
     L,AtypeFreq);
     
@@ -413,183 +448,8 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
     args_L_t args={A,B,B,L,0,0,TYPES::NONE,0,0};
     args.a_num_vertices=L.a_num_vertices;
     L.vertexPtr()->ForEach(create_LEdges, args);
-    
-
-    
-    
-
-    
-    std::vector<uint64_t> colIndices; /// SHAD ARRAY <GLBID> #Number of Persons in DATA 
-    
-    ///// Get the neighbor and do a serial search
-    auto Persons      = PersonVertexType::GetPtr( (PersonVertexOID) B["Persons"] );
-    auto ForumEvents  = ForumEventVertexType::GetPtr( (ForumEventVertexOID) B["ForumEvents"] );
-    auto Forums       = ForumVertexType::GetPtr( (ForumVertexOID) B["Forums"] );
-    auto Publications = PublicationVertexType::GetPtr( (PublicationVertexOID) B["Publications"] );
-    auto Topics       = TopicVertexType::GetPtr( (TopicVertexOID) B["Topics"] );
-
-
-    ////////////////// Persons
-    int target=0;
-    Persons->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, PersonVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all person vertices
-    indices_args_t ind_args={A,B,L,colIndices,target,a_num_vertices};
-    L.vertexPtr()->AsyncForEachInRange(handle, 0, a_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
-
-    ////////////////// Forum Event
-    //col_args = {colIndices};
-    target=1;
-    ForumEvents->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, ForumEventVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all ForumEvent vertices
-    ind_args.target=target;
-    L.vertexPtr()->AsyncForEachInRange(handle, 0, a_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
-
-    ////////////////// Forums
-    //col_args = {colIndices};
-    target=2;
-    Forums->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, ForumVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all ForumEvent vertices
-    ind_args.target=target;
-    L.vertexPtr()->AsyncForEachInRange(handle, 0, a_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
-
-    ////////////////// Publication 
-    //col_args = {colIndices};
-    target=3;
-    Publications->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, PublicationVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all ForumEvent vertices
-    ind_args.target=target;
-    L.vertexPtr()->AsyncForEachInRange(handle, 0, a_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
-
-    ////////////////// Topic 
-    //col_args = {colIndices};
-    target=4;
-    Topics->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, TopicVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all ForumEvent vertices
-    ind_args.target=target;
-    L.vertexPtr()->AsyncForEachInRange(handle, 0, a_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
-
-    /************************* NOW DO IT FROM B to A *****************/
-    ///// Get the neighbor and do a serial search
-    Persons      = PersonVertexType::GetPtr( (PersonVertexOID) A["Persons"] );
-    ForumEvents  = ForumEventVertexType::GetPtr( (ForumEventVertexOID) A["ForumEvents"] );
-    Forums       = ForumVertexType::GetPtr( (ForumVertexOID) A["Forums"] );
-    Publications = PublicationVertexType::GetPtr( (PublicationVertexOID) A["Publications"] );
-    Topics       = TopicVertexType::GetPtr( (TopicVertexOID) A["Topics"] );
-
-
-    ////////////////// Persons
-    target=0;
-    Persons->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, PersonVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all person vertices
-    ind_args.target=target;
-    L.vertexPtr()->AsyncForEachInRange(handle, a_num_vertices, b_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
-
-    ////////////////// Forum Event
-    //col_args = {colIndices};
-    target=1;
-    ForumEvents->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, ForumEventVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all ForumEvent vertices
-    ind_args.target=target;
-    L.vertexPtr()->AsyncForEachInRange(handle, a_num_vertices, b_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
-
-    ////////////////// Forums
-    //col_args = {colIndices};
-    target=2;
-    Forums->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, ForumVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all ForumEvent vertices
-    ind_args.target=target;
-    L.vertexPtr()->AsyncForEachInRange(handle, a_num_vertices, b_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
-
-    ////////////////// Publication 
-    //col_args = {colIndices};
-    target=3;
-    Publications->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, PublicationVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all ForumEvent vertices
-    ind_args.target=target;
-    L.vertexPtr()->AsyncForEachInRange(handle, a_num_vertices, b_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
-
-    ////////////////// Topic 
-    //col_args = {colIndices};
-    target=4;
-    Topics->AsyncForEachEntry(handle, 
-        [](shad::rt::Handle & handle, const uint64_t & key, TopicVertex & vertex, std::vector<uint64_t >& vec) 
-        {
-            vec.push_back(vertex.GLBID);
-        },
-        colIndices); /// I have global ids of all ForumEvent vertices
-    ind_args.target=target;
-    L.vertexPtr()->AsyncForEachInRange(handle, a_num_vertices, b_num_vertices, addIndices,ind_args);
-    shad::rt::waitForCompletion(handle);
-    colIndices.clear();
-    ////////////////////////////////
 }
 
-/*
-
-*/
 
 
 void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
@@ -724,16 +584,16 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
     shad::rt::waitForCompletion(handle);
 }
 
-void netAlign(uint64_t argc, char* argv[])
+void netAlign(std::string & patternFile,std::string & dataFile)
 {
 
 
     auto my_rank=shad::rt::thisLocality();
     auto total_ranks =shad::rt::numLocalities();
 
-    std::string basename = "test";
-    std::string Afilename = basename + "-A.mtx";
-    std::string Bfilename = basename + "-B.mtx";
+    //std::string basename = "test";
+    //std::string Afilename = basename + "-A.mtx";
+    //std::string Bfilename = basename + "-B.mtx";
     
     
     double time1,time2,time3,time4,time5,time6,time7,temp,timet;
@@ -745,12 +605,12 @@ void netAlign(uint64_t argc, char* argv[])
     Graph_t A;
     Graph_t B;
     uint64_t  m,n;
-    readFile( Afilename, A);
+    readFile( patternFile, A);
     CSR(m, n, A);
     std::cout<<"File A reading done..!!"<<std::endl;
     time2=my_timer();
 
-    readFile( Bfilename, B);
+    readFile( dataFile, B);
     CSR(m, n, B);
     std::cout<<"File B reading done..!!"<<std::endl;
     time3=my_timer();
