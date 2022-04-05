@@ -27,7 +27,7 @@ void MoveTableEdges(shad::rt::Handle & handle, const uint64_t & key,
 
   for (auto & E1 : value) {
     Edge E2( E1.src(), E1.dst(), 0.0, args.type, E1.src_type, E1.dst_type );
-    Edges->BufferedAsyncInsertAt( handle, start, E2);
+    Edges->AsyncInsertAt(handle, start, E2);
     start ++;
     NE ++;
   };
