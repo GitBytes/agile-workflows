@@ -36,6 +36,8 @@ void MoveTableEdges(shad::rt::Handle & handle, const uint64_t & key,
   memcpy(ret, & NE, sizeof(uint64_t));
 };
 
+void exclusiveScanVertices(uint64_t arrayOID);
+
 } // namespace agile::workflow2
 
 #endif // CSR_H

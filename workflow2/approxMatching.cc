@@ -34,6 +34,7 @@
 #include "shad/core/numeric.h"
 #include "agile/workflow2/main.h"
 #include "agile/workflow2/graph.h"
+#include "agile/workflow2/csr.h"
 
 namespace agile::workflow2{
 
@@ -98,12 +99,13 @@ struct args_t {
 
 
 // Exclusive scan for vertex class array
-static void exclusiveRecursiveScan(shad::rt::Handle & handle, uint64_t pos, Vertex & elem, args_t & args) {
-    auto arrayPtr = VertexType::GetPtr((VertexOID) args.arrayOID);
+static void exclusiveRecursiveScan(shad::rt::Handle & handle, uint64_t pos, VertexL & elem, args_t & args) {
+    //auto arrayPtr = VertexType::GetPtr((VertexOID) args.arrayOID);
+    auto arrayPtr = shad::Array<VertexL>::GetPtr((shad::Array<VertexL>::ObjectID) args.arrayOID);
 
     uint64_t delta  = args.delta;
     uint64_t nelems = arrayPtr->getNElems();
-    std::vector<Vertex> * data = arrayPtr->getData();
+    std::vector<VertexL> * data = arrayPtr->getData();
 
     // if not the last set, spawn next scan
     // ... next delta is this delta + # edges of last vertex in set 
@@ -121,13 +123,14 @@ static void exclusiveRecursiveScan(shad::rt::Handle & handle, uint64_t pos, Vert
 }
 
 
-void exclusiveScanVertices(uint64_t arrayOID) {
-  auto arrayPtr = VertexType::GetPtr((VertexOID) arrayOID);
+void exclusiveScanVerticesL(uint64_t arrayOID) {
+  //auto arrayPtr = VertexType::GetPtr((VertexOID) arrayOID);
+  auto arrayPtr = shad::Array<VertexL>::GetPtr((shad::Array<VertexL>::ObjectID) arrayOID);
 
   auto localInclusiveScan = [](shad::rt::Handle & handle, const uint64_t & arrayOID) {
-    auto arrayPtr = VertexType::GetPtr((VertexOID) arrayOID);
+    auto arrayPtr = shad::Array<VertexL>::GetPtr((shad::Array<VertexL>::ObjectID) arrayOID);
     uint64_t nelems = arrayPtr->getNElems();
-    std::vector<Vertex> * data = arrayPtr->getData();
+    std::vector<VertexL> * data = arrayPtr->getData();
 
     for (uint64_t i = 1; i < nelems; i ++) (* data)[i].edges += (* data)[i - 1].edges;
   };
@@ -239,8 +242,8 @@ void createSquareMatrix(Graph_t &A, Graph_t &B, GraphL &L)
 struct args_L_t {
     Graph_t &A;
     Graph_t &B;
-    Graph_t &G;
     GraphL &L;
+    uint64_t side;
     uint64_t start;
     uint64_t src;
     TYPES type;
@@ -264,7 +267,9 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
         uint64_t my_start=args.start;
         if(args.type == TYPES::PERSON)
         {
-            auto typeID   = PersonVertexType::GetPtr((PersonVertexOID) args.G["Persons"]);
+            auto typeID   = PersonVertexType::GetPtr((PersonVertexOID) args.B["Persons"]);
+            if(args.side==0)
+                typeID   = PersonVertexType::GetPtr((PersonVertexOID) args.A["Persons"]);
             auto localMap  = typeID->GetLocalHashmap();
             my_args.start = args.start + localMap->Size();;
             shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
@@ -278,7 +283,9 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
         }
         else if(args.type == TYPES::TOPIC)
         {
-            auto typeID   = TopicVertexType::GetPtr( (TopicVertexOID) args.G["Topics"]);
+            auto typeID   = TopicVertexType::GetPtr( (TopicVertexOID) args.B["Topics"]);
+            if(args.side==0)
+                typeID   = TopicVertexType::GetPtr( (TopicVertexOID) args.A["Topics"]);
             auto localMap  = typeID->GetLocalHashmap();
             my_args.start = args.start + localMap->Size();;
             shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
@@ -292,7 +299,9 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
         }
         else if(args.type == TYPES::PUBLICATION)
         {
-            auto typeID   = PublicationVertexType::GetPtr( (PublicationVertexOID) args.G["Publications"]);
+            auto typeID   = PublicationVertexType::GetPtr( (PublicationVertexOID) args.B["Publications"]);
+            if(args.side==0)
+                typeID   = PublicationVertexType::GetPtr( (PublicationVertexOID) args.A["Publications"]);
             auto localMap  = typeID->GetLocalHashmap();
             my_args.start = args.start + localMap->Size();;
             shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
@@ -306,7 +315,9 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
         }
         else if(args.type == TYPES::FORUMEVENT)
         {
-            auto typeID   = ForumEventVertexType::GetPtr( (ForumEventVertexOID) args.G["ForumEvents"]);
+            auto typeID   = ForumEventVertexType::GetPtr( (ForumEventVertexOID) args.B["ForumEvents"]);
+            if(args.side==0)
+                typeID   = ForumEventVertexType::GetPtr( (ForumEventVertexOID) args.A["ForumEvents"]);
             auto localMap  = typeID->GetLocalHashmap();
             my_args.start = args.start + localMap->Size();;
             shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
@@ -320,7 +331,9 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
         }
         else if(args.type == TYPES::FORUM)
         {
-            auto typeID   = ForumVertexType::GetPtr( (ForumVertexOID) args.G["Forums"]);
+            auto typeID   = ForumVertexType::GetPtr( (ForumVertexOID) args.B["Forums"]);
+            if(args.side==0)
+                typeID   = ForumVertexType::GetPtr( (ForumVertexOID) args.A["Forums"]);
             auto localMap  = typeID->GetLocalHashmap();
             my_args.start = args.start + localMap->Size();;
             shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), addIndices_L, my_args);
@@ -339,23 +352,30 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
 }
 
 
-void create_LEdges(size_t i, VertexL &vertex, args_L_t &args)
+void create_LEdges(uint64_t i, VertexL &vertex, args_L_t &args)
 {
     shad::rt::Handle handle;
     args.start=vertex.edges;
     args.src=i;
     args.type=vertex.type;
-        
+    
+    if(i<0 || i>= 2*args.a_num_vertices)
+        std::cout<<i<<std::endl;   
+    
     if(i < args.a_num_vertices)
     {
-        args.G=args.B;
+        args.side=1;
         args.offset=args.a_num_vertices;
     }
     else
     {
-        args.G=args.A;
-        args.offset=0;
+        if(i < args.L.vertexNumber)
+        {    
+            args.side=0;
+            args.offset=0;
+        }
     }
+    
 
     shad::rt::asyncExecuteAt(handle, shad::rt::Locality(0), addIndices_L, args);
     shad::rt::waitForCompletion(handle);
@@ -365,7 +385,7 @@ void create_LEdges(size_t i, VertexL &vertex, args_L_t &args)
 void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
 {
     
-    shad::rt::Handle handle;
+    
     auto numLocality=shad::rt::numLocalities();
     
     auto GlobalIDS_A = GlobalIDType::GetPtr((GlobalIDOID) A["GlobalIDS"]);
@@ -385,69 +405,95 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
     Freq AtypeFreq, BtypeFreq;
     
     ///// THIS PART IS HAND CODED
-    AtypeFreq.counter[0] = (int)PersonVertexType::GetPtr( (PersonVertexOID) A["Persons"] )->Size();
-    AtypeFreq.counter[1] = (int)ForumEventVertexType::GetPtr( (ForumEventVertexOID) A["ForumEvents"] )->Size();
-    AtypeFreq.counter[2] = (int)ForumVertexType::GetPtr( (ForumVertexOID) A["Forums"] )->Size();
-    AtypeFreq.counter[3] = (int)PublicationVertexType::GetPtr( (PublicationVertexOID) A["Publications"] )->Size();
-    AtypeFreq.counter[4] = (int)TopicVertexType::GetPtr( (TopicVertexOID) A["Topics"] )->Size();
+    AtypeFreq.counter[0] = (uint64_t)PersonVertexType::GetPtr( (PersonVertexOID) A["Persons"] )->Size();
+    AtypeFreq.counter[1] = (uint64_t)ForumEventVertexType::GetPtr( (ForumEventVertexOID) A["ForumEvents"] )->Size();
+    AtypeFreq.counter[2] = (uint64_t)ForumVertexType::GetPtr( (ForumVertexOID) A["Forums"] )->Size();
+    AtypeFreq.counter[3] = (uint64_t)PublicationVertexType::GetPtr( (PublicationVertexOID) A["Publications"] )->Size();
+    AtypeFreq.counter[4] = (uint64_t)TopicVertexType::GetPtr( (TopicVertexOID) A["Topics"] )->Size();
 
-    BtypeFreq.counter[0] = (int)PersonVertexType::GetPtr( (PersonVertexOID) B["Persons"] )->Size();
-    BtypeFreq.counter[1] = (int)ForumEventVertexType::GetPtr( (ForumEventVertexOID) B["ForumEvents"] )->Size();
-    BtypeFreq.counter[2] = (int)ForumVertexType::GetPtr( (ForumVertexOID) B["Forums"] )->Size();
-    BtypeFreq.counter[3] = (int)PublicationVertexType::GetPtr( (PublicationVertexOID) B["Publications"] )->Size();
-    BtypeFreq.counter[4] = (int)TopicVertexType::GetPtr( (TopicVertexOID) B["Topics"] )->Size();
+    BtypeFreq.counter[0] = (uint64_t)PersonVertexType::GetPtr( (PersonVertexOID) B["Persons"] )->Size();
+    BtypeFreq.counter[1] = (uint64_t)ForumEventVertexType::GetPtr( (ForumEventVertexOID) B["ForumEvents"] )->Size();
+    BtypeFreq.counter[2] = (uint64_t)ForumVertexType::GetPtr( (ForumVertexOID) B["Forums"] )->Size();
+    BtypeFreq.counter[3] = (uint64_t)PublicationVertexType::GetPtr( (PublicationVertexOID) B["Publications"] )->Size();
+    BtypeFreq.counter[4] = (uint64_t)TopicVertexType::GetPtr( (TopicVertexOID) B["Topics"] )->Size();
 
 
-    int count=0;
+
+    uint64_t count=0;
     for(int i=0;i<typeSize;i++)
-        count+=AtypeFreq.counter[i]*BtypeFreq.counter[i];
-    
+    {    
+        count=count+(AtypeFreq.counter[i]*BtypeFreq.counter[i]);
+        std::cout<<AtypeFreq.counter[i]<<" "<<BtypeFreq.counter[i]<<std::endl;
+    }
     L.edgeNumber=2*count;
     std::cout<<"Edges: "<<L.edgeNumber<<std::endl;
     //L.edgeOID=shad::Array<uint64_t>::Create(L.edgeNumber, 0)->GetGlobalID();
-    L.edgeOID=shad::Array<Edge>::Create(L.edgeNumber,Edge())->GetGlobalID();
+    //L.edgeOID=shad::Array<Edge>::Create(L.edgeNumber,Edge())->GetGlobalID();
     //L.edgeWID=shad::Array<float>::Create(L.edgeNumber, 0.0)->GetGlobalID();
     
-    ///// For each vertex in the pattern ... 3...
-
+    ///// For each vertex in the pattern ... .
+    
+    shad::rt::Handle handle;
     auto A_Vertices =VertexType::GetPtr((VertexOID) A["Vertices"]);
+    std::cout<<"A: "<<A_Vertices->Size()<<std::endl;
     A_Vertices->AsyncForEach(handle,
-        [](shad::rt::Handle &, size_t i, Vertex &vertex, GraphL &L, Freq &fB)
+        [](shad::rt::Handle &handle, size_t i, Vertex &vertex, GraphL &L, Freq &fB)
         {
-            shad::rt::Handle handle1;
             size_t pos=i;
-            auto count=fB.counter[(uint64_t)vertex.type];
-            L.vertexPtr()->BufferedAsyncInsertAt(handle1, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
-            shad::rt::waitForCompletion(handle1);
+            if(pos < L.a_num_vertices)
+            {
+                //shad::rt::Handle handle1;
+                
+                auto count=fB.counter[(uint64_t)vertex.type];
+                L.vertexPtr()->AsyncInsertAt(handle, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
+                //shad::rt::waitForCompletion(handle1);
+            }
         },
     L,BtypeFreq);
-
+    
     shad::rt::waitForCompletion(handle);
+    //shad::rt::waitForCompletion(handle1);
 
     auto B_Vertices =VertexType::GetPtr((VertexOID) B["Vertices"]);
     B_Vertices->AsyncForEach(handle,
-        [](shad::rt::Handle &, size_t i, Vertex &vertex, GraphL &L, Freq &fA)
+        [](shad::rt::Handle &handle, size_t i, Vertex &vertex, GraphL &L, Freq &fA)
         {
-            shad::rt::Handle handle1;
-            auto count=fA.counter[(uint64_t)vertex.type];
             size_t pos=i+L.a_num_vertices;
-            L.vertexPtr()->BufferedAsyncInsertAt(handle1, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
-            shad::rt::waitForCompletion(handle1);
+            if(pos<L.vertexNumber)
+            {
+                auto count=fA.counter[(uint64_t)vertex.type];
+
+                L.vertexPtr()->AsyncInsertAt(handle, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
+                //shad::rt::waitForCompletion(handle1);
+            }
         },
     L,AtypeFreq);
-    
+    //shad::rt::waitForCompletion(handle1);
     shad::rt::waitForCompletion(handle);
     
      
     //exclusiveScanVertices(L.vertexOID);     // exclusive scan for the vertex pointer array of L
-    exclusiveScanVertices((uint64_t)L.vertexOID);
+    exclusiveScanVerticesL((uint64_t)L.vertexOID);
     /// Now get the all vertices (global ids) of a vertex type
 
-    
+    std::cout<<L.vertexPtr()->At(0).id<<" "<<L.vertexPtr()->At(0).edges<<std::endl;
+    std::cout<<L.vertexPtr()->At(1).id<<" "<<L.vertexPtr()->At(1).edges<<std::endl;
+    std::cout<<L.vertexPtr()->At(2).id<<" "<<L.vertexPtr()->At(2).edges<<std::endl;
+    std::cout<<L.vertexPtr()->At(L.a_num_vertices-2).id<<" "<<L.vertexPtr()->At(L.a_num_vertices-2).edges<<std::endl;
+    std::cout<<L.vertexPtr()->At(L.a_num_vertices-1).id<<" "<<L.vertexPtr()->At(L.a_num_vertices-1).edges<<std::endl;
+    std::cout<<L.vertexPtr()->At(L.a_num_vertices).id<<" "<<L.vertexPtr()->At(L.a_num_vertices).edges<<std::endl;
+    std::cout<<L.vertexPtr()->At(L.a_num_vertices+1).id<<" "<<L.vertexPtr()->At(L.a_num_vertices+1).edges<<std::endl;
+    std::cout<<L.vertexPtr()->At(L.a_num_vertices+2).id<<" "<<L.vertexPtr()->At(L.a_num_vertices+2).edges<<std::endl;
+    std::cout<<L.vertexPtr()->At(L.vertexNumber-1).id<<" "<<L.vertexPtr()->At(L.vertexNumber-1).edges<<std::endl;
+    std::cout<<L.vertexPtr()->At(L.vertexNumber).id<<" "<<L.vertexPtr()->At(L.vertexNumber).edges<<std::endl;
+   
     ///// Adding the  edge pointer array
-    args_L_t args={A,B,B,L,0,0,TYPES::NONE,0,0};
+    args_L_t args={A,B,L,0,0,0,TYPES::NONE,0,0};
     args.a_num_vertices=L.a_num_vertices;
-    L.vertexPtr()->ForEach(create_LEdges, args);
+    //L.vertexPtr()->ForEach(create_LEdges, args);
+    
+    //std::cout<<L.edgePtr()->At(0).src<<" "<<L.edgePtr()->At(0).dst<<std::endl;
+    //std::cout<<L.edgePtr()->At(1048504824227).src<<" "<<L.edgePtr()->At(1048504824227).dst<<std::endl;
 }
 
 
@@ -603,23 +649,80 @@ void netAlign(std::string & patternFile,std::string & dataFile)
     time1=my_timer(); 
     
     Graph_t A;
+    auto Persons      = PersonVertexType::Create(MEDIUM);
+    auto ForumEvents  = ForumEventVertexType::Create(MEDIUM);
+    auto Forums       = ForumVertexType::Create(SMALL);
+    auto Publications = PublicationVertexType::Create(SMALL);
+    auto Topics       = TopicVertexType::Create(SMALL);
+
+    auto Purchases    = PurchaseEdgeType::Create(MEDIUM);
+    auto Sales        = SaleEdgeType::Create(MEDIUM);
+    auto Authors      = AuthorEdgeType::Create(LARGE);
+    auto Includes     = IncludesEdgeType::Create(LARGE);
+    auto HasTopic     = HasTopicEdgeType::Create(LARGE);
+    auto HasOrg       = HasOrgEdgeType::Create(MEDIUM);
+    auto GlobalIDS    = GlobalIDType::Create(LARGE);
+
+    A["Persons"]      = (uint64_t) (Persons->GetGlobalID());
+    A["ForumEvents"]  = (uint64_t) (ForumEvents->GetGlobalID());
+    A["Forums"]       = (uint64_t) (Forums->GetGlobalID());
+    A["Publications"] = (uint64_t) (Publications->GetGlobalID());
+    A["Topics"]       = (uint64_t) (Topics->GetGlobalID());
+
+    A["Purchases"]    = (uint64_t) (Purchases->GetGlobalID());
+    A["Sales"]        = (uint64_t) (Sales->GetGlobalID());
+    A["Authors"]      = (uint64_t) (Authors->GetGlobalID());
+    A["Includes"]     = (uint64_t) (Includes->GetGlobalID());
+    A["HasTopic"]     = (uint64_t) (HasTopic->GetGlobalID());
+    A["HasOrg"]       = (uint64_t) (HasOrg->GetGlobalID());
+    A["GlobalIDS"]    = (uint64_t) (GlobalIDS->GetGlobalID());
+
+
     Graph_t B;
+    Persons      = PersonVertexType::Create(MEDIUM);
+    ForumEvents  = ForumEventVertexType::Create(MEDIUM);
+    Forums       = ForumVertexType::Create(SMALL);
+    Publications = PublicationVertexType::Create(SMALL);
+    Topics       = TopicVertexType::Create(SMALL);
+
+    Purchases    = PurchaseEdgeType::Create(MEDIUM);
+    Sales        = SaleEdgeType::Create(MEDIUM);
+    Authors      = AuthorEdgeType::Create(LARGE);
+    Includes     = IncludesEdgeType::Create(LARGE);
+    HasTopic     = HasTopicEdgeType::Create(LARGE);
+    HasOrg       = HasOrgEdgeType::Create(MEDIUM);
+    GlobalIDS    = GlobalIDType::Create(LARGE);
+
+    B["Persons"]      = (uint64_t) (Persons->GetGlobalID());
+    B["ForumEvents"]  = (uint64_t) (ForumEvents->GetGlobalID());
+    B["Forums"]       = (uint64_t) (Forums->GetGlobalID());
+    B["Publications"] = (uint64_t) (Publications->GetGlobalID());
+    B["Topics"]       = (uint64_t) (Topics->GetGlobalID());
+
+    B["Purchases"]    = (uint64_t) (Purchases->GetGlobalID());
+    B["Sales"]        = (uint64_t) (Sales->GetGlobalID());
+    B["Authors"]      = (uint64_t) (Authors->GetGlobalID());
+    B["Includes"]     = (uint64_t) (Includes->GetGlobalID());
+    B["HasTopic"]     = (uint64_t) (HasTopic->GetGlobalID());
+    B["HasOrg"]       = (uint64_t) (HasOrg->GetGlobalID());
+    B["GlobalIDS"]    = (uint64_t) (GlobalIDS->GetGlobalID());
+
     uint64_t  m,n;
     readFile( patternFile, A);
     CSR(m, n, A);
-    std::cout<<"File A reading done..!!"<<std::endl;
     time2=my_timer();
+    std::cout<<"File A reading done in "<<time2-time1<<" seconds"<<std::endl;
 
     readFile( dataFile, B);
     CSR(m, n, B);
-    std::cout<<"File B reading done..!!"<<std::endl;
     time3=my_timer();
-
+    std::cout<<"File B reading done in "<<time3-time2<<" seconds"<<std::endl;
+    
     GraphL L;
     createBipartite(A,B,L);
-    std::cout<<"L construction done..!!"<<std::endl;
     time4=my_timer();
-    
+    std::cout<<"L construction done in "<<time4-time3<<" seconds"<<std::endl;
+    /*
     ///// BP LOGIC
     createSquareMatrix(A,B,L);
     time5=my_timer();
@@ -637,8 +740,7 @@ void netAlign(std::string & patternFile,std::string & dataFile)
         for(int i=0;i<L.a_num_vertices;i++)
             match.push_back(mate->At(i));
     */
-    time6=my_timer();
-    
+    time6=my_timer();    
     
 } /// NetAlign
 } /// namespace
