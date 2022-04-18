@@ -1,0 +1,46 @@
+Person,1,,,,,,,,                                           // Person 1
+Person,2,,,,,,,,                                           // Person 2
+Person,3,,,,,,,,                                           // Person 3
+Person,4,,,,,,,,                                           // Person 4
+Person,5,,,,,,,,                                           // Person 5
+Person,6,,,,,,,,                                           // Person 6
+Sale,2,1,,,,2869238,,,                                     // P2 -> P1, bath bomb
+Sale,3,1,,,,271997,,,                                      // P2 -> P1, pressure cooker
+Sale,4,1,,,,185785,,,                                      // P4 -> P1, ammunition
+Sale,5,1,,,,11650,,,                                       // P5 -> P1, electronics
+Sale,4,6,,,,185785,,,                                      // P4 -> P6, ammunition
+ForumEvent,,,12,7,,,2/6/2018,,                                     // Forum Event 3
+ForumEvent,,,13,8,,,2/6/2018,,                                     // Forum Event 1
+ForumEvent,,,13,9,,,2/6/2018,,                                     // Forum Event 2
+ForumEvent,,,12,10,,,2/6/2018,,                                    // Forum Event 4
+ForumEvent,,,12,11,,,2/6/2018,,                                    // Forum Event 5
+Forum,,,13,,,,,,                                           // Forum 1
+Forum,,,12,,,,,,                                           // Forum 2
+Publication,,,,,14,,,,                                     // Publication 1
+Topic,,,,,,127197,,,                                       // Bomb
+Topic,,,,,,179057,,,                                       // Explosion
+Topic,,,,,,771572,,40.699945,-73.950148                    // Williamsburg
+Topic,,,,,,1049632,,40.665352,-73.969264                   // Prospect Park
+Topic,,,,,,69871376,,,                                     // Outdoors
+Topic,,,,,,44311,,,                                        // Jihad
+Topic,,,,,,60,,40.67,-73.94                                // NYC
+Topic,,,,,,43035,,,                                        // Elec Engineering
+Author,1,,,7,,,,,                                          // P1 -> FE3
+Author,1,,,8,,,,,                                          // P1 -> FE1
+Author,1,,,9,,,,,                                          // P1 -> FE2
+Author,5,,,,14,,,,                                         // P5 -> Publication 1
+HasTopic,,,,8,,44311,,,                                    // FE1 -> Jihad
+HasTopic,,,,9,,44311,,,                                    // FE2 -> Jihad
+HasTopic,,,,10,,127197,,,                                  // FE4 -> Bomb
+HasTopic,,,,10,,179057,,,                                  // FE4 -> Explosion
+HasTopic,,,,10,,771572,,,                                  // FE4 -> Williamsburg
+HasTopic,,,,11,,1049632,,,                                 // FE5 -> Prospect Park
+HasTopic,,,,11,,69871376,,,                                // FE5 -> Outdoors
+HasTopic,,,13,,,60,,,                                      // Forum 1 -> NYC
+HasOrg,,,,,14,,,,                                          // Publication 1 -> Topic
+HasTopic,,,,,14,43035,,,                                   // Publication 1 -> Elec Engineering
+Includes,,,13,8,,,,,                                       // Forum 1 -> FE1
+Includes,,,13,9,,,,,                                       // Forum 1 -> FE2
+Includes,,,12,7,,,,,                                       // Forum 2 -> FE3
+Includes,,,12,10,,,,,                                      // Forum 2 -> FE4
+Includes,,,12,11,,,,,                                      // Forum 2 -> FE5
