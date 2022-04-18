@@ -67,6 +67,29 @@ int main(int argc, char *argv[]) {
 
   WMD_pattern(graph);
   printf("Time for exact pattern matching = %lf\n", my_timer() - time1);
+
+  for (auto itr = GlobalIDS->begin(); itr != GlobalIDS->end(); itr ++)
+    printf("id = %lu glbid = %lu edges = %lu type = %lu\n", (* itr).first,
+         (* itr).second.id, (* itr).second.edges, (uint64_t) (* itr).second.type);
+
+  printf("\n***********\n");
+  auto Vertices = VertexType::GetPtr((VertexOID) graph["Vertices"]);
+
+  for (uint64_t i = 0; i < Vertices->Size(); i ++) {
+    Vertex tmp = Vertices->At(i);
+    printf("glbid = %lu id = %lu edges = %lu type = %lu\n", i, tmp.id, tmp.edges, (uint64_t) tmp.type);
+  }
+
+  printf("\n***********\n");
+  auto Edges = EdgeType::GetPtr((EdgeOID) graph["Edges"]);
+
+  for (uint64_t i = 0; i < Edges->Size(); i ++) {
+    Edge tmp = Edges->At(i);
+    printf("src = %lu dst = %lu type = %lu src_type = %lu dst_type = %lu src_glbid = %lu dst_glbid = %lu\n",
+         tmp.src, tmp.dst, (uint64_t) tmp.type, (uint64_t) tmp.src_type,
+         (uint64_t) tmp.dst_type, tmp.src_glbid, tmp.dst_glbid);
+  }
+
   return 0;
 }
 

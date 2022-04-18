@@ -22,8 +22,8 @@ std::vector <std::string> split(std::string & line, char delim, uint64_t size = 
 }
 
 void readFile(std::string & filename, Graph_t & graph) {
+  Handle handle;
   std::string line;
-  shad::rt::Handle handle;
   std::ifstream file(filename);
 
   if (file.is_open()) {
@@ -43,8 +43,8 @@ void readFile(std::string & filename, Graph_t & graph) {
   auto Sales        = SaleEdgeType::GetPtr( (SaleEdgeOID) graph["Sales"] );
   auto Authors      = AuthorEdgeType::GetPtr( (AuthorEdgeOID) graph["Authors"] );
   auto Includes     = IncludesEdgeType::GetPtr( (IncludesEdgeOID) graph["Includes"] );
-  auto HasTopic     = HasTopicEdgeType::GetPtr( (HasTopicEdgeOID) graph["HasTopics"] );
-  auto HasOrg       = HasOrgEdgeType::GetPtr( (HasOrgEdgeOID) graph["HasOrgs"] );
+  auto HasTopic     = HasTopicEdgeType::GetPtr( (HasTopicEdgeOID) graph["HasTopic"] );
+  auto HasOrg       = HasOrgEdgeType::GetPtr( (HasOrgEdgeOID) graph["HasOrg"] );
   auto GlobalIDS    = GlobalIDType::GetPtr( (GlobalIDOID) graph["GlobalIDS"] );
 
   while (getline(file, line)) {
