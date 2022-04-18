@@ -14,6 +14,7 @@ torch::Tensor reload(const std::string &path) {
 }
 
 
+namespace shad {
 int main(int argc, char* argv[]) {
   if (argc != 5) {
     std::cerr << "usage: torch-test <path-to-exported-script-module> <edge_index> <feature_tensor> <class_tensor>\n";
@@ -115,4 +116,5 @@ int main(int argc, char* argv[]) {
       << std::endl;
   }
   return EXIT_SUCCESS;
+}
 }
