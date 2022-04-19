@@ -68,25 +68,6 @@ int main(int argc, char *argv[]) {
   GNN(num_edges, num_vertices, graph);
   printf("Time for workflow 1 = %lf\n", my_timer() - time1);
 
-#define NUM_FEATURES 22
-using Emb_t = shad::Array<uint64_t>;
-using EmbeddingType = shad::Array<uint64_t>;
-using EmbeddingOID  = shad::ObjectIdentifier<EmbeddingType>;
-
-  Handle handle;
-  std::vector<uint64_t> features(NUM_FEATURES, 0);
-  auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID) graph["Embeddings"]);
-
-  for (auto itr = GlobalIDS->begin(); itr != GlobalIDS->end(); itr ++) {
-    uint64_t id = (* itr).first;
-    uint64_t glbid = (* itr).second.id;
-    Embeddings->AsyncGetElements(handle, features.data(), glbid * NUM_FEATURES,  NUM_FEATURES);
-    waitForCompletion(handle);
-    printf("%lu %lu %lu:", id, glbid, (* itr).second.edges);
-    for (uint64_t j = 0; j < NUM_FEATURES; j ++) printf(" %lu", features[j]);
-    printf("\n");
-  }
-
   return 0;
 }
 
