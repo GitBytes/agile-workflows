@@ -25,8 +25,8 @@ class VertexL {          // used by both GlobalIDS and Vertices
     uint64_t id;        // GlobalIDS: global id ... Vertices: vertex id
     uint64_t edges;     // GlobalIDS: number of edges ... Vertices: start index in Edges
     TYPES    type;
-    int mate;
-    int indx;
+    int64_t mate;
+    int64_t indx;
 
     VertexL () {
       label = shad::data_types::kNullValue<uint64_t>;
