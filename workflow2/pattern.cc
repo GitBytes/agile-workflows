@@ -180,14 +180,14 @@ void transEvents(const uint64_t & key, PersonVertex & person, Pattern_args_t & a
 
 // Check if forum includes a forum event with topics Williamsburg, Explosion, and Bomb
 void forumPattern_2B(const uint64_t & forum, time_t & date, Pattern_args_t & args) {
-  shad::rt::Handle handle;
+  Handle handle;
   auto Includes = IncludesEdgeType::GetPtr((IncludesEdgeOID) args.IncludesOID);
 
   auto Lambda2B = []             // for each forum -> FE
-  (shad::rt::Handle & handle, const uint64_t & forum, std::vector<IncludesEdge> & includes, Pattern_args_t & args) {
+  (Handle & handle, const uint64_t & forum, std::vector<IncludesEdge> & includes, Pattern_args_t & args) {
 
     auto lambdaLambda2B = []     // for each FE -> topic
-    (shad::rt::Handle & handle, const uint64_t & FE, std::vector<HasTopicEdge> & FET, Pattern_args_t & args) {
+    (Handle & handle, const uint64_t & FE, std::vector<HasTopicEdge> & FET, Pattern_args_t & args) {
       bool topic_1  = false;                             // does forum event discuss Williamsburg
       bool topic_2  = false;                             // ................ and Explosion
       bool topic_3  = false;                             // ................ and Bomb
@@ -217,11 +217,11 @@ void forumPattern_2B(const uint64_t & forum, time_t & date, Pattern_args_t & arg
 
 // Check if forum includes a forum event with topics Outdoors and Prospect Park
 void forumPattern_2A(const uint64_t & forum, std::vector<IncludesEdge> & includes, Pattern_args_t & args) {
-  shad::rt::Handle handle;
+  Handle handle;
   auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopicOID);
 
   auto Lambda2A = []     // for each FE -> topic
-  (shad::rt::Handle & handle, const uint64_t & FE, std::vector<HasTopicEdge> & FET, Pattern_args_t & args) {
+  (Handle & handle, const uint64_t & FE, std::vector<HasTopicEdge> & FET, Pattern_args_t & args) {
     bool topic_1 = false;                               // does forum event discuss outdoors
     bool topic_2 = false;                               // ................ and Prospect Park
     auto Forums_2 = intTimeMap::GetPtr((intTimeMapOID) args.Forums_2_OID);

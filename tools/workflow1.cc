@@ -65,8 +65,9 @@ int main(int argc, char *argv[]) {
 
   time1 = my_timer();
 
-  //GNN(num_edges, num_vertices, graph);
+  GNN(num_edges, num_vertices, graph);
   printf("Time for workflow 1 = %lf\n", my_timer() - time1);
+
   return 0;
 }
 

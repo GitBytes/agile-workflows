@@ -76,15 +76,16 @@ class GraphL {
 class PersonVertex {
   public:
     uint64_t id;
-    uint64_t GLBID;
+    uint64_t glbid;
 
     PersonVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
-      GLBID = shad::data_types::kNullValue<uint64_t>;
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     PersonVertex (std::vector <std::string> & tokens) {
-      id = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+      id    = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     uint64_t key() { return id; }
@@ -95,19 +96,20 @@ class ForumEventVertex {
     uint64_t id;
     uint64_t forum;
     time_t   date;
-    uint64_t GLBID;
+    uint64_t glbid;
 
     ForumEventVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
       forum = shad::data_types::kNullValue<uint64_t>;
       date  = shad::data_types::kNullValue<time_t>;
-      GLBID = shad::data_types::kNullValue<uint64_t>;
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     ForumEventVertex (std::vector <std::string> & tokens) {
       id    = ENCODE<uint64_t, std::string, UINT>  (tokens[4]);
       forum = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
       date  = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     uint64_t key() { return id; }
@@ -116,15 +118,16 @@ class ForumEventVertex {
 class ForumVertex {
   public:
     uint64_t id;
-    uint64_t GLBID; 
+    uint64_t glbid; 
 
     ForumVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
-      GLBID = shad::data_types::kNullValue<uint64_t>;
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     ForumVertex (std::vector <std::string> & tokens) {
       id   = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     uint64_t key() { return id; }
@@ -134,17 +137,18 @@ class PublicationVertex {
   public:
     uint64_t id;
     time_t   date;
-    uint64_t GLBID;
+    uint64_t glbid;
 
     PublicationVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
       date  = shad::data_types::kNullValue<time_t>;
-      GLBID = shad::data_types::kNullValue<uint64_t>;
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     PublicationVertex (std::vector <std::string> & tokens) {
-      id   = ENCODE<uint64_t, std::string, UINT>  (tokens[5]);
-      date = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      id    = ENCODE<uint64_t, std::string, UINT>  (tokens[5]);
+      date  = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     uint64_t key() { return id; }
@@ -155,19 +159,20 @@ class TopicVertex {
     uint64_t id;
     double   lat;
     double   lon;
-    uint64_t GLBID;
+    uint64_t glbid;
 
     TopicVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
       lat   = shad::data_types::kNullValue<double>;
       lon   = shad::data_types::kNullValue<double>;
-      GLBID = shad::data_types::kNullValue<uint64_t>;
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     TopicVertex (std::vector <std::string> & tokens) {
-      id  = ENCODE<uint64_t, std::string, UINT>  (tokens[6]);
-      lat = ENCODE<double,   std::string, DOUBLE>(tokens[8]);
-      lon = ENCODE<double,   std::string, DOUBLE>(tokens[9]);
+      id    = ENCODE<uint64_t, std::string, UINT>  (tokens[6]);
+      lat   = ENCODE<double,   std::string, DOUBLE>(tokens[8]);
+      lon   = ENCODE<double,   std::string, DOUBLE>(tokens[9]);
+      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     uint64_t key() { return id; }
@@ -392,7 +397,7 @@ using HasTopicEdgeOID  = shad::ObjectIdentifier<HasTopicEdgeType>;
 using HasOrgEdgeType = shad::Multimap<uint64_t, HasOrgEdge>;
 using HasOrgEdgeOID  = shad::ObjectIdentifier<HasOrgEdgeType>;
 
-using VertexLType = shad::Array<VertexL>;                // index == vertex GLBID
+using VertexLType = shad::Array<VertexL>;                // index == vertex glbid
 using VertexLOID  = shad::ObjectIdentifier<VertexLType>;
 
 } // namespace agile::workflow2

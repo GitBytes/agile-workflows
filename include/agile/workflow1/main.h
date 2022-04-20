@@ -30,6 +30,7 @@ double String_to_Date(std::string &);
 void readFile(std::string & filename, Graph_t & graph);
 void approxMatching();
 
+using Handle = shad::rt::Handle;
 using IntArray = shad::Array<int64_t>;
 using IntArrayOID = shad::ObjectIdentifier<IntArray>;
 using intSet = shad::Set<uint64_t>;
@@ -39,7 +40,7 @@ using Graph_t = std::map<std::string, uint64_t>;
 
 void readFile(std::string & filename, Graph_t & graph);
 void CSR(uint64_t &, uint64_t &, Graph_t & graph);
-//void GNN(uint64_t &, uint64_t &, Graph_t &);
+void GNN(uint64_t &, uint64_t &, Graph_t &);
 
 } // namespace agile::workflow1
 

@@ -4,167 +4,164 @@
 
 namespace agile::workflow2 {
 
-struct args_t {
-  uint64_t size;
-  uint64_t delta;
-  uint64_t arrayOID;
-};
-
-
-struct ME_args_t {
-  uint64_t purchasesOID;
-  uint64_t salesOID;
-  uint64_t authorsOID;
-  uint64_t includesOID;
-  uint64_t hasOrgOID;
-  uint64_t hasTopicOID;
-  uint64_t edgesOID;
-};
-
+struct Args_t { uint64_t delta; uint64_t oid; };
 
 // Exclusive scan for vertex class array
-static void exclusiveRecursiveScan(shad::rt::Handle & handle, uint64_t pos, Vertex & elem, args_t & args) {
-    auto arrayPtr = VertexType::GetPtr((VertexOID) args.arrayOID);
+static void exclusiveRecursiveScan(Handle & handle, uint64_t pos, Vertex & elem, uint64_t & ndx, uint64_t & oid) {
+  auto Vertices = VertexType::GetPtr((VertexOID) oid);
 
-    uint64_t delta  = args.delta;
-    uint64_t nelems = arrayPtr->getNElems();
-    std::vector<Vertex> * data = arrayPtr->getData();
+  uint64_t size = Vertices->Size();
+  uint64_t nelems = Vertices->getNElems();
+  std::vector<Vertex> & data = * Vertices->getData();
 
-    // if not the last set, spawn next scan
-    // ... next delta is this delta + # edges of last vertex in set 
-    if (pos + nelems < args.size) {
-       args_t next_args = args;
-       next_args.delta += (* data)[nelems - 1].edges;
-       arrayPtr->AsyncApply(handle, pos + nelems, exclusiveRecursiveScan, next_args);
-    }
+  // if not the last set, spawn next scan
+  // ... next ndx is this ndx + # edges of last vertex in set 
+  if (pos + nelems < size) {
+     uint64_t my_ndx = ndx + data[nelems - 1].edges;
+     Vertices->AsyncApply(handle, pos + nelems, exclusiveRecursiveScan, my_ndx, oid);
+  }
 
-    for (uint64_t i = nelems - 1; i > 0; i --)
-      (* data)[i].edges = (* data)[i - 1].edges + delta;
-
-    (* data)[0].edges = delta;
+  for (uint64_t i = nelems - 1; i > 0; i --) data[i].edges = data[i - 1].edges + ndx;
+  data[0].edges = ndx;
 }
 
 
-void exclusiveScanVertices(uint64_t arrayOID) {
-  auto arrayPtr = VertexType::GetPtr((VertexOID) arrayOID);
+void exclusiveScanVertices(uint64_t oid) {
+  auto Vertices = VertexType::GetPtr((VertexOID) oid);
 
-  auto localInclusiveScan = [](shad::rt::Handle & handle, const uint64_t & arrayOID) {
-    auto arrayPtr = VertexType::GetPtr((VertexOID) arrayOID);
-    uint64_t nelems = arrayPtr->getNElems();
-    std::vector<Vertex> * data = arrayPtr->getData();
+  auto localInclusiveScan = [](Handle & handle, const uint64_t & oid) {
+    auto Vertices = VertexType::GetPtr((VertexOID) oid);
+    std::vector<Vertex> * data = Vertices->getData();
 
+    uint64_t nelems = Vertices->getNElems();
     for (uint64_t i = 1; i < nelems; i ++) (* data)[i].edges += (* data)[i - 1].edges;
   };
 
-  shad::rt::Handle handle;
-  shad::rt::asyncExecuteOnAll(handle, localInclusiveScan, arrayOID);
+  Handle handle;
+  shad::rt::asyncExecuteOnAll(handle, localInclusiveScan, oid);
   waitForCompletion(handle);
 
-  args_t args = {arrayPtr->Size(), 0, arrayOID};
-  arrayPtr->AsyncApply(handle, 0, exclusiveRecursiveScan, args);
+  uint64_t ndx = 0;
+  Vertices->AsyncApply(handle, 0, exclusiveRecursiveScan, ndx, oid);
   waitForCompletion(handle);
 }
 
 
 // Update the global ids on this local and spawn updateIDS_ on next local.
-void updateIDS_(shad::rt::Handle & handle, const args_t & args) {
-  auto GlobalIDS = GlobalIDType::GetPtr((GlobalIDOID) args.arrayOID);
-  uint64_t local = (uint32_t) shad::rt::thisLocality();
-  auto localMap  = GlobalIDS->GetLocalHashmap();
+void updateIDS_(Handle & handle, const Args_t & args) {
+  auto GlobalIDS = GlobalIDType::GetPtr((GlobalIDOID) args.oid);
+  auto locale = (uint32_t) shad::rt::thisLocality();
+  auto my_map = GlobalIDS->GetLocalHashmap();
 
   auto updateLambda = [] (const uint64_t & key, Vertex & value, const uint64_t & delta) {
     value.id += delta;
   };
 
-  if (local < shad::rt::numLocalities() - 1) {
-     uint64_t next_delta = args.delta + localMap->Size();
-     args_t next_args = {ULLONG_MAX, next_delta, args.arrayOID};     // size not needed
-     shad::rt::asyncExecuteAt(handle, shad::rt::Locality(local + 1), updateIDS_, next_args);
+  if (locale < shad::rt::numLocalities() - 1) {
+     Args_t my_args = {args.delta + my_map->Size(), args.oid};
+     shad::rt::asyncExecuteAt(handle, shad::rt::Locality(locale + 1), updateIDS_, my_args);
   }
 
-  localMap->ForEachEntry(updateLambda, args.delta);
+  my_map->ForEachEntry(updateLambda, args.delta);
 }
 
 
-// Move entry to Vertices ... store entry at index value.id ... replace value.id with key
-void moveVertex(shad::rt::Handle & handle, const uint64_t & key, Vertex & value, args_t & args) {
-  uint64_t ndx = value.id;
-  auto Vertices = VertexType::GetPtr((VertexOID) args.arrayOID);
-  Vertices->AsyncInsertAt(handle, ndx, Vertex(key, value.edges, value.type));
-}
+// Fill in Vertices and update global ids in vertex tables
+// ... store entry {key, value.edges, value.type} at index value.id
+// ... replace vertex's global id in its vertex table with value.id
+void moveVertex(Handle & handle, const uint64_t & key, Vertex & value,
+     uint64_t & personsOID, uint64_t & forumEventsOID, uint64_t & forumsOID,
+     uint64_t & publicationsOID, uint64_t & topicsOID, uint64_t & verticesOID) {
+
+  VertexType::GetPtr((VertexOID) verticesOID)->
+       AsyncInsertAt(handle, value.id, Vertex(key, value.edges, value.type));
+
+  if (value.type == TYPES::PERSON) {
+     PersonVertexType::GetPtr((PersonVertexOID) personsOID)->
+          AsyncApply(handle, key, updateGLBID<PersonVertex>, value.id);
+
+  } else if (value.type == TYPES::FORUMEVENT) {
+     ForumEventVertexType::GetPtr((ForumEventVertexOID) forumEventsOID)->
+          AsyncApply(handle, key, updateGLBID<ForumEventVertex>, value.id);
+
+  } else if (value.type == TYPES::FORUM) {
+     ForumVertexType::GetPtr((ForumVertexOID) forumsOID)->
+          AsyncApply(handle, key, updateGLBID<ForumVertex>, value.id);
+
+  } else if (value.type == TYPES::PUBLICATION) {
+     PublicationVertexType::GetPtr((PublicationVertexOID) publicationsOID)->
+          AsyncApply(handle, key, updateGLBID<PublicationVertex>, value.id);
+
+  } else if (value.type == TYPES::TOPIC) {
+     TopicVertexType::GetPtr((TopicVertexOID) topicsOID)->
+          AsyncApply(handle, key, updateGLBID<TopicVertex>, value.id);
+} }
 
 
 // Move edges to Edges
-void moveEdges(uint64_t pos, Vertex & value, ME_args_t & args) {
-  uint64_t NE = 0;
+void moveEdges(uint64_t pos, Vertex & value,
+  uint64_t & purchasesOID, uint64_t & salesOID, uint64_t & authorsOID, uint64_t & includesOID,
+  uint64_t & hasTopicOID,  uint64_t & hasOrgOID, uint64_t & globalIDSOID, uint64_t & edgesOID) {
+
+  Handle handle;
   uint32_t retSize;
-  uint64_t id = value.id;
-  shad::rt::Handle handle;
-
-  auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.purchasesOID);
-  auto Sales     = SaleEdgeType::GetPtr((SaleEdgeOID) args.salesOID);
-  auto Authors   = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.authorsOID);
-  auto Includes  = IncludesEdgeType::GetPtr((IncludesEdgeOID) args.includesOID);
-  auto HasOrg    = HasOrgEdgeType::GetPtr((HasOrgEdgeOID) args.hasOrgOID);
-  auto HasTopic  = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.hasTopicOID);
-
-  MTE_args_t my_args;
-  my_args.start    = value.edges;
-  my_args.edgesOID = args.edgesOID;
+  uint64_t ndx = value.edges, NE = 0;
+  auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) purchasesOID);
+  auto Sales     = SaleEdgeType::GetPtr((SaleEdgeOID) salesOID);
+  auto Authors   = AuthorEdgeType::GetPtr((AuthorEdgeOID) authorsOID);
+  auto Includes  = IncludesEdgeType::GetPtr((IncludesEdgeOID) includesOID);
+  auto HasTopic  = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) hasTopicOID);
+  auto HasOrg    = HasOrgEdgeType::GetPtr((HasOrgEdgeOID) hasOrgOID);
 
   if (value.type == TYPES::PERSON) {     // Person has purchase, sale, and author edges
-     my_args.type = TYPES::PURCHASE;     // ... PURCHASE edges
-     Purchases->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<PurchaseEdge>, (uint8_t *) & NE, & retSize, my_args);
+     Purchases->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<PurchaseEdge>,
+          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
-     my_args.start += NE;
-     NE = 0;
+     ndx += NE; NE = 0;
 
-     my_args.type = TYPES::SALE;         // ... SALE edges
-     Sales->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<SaleEdge>, (uint8_t *) & NE, & retSize, my_args);
+     Sales->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<SaleEdge>,
+          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
-     my_args.start += NE;
-     NE = 0;
+     ndx += NE; NE = 0;
 
-     my_args.type = TYPES::AUTHOR;       // ... AUTHOR edges
-     Authors->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<AuthorEdge>, (uint8_t *) & NE, & retSize, my_args);
-     waitForCompletion(handle);
+     Authors->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<AuthorEdge>,
+          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
 
   } else if (value.type == TYPES::FORUMEVENT) {     // ForumEvent has has_topic edges
-     my_args.type = TYPES::HASTOPIC;                // ... HASTOPIC edges
-     HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, my_args);
-     waitForCompletion(handle);
+     HasTopic->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasTopicEdge>,
+          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
 
   } else if (value.type == TYPES::FORUM) {     // Forum has includes and has_topic edges
-     my_args.type = TYPES::INCLUDES;           // ... INLCUDES edges
-     Includes->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<IncludesEdge>, (uint8_t *) & NE, & retSize, my_args);
+     Includes->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<IncludesEdge>,
+          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
-     my_args.start += NE;
-     NE = 0;
+     ndx += NE; NE = 0;
 
-     my_args.type = TYPES::HASTOPIC;           // ... HASTOPIC edges
-     HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, my_args);
-     waitForCompletion(handle);
+     HasTopic->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasTopicEdge>,
+          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
 
   } else if (value.type == TYPES::PUBLICATION) {     // Publication has has_org and has_topic edges
-     my_args.type = TYPES::HASORG;                   // ... HASORG edges
-     HasOrg->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasOrgEdge>, (uint8_t *) & NE, & retSize, my_args);
+     HasOrg->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasOrgEdge>,
+          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
-     my_args.start += NE;
-     NE = 0;
+     ndx += NE; NE = 0;
 
-     my_args.type = TYPES::HASTOPIC;                 // ... HASTOPIC edges
-     HasTopic->AsyncApplyWithRetBuff(handle, id, MoveTableEdges<HasTopicEdge>, (uint8_t *) & NE, & retSize, my_args);
-     waitForCompletion(handle);
-} }
+     HasTopic->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasTopicEdge>,
+          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
+
+  } else return;
+
+  waitForCompletion(handle);
+}
 
 
 /********** CREATE COMPRESSED EDGE ARRAY AND VERTEX ARRAY **********/
 void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
-  shad::rt::Handle handle;
+  Handle handle;
   auto GlobalIDS = GlobalIDType::GetPtr((GlobalIDOID) graph["GlobalIDS"]);
 
 // ***** allocate space for Vertices, fill pointers, and add to graph *****/
@@ -175,14 +172,14 @@ void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
   graph["Vertices"] = (uint64_t) (Vertices->GetGlobalID());
 
 // ***** convert local ids to global ids *****/
-  args_t args = {ULLONG_MAX, 0, graph["GlobalIDS"]};     // size not needed
-  shad::rt::asyncExecuteAt(handle, shad::rt::Locality(0), updateIDS_, args);
+  Args_t my_args = {0, graph["GlobalIDS"]};
+  shad::rt::asyncExecuteAt(handle, shad::rt::Locality(0), updateIDS_, my_args);
 
   waitForCompletion(handle);
 
-// ***** allocate space for Vertices and copy vertex classes from GlobalIDS *****/
-  args.arrayOID = graph["Vertices"];
-  GlobalIDS->AsyncForEachEntry(handle, moveVertex, args);
+// ***** allocate space for Vertices and copy entries from GlobalIDS to Vertices *****/
+  GlobalIDS->AsyncForEachEntry(handle, moveVertex, graph["Persons"], graph["ForumEvents"],
+       graph["Forums"], graph["Publications"], graph[" Topics"], graph["Vertices"]);
 
   waitForCompletion(handle);
   exclusiveScanVertices(graph["Vertices"]);     // exclusive scan of edges to convert # edges to start location
@@ -195,16 +192,10 @@ void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
   graph["Edges"] = (uint64_t) (Edges->GetGlobalID());
 
 // ***** move edges from edge tables to Edges *****/
-  ME_args_t me_args;
-  me_args.purchasesOID = graph["Purchases"];
-  me_args.salesOID     = graph["Sales"];
-  me_args.authorsOID   = graph["Authors"];
-  me_args.includesOID  = graph["Includes"];
-  me_args.hasOrgOID    = graph["HasOrg"];
-  me_args.hasTopicOID  = graph["HasTopic"];
-  me_args.edgesOID     = graph["Edges"];
+  Vertices->ForEach(moveEdges, graph["purchasesOID"], graph["salesOID"],
+       graph["authorsOID"], graph["includesOID"], graph["hasTopicOID"],
+       graph["hasOrgOID"], graph["globalIDSOID"], graph["edgesOID"]);
 
-  Vertices->ForEach(moveEdges, me_args);
   Edges->WaitForBufferedInsert();
 }
 
