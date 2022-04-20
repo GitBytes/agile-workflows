@@ -15,8 +15,34 @@ private:
   torch::Tensor _labels;
 
 public:
+  CoraDataset() = default;
+  CoraDataset(const CoraDataset& O)
+    : _edgeIndex(O._edgeIndex)
+    , _featureVectors(O._featureVectors)
+    , _labels(O._labels)
+  {}
+
+  CoraDataset(CoraDataset&& O)
+    : _edgeIndex(std::move(O._edgeIndex))
+    , _featureVectors(std::move(O._featureVectors))
+    , _labels(std::move(O._labels))
+  {}
+
   CoraDataset(const std::string &edgeIndex, const std::string& featureVectors,
               const std::string &label);
+
+  CoraDataset & operator=(const CoraDataset& O) {
+    this->_edgeIndex = O._edgeIndex;
+    this->_featureVectors = O._featureVectors;
+    this->_labels = O._labels;
+    return *this;
+  }
+  CoraDataset & operator=(CoraDataset && O) {
+    this->_edgeIndex = std::move(O._edgeIndex);
+    this->_featureVectors = std::move(O._featureVectors);
+    this->_labels = std::move(O._labels);
+    return *this;
+  }
 
   torch::data::Example<> get(size_t idx) override;
 
