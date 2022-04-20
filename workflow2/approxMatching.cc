@@ -165,7 +165,7 @@ void addIndices(shad::rt::Handle & handle, size_t i, VertexL &val, indices_args_
     std::vector<Edge> edges;
     for(int j=0;j<args.values.size();j++)
     {
-        edges.push_back(Edge((uint64_t)i,(uint64_t)args.values[j],(double)0.0, TYPES::NONE,TYPES::NONE,TYPES::NONE));
+        edges.push_back(Edge((uint64_t)i,(uint64_t)args.values[j],(double)0.0, TYPES::NONE,TYPES::NONE,TYPES::NONE,0,0));
     }
     if(type == args.target)
     {
@@ -200,6 +200,7 @@ void createSquareMatrix(size_t k, Edge &edge, args_S_t &args)
     /// get the two end points (i, j)
     uint64_t i=edge.src;
     uint64_t j=edge.dst;
+    
     //std::cout<<k<<": "<<i<<" , "<<j<<std::endl;
     /// Get degree of i in A and resize nA, then get the neighbors in nA
     //std::cout<<i<<" "<<std::endl;
@@ -216,16 +217,31 @@ void createSquareMatrix(size_t k, Edge &edge, args_S_t &args)
             std::vector<Edge> Aneighbors(end-start); 
             A_Edges->AsyncGetElements(handle,Aneighbors.data(),start,end-start);
             shad::rt::waitForCompletion(handle);
-        
+
+            std::cout<<"A: "<<start<<" "<<end<<std::endl;
+            for(int i=0;i<Aneighbors.size();i++)
+                std::cout<<(int)Aneighbors[i].type<<" "<<(int)Aneighbors[i].src_type<<" "<<(int)Aneighbors[i].dst_type<<std::endl;
             /// Get degree of j in B and resize nB, then get the neighbors in nB
             std::vector<Edge> Bneighbors(end1-start1);
             B_Edges->AsyncGetElements(handle,Bneighbors.data(),start1,end1-start1);
             shad::rt::waitForCompletion(handle);
 
+            std::cout<<"B: "<<start1<<" "<<end1<<std::endl;
+            for(int i=0;i<Bneighbors.size();i++)
+                std::cout<<(int)Bneighbors[i].type<<" "<<(int)Bneighbors[i].src_type<<" "<<(int)Bneighbors[i].dst_type<<std::endl;
+
             for(int indx1=0;indx1<Aneighbors.size();indx1++)
+            {    
                 for(int indx2=indx1;indx2<Bneighbors.size();indx2++)
+                {    
+                    //std::cout<<Bneighbors[indx2].src<<" || "<<Bneighbors[indx2].dst<<" "<<(int)Bneighbors[indx2].type<<std::endl;
                     if((Aneighbors[indx1].dst_type==Bneighbors[indx2].dst_type) && (Aneighbors[indx1].type==Bneighbors[indx2].type)) ///Edge
+                    {    
+                        std::cout<<"+1"<<std::endl;
                         edge.weight++;
+                    }
+                }
+            }
         }
     }
     else
@@ -295,7 +311,7 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
             if((*it).second.type==args.type)
             {
                 uint64_t dst=(*it).second.id+args.offset;
-                edgePtr->AsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type));
+                edgePtr->AsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type,0,0));
                 //edgePtr->BufferedAsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type));
                 my_start++; 
             }
@@ -312,7 +328,7 @@ void addIndices_L(shad::rt::Handle & handle, const args_L_t & args)
             if((*it).second.type==args.type)
             {
                 uint64_t dst=(*it).second.id+args.offset;
-                edgePtr->AsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type));
+                edgePtr->AsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type,0,0));
                 //edgePtr->BufferedAsyncInsertAt(handle, my_start, Edge(args.src,dst,0.0,TYPES::NONE,args.type,args.type));
                 my_start++; 
             }
@@ -535,7 +551,7 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
 
     L.vertexNumber=a_num_vertices+b_num_vertices;
     L.a_num_vertices=a_num_vertices;
-    L.vertexOID=shad::Array<VertexL>::Create(L.vertexNumber + 1, VertexL(0,0,0,TYPES::NONE,-1, -1))->GetGlobalID();
+    L.vertexOID=shad::Array<VertexL>::Create(L.vertexNumber + 1, VertexL(0,0,0,TYPES::NONE,-1, -1, 0))->GetGlobalID();
     
     L.vertexPtr()->FillPtrs();
     std::cout<<"Num Vertices: "<<L.vertexNumber<<" "<<L.a_num_vertices<<std::endl;
@@ -589,7 +605,7 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
                 //shad::rt::Handle handle1;
                 
                 auto count=fB.counter[(uint64_t)vertex.type];
-                L.vertexPtr()->AsyncInsertAt(handle, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
+                L.vertexPtr()->AsyncInsertAt(handle, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1, 0));
                 //shad::rt::waitForCompletion(handle1);
             }
         },
@@ -607,7 +623,7 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
             {
                 auto count=fA.counter[(uint64_t)vertex.type];
 
-                L.vertexPtr()->AsyncInsertAt(handle, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1));
+                L.vertexPtr()->AsyncInsertAt(handle, pos, VertexL(vertex.id, pos, count, vertex.type,-1,-1,0));
                 //shad::rt::waitForCompletion(handle1);
             }
         },
@@ -690,9 +706,12 @@ void setMate(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &ar
                     
                     for(int indx=0;indx<neighbors.size();indx++)
                     {
+                        
                         weight=neighbors[indx].weight;
                         id=neighbors[indx].dst;
-                        if((weight > 0.0) && (( weight > heaviest) || (weight == heaviest && id > partner )))
+                        //std::cout<<weight<<" | ("<<i<<","<<id<<")"<<std::endl;
+                        int taken=vertexPtr->At(id).taken;
+                        if((taken == 0) && (weight > 0.0) && (( weight > heaviest) || (weight == heaviest && id > partner )))
                         {
                             partner=id;
                             heaviest=weight;
@@ -701,9 +720,11 @@ void setMate(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &ar
                             
                     }
                     neighbors.clear(); 
-                    std::cout<<"P: "<<i<<"->"<<partner-22<<" "<<args.offset<<std::endl;
+                    
                     vertex.mate=partner;
                     vertex.indx=heavyIndx;
+                    std::cout<<"P: "<<i<<"->"<<vertex.mate<<" "<<heaviest<<" "<<vertex.indx<<std::endl;
+                    
                 }
                 else std::cout<<"Trouble: "<<i<<" "<<start<<" "<<end<<std::endl;
             }
@@ -720,11 +741,12 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
 
     auto my_rank=shad::rt::thisLocality();
     auto total_ranks =shad::rt::numLocalities();
-    auto counter = shad::Array<int>::Create(total_ranks, 0);
-    auto counterID = counter->GetGlobalID();
-    
+    auto Counter = shad::Array<int>::Create(total_ranks, 0);
+    auto counterID = Counter->GetGlobalID();
     uint64_t arrayOID=(uint64_t)L.edgeOID;
     uint64_t vertexOID=(uint64_t)L.vertexOID;
+    uint32_t my_pos = (uint32_t)my_rank;
+    
     ///// I need a shared array on uint64 of size num_locality
     
     /// Matching algorithm is two loops over the vertices
@@ -751,37 +773,50 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
         //// Second loop, check whether u -> v and v -> u. If yes then match it. If no then iterate.
         //// DO NOT FORGET TO RESET THE EDGE WEIGHTS AND MATE
         L.vertexPtr()->AsyncForEachInRange(handle,0,L.vertexNumber,
-            [](shad::rt::Handle &handle, size_t i, VertexL &vertex, uint64_t &arrayOID, uint64_t &vertexOID, int &localCounter)
+            [](shad::rt::Handle &handle, size_t i, VertexL &vertex, uint64_t &arrayOID, uint64_t &vertexOID, shad::Array<int>::ObjectID &counterID)
             {
                 auto edgePtr=shad::Array<Edge>::GetPtr((EdgeOID)arrayOID);
                 auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)vertexOID);
+                auto Counter=shad::Array<int>::GetPtr(counterID);
                 int64_t my_id=i; /// 5
                 int64_t indx = vertex.indx;
                 int64_t mate = vertex.mate;
-                if(mate!=-1 && my_id == vertexPtr->At(mate).mate)
+                int taken = vertex.taken;
+                if(taken == 0 && mate!=-1 && my_id == vertexPtr->At(mate).mate)
                 {
                     //// We got a match, RESET edges we need this for multiple matches
                     ///L.edgePtr()->At(vertex.indx).weight=-1.0;
                     //// NOTE: L.edgePtr()->AsyncApply(indx,function(), args);
                     //shad::rt::Handle handle1;
+                    vertex.taken=1;
                     double val=-1.00;
                     edgePtr->AsyncApply(handle, indx,
                         [](shad::rt::Handle &, size_t i, Edge &edge, double &val)
                         {
-                            edge.weight=val;
+                            edge.weight=-1.00;
                         },
                     val);
-                    localCounter++;
-                    std::cout<<"Got mate: "<<my_id<<" "<<mate<<" "<<localCounter<<std::endl;
+                    
+                    Counter->AsyncInsertAt(handle,0,1);
+                    std::cout<<"Got mate: "<<my_id<<" "<<mate<<std::endl;
                 }
                 else
                     vertex.mate=-1;
             },
-        arrayOID, vertexOID,localCounter);
+        arrayOID, vertexOID, counterID);
 
         shad::rt::waitForCompletion(handle);
         
-        
+        std::cout<<"$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"<<std::endl;
+        int flag=Counter->At(0);
+        std::cout<<flag<<std::endl;
+        if(iter==10)
+            break;
+        if(flag==1)
+            Counter->InsertAt(0,0);
+        else
+            break;
+        /*
         /////// This reducer is copied from the SHAD PNNL GIT examples
         // This performs a reduction into a single counter.
         std::vector<double> reducer(shad::rt::numLocalities());
@@ -806,6 +841,7 @@ void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
             size_t(0));
 
         shad::rt::waitForCompletion(handle);
+        */
     }
 
     //// Now get the matching and reset the mates
@@ -852,6 +888,41 @@ void check_graph(GraphL &L)
         },
         arrayOID, L.a_num_vertices,L.vertexNumber);
 }
+
+void print_graph(GraphL &L)
+{
+
+    for(int i=0;i<L.vertexNumber;i++)
+    {
+        std::cout<<L.vertexPtr()->At(i).id<<" "<<L.vertexPtr()->At(i).edges<<" "<<(int)L.vertexPtr()->At(i).type<<std::endl;
+    }
+
+    for(int i=0;i<L.edgeNumber;i++)
+    {
+        std::cout<<L.edgePtr()->At(i).src<<" "<<L.edgePtr()->At(i).dst<<" "<<L.edgePtr()->At(i).weight<<std::endl;
+    }
+}
+
+void print_graph_(uint64_t arrayOID, uint64_t edgeOID, uint64_t m, uint64_t n)
+{
+    auto Vertices =VertexType::GetPtr((VertexOID) arrayOID);
+
+    auto Edges =EdgeType::GetPtr((EdgeOID) edgeOID);
+
+
+    for(int i=0;i<n;i++)
+    {
+        std::cout<<(int)Vertices->At(i).id<<" "<<(int)Vertices->At(i).edges<<" "<<(int)Vertices->At(i).type<<std::endl;
+    }
+
+    std::cout<<"$$$$$"<<std::endl;
+
+    for(int i=0;i<m;i++)
+    {
+        std::cout<<(int)Edges->At(i).type<<" "<<(int)Edges->At(i).src_type<<" "<<(int)Edges->At(i).dst_type<<std::endl;
+    }
+}
+
 
 void netAlign(std::string & patternFile,std::string & dataFile)
 {
@@ -930,7 +1001,7 @@ void netAlign(std::string & patternFile,std::string & dataFile)
     B["HasOrg"]       = (uint64_t) (HasOrg->GetGlobalID());
     B["GlobalIDS"]    = (uint64_t) (GlobalIDS->GetGlobalID());
 
-    uint64_t  m,n;
+    uint64_t  m,n,m1,n1;
     readFile( patternFile, A);
     CSR(m, n, A);
     time2=my_timer();
@@ -938,42 +1009,43 @@ void netAlign(std::string & patternFile,std::string & dataFile)
     std::cout<<"File A reading done in "<<time2-time1<<" seconds"<<std::endl;
     
     readFile( dataFile, B);
-    CSR(m, n, B);
+    CSR(m1, n1, B);
     time3=my_timer();
     std::cout<<m<<" "<<n<<std::endl;
     std::cout<<"File B reading done in "<<time3-time2<<" seconds"<<std::endl;
     
     GraphL L;
-    createBipartite(A,B,L);
+    createBipartite(A,A,L);
     time4=my_timer();
     std::cout<<"L construction done in "<<time4-time3<<" seconds"<<std::endl;
     
+    
+    
     ///// BP LOGIC
-    args_S_t args={A["Vertices"],A["Edges"],B["Vertices"],B["Edges"],L.a_num_vertices};
+    //args_S_t args={A["Vertices"],A["Edges"],B["Vertices"],B["Edges"],L.a_num_vertices};
+    args_S_t args={A["Vertices"],A["Edges"],A["Vertices"],A["Edges"],L.a_num_vertices};
     //std::cout<<"Edges "<<L.edgePtr()->Size()<<std::endl;
     L.edgePtr()->ForEach(createSquareMatrix, args);
     //check_graph(L);
     //shad::rt::waitForCompletion(handle);
     time5=my_timer();
     std::cout<<"BP done in "<<time5-time4<<" seconds"<<std::endl;
-
+    //print_graph(L);
+    //std::cout<<"-------------"<<std::endl;
+    //print_graph_(A["Vertices"],A["Edges"],m,n);
+    //std::cout<<"-------------"<<std::endl;
+    //print_graph_(B["Vertices"],B["Edges"],m1,n1);
     
     ///// Matching
     auto mate = shad::Array<int>::Create(L.a_num_vertices, -1);
     auto mateID = mate->GetGlobalID();
     
     getApproxMatching(L,mateID);
-    time5=my_timer();
+    time6=my_timer();
     std::cout<<"Matching done in "<<time6-time5<<" seconds"<<std::endl;
-    /*
-    //// I need to get the matching 
-    std::vector<int> match;
-    /*
-    if(my_rank==0)
-        for(int i=0;i<L.a_num_vertices;i++)
-            match.push_back(mate->At(i));
-    */
-    time6=my_timer();    
+    
+    //// Output
+    time7=my_timer();    
     
 } /// NetAlign
 } /// namespace

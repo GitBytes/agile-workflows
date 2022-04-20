@@ -27,6 +27,7 @@ class VertexL {          // used by both GlobalIDS and Vertices
     TYPES    type;
     int64_t mate;
     int64_t indx;
+    int64_t taken;
 
     VertexL () {
       label = shad::data_types::kNullValue<uint64_t>;
@@ -35,15 +36,17 @@ class VertexL {          // used by both GlobalIDS and Vertices
       type  = TYPES::NONE;
       mate  = -1;
       indx  = -1;
+      taken = 0;
     }
 
-    VertexL (uint64_t label_, uint64_t id_, uint64_t edges_, TYPES type_, int mate_, int indx_) {
+    VertexL (uint64_t label_, uint64_t id_, uint64_t edges_, TYPES type_, int64_t mate_, int64_t indx_, int64_t taken_) {
       label = label_;
       id    = id_;
       edges = edges_;
       type  = type_;
       mate  = mate_;
       indx  = indx_;
+      taken = taken_;
     }
 };
 
