@@ -6,3 +6,6 @@ target_link_libraries(do-workflow1 workflow1 CONAN_PKG::shad Threads::Threads MP
 
 add_executable(do-workflow2 workflow2.cc)
 target_link_libraries(do-workflow2 workflow2 CONAN_PKG::shad Threads::Threads MPI::MPI_CXX)
+
+add_executable(do-workflow2B workflow2B.cc)
+target_link_libraries(do-workflow2B workflow2 CONAN_PKG::shad Threads::Threads MPI::MPI_CXX)
