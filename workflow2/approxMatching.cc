@@ -151,6 +151,8 @@ void createSquareMatrix(size_t k, Edge &edge, args_S_t &args)
     uint64_t i=edge.src;
     uint64_t j=edge.dst;
     
+    edge.weight+=1;  /// Initial weight
+    
     //std::cout<<k<<": "<<i<<" , "<<j<<std::endl;
     /// Get degree of i in A and resize nA, then get the neighbors in nA
     //std::cout<<i<<" "<<std::endl;
@@ -540,7 +542,7 @@ void setMate(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &ar
 
 }
 
-void getApproxMatching(GraphL &L,shad::Array<int>::ObjectID &mateID)
+void getApproxMatching(GraphL &L)
 {
     
     shad::rt::Handle handle;
@@ -680,12 +682,28 @@ void print_graph_(uint64_t arrayOID, uint64_t edgeOID, uint64_t m, uint64_t n)
     }
 }
 
+void reset_weight(GraphL &L)
+{
+
+    shad::rt::Handle handle;
+    L.vertexPtr()->AsyncForEachInRange(handle,0,L.vertexNumber,
+        [](shad::rt::Handle &handle, size_t i, VertexL &vertex, uint64_t &ns)
+        {
+            vertex.taken=0;
+            vertex.mate=-1;
+        },
+    L.a_num_vertices);
+    shad::rt::waitForCompletion(handle);
+}
+
 std::map<uint64_t, uint64_t> get_matching(GraphL &L, int verbose)
 {
     std::map<uint64_t, uint64_t> match;
     std::vector<VertexL> vertex(L.vertexNumber);
     shad::rt::Handle handle;
 
+    if(verbose==1)
+        std::cout<<std::endl<<"....Matching Extraction...."<<std::endl<<std::endl;
     L.vertexPtr()->AsyncGetElements(handle,vertex.data(),0,L.vertexNumber);
     shad::rt::waitForCompletion(handle);
     for(int i=0;i<L.a_num_vertices;i++)
@@ -699,21 +717,8 @@ std::map<uint64_t, uint64_t> get_matching(GraphL &L, int verbose)
                 std::cout<<id<<" "<<mate<<std::endl;
         }
     }
+    reset_weight(L);
     return match;
-}
-
-void reset_weight(GraphL &L)
-{
-
-    shad::rt::Handle handle;
-    L.vertexPtr()->AsyncForEachInRange(handle,0,L.vertexNumber,
-        [](shad::rt::Handle &handle, size_t i, VertexL &vertex, uint64_t &ns)
-        {
-            vertex.taken=0;
-            vertex.mate=-1;
-        },
-    L.a_num_vertices);
-    shad::rt::waitForCompletion(handle);
 }
 
 
@@ -830,17 +835,20 @@ void netAlign(std::string & patternFile,std::string & dataFile)
     //print_graph_(B["Vertices"],B["Edges"],m1,n1);
     
     ///// Matching
-    auto mate = shad::Array<int>::Create(L.a_num_vertices, -1);
-    auto mateID = mate->GetGlobalID();
-    
-    getApproxMatching(L,mateID);
+
+    int top_k=3;
+    std::vector<std::map<uint64_t,uint64_t> >result(top_k);
+    for(int i=0;i<top_k;i++)
+    {
+        getApproxMatching(L);
+         //// Output Processing
+        std::map<uint64_t,uint64_t> match=get_matching(L,1);
+        result.push_back(match);
+        time7=my_timer(); 
+    }
     time6=my_timer();
     std::cout<<"Matching done in "<<time6-time5<<" seconds"<<std::endl;
-    std::cout<<"Total done in "<<time6-time1<<" seconds"<<std::endl;  
-    //// Output
-    std::map<uint64_t, uint64_t> match=get_matching(L,0);
-    time7=my_timer(); 
-     
+    std::cout<<"Total done in "<<time6-time1<<" seconds"<<std::endl; 
     
 } /// NetAlign
 } /// namespace
