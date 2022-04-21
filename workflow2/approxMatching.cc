@@ -813,15 +813,15 @@ void netAlign(std::string & patternFile,std::string & dataFile)
     std::cout<<"File B reading done in "<<time3-time2<<" seconds"<<std::endl;
     
     GraphL L;
-    createBipartite(A,A,L);
+    createBipartite(A,B,L);
     time4=my_timer();
     std::cout<<"L construction done in "<<time4-time3<<" seconds"<<std::endl;
     
     
     
     ///// BP LOGIC
-    //args_S_t args={A["Vertices"],A["Edges"],B["Vertices"],B["Edges"],L.a_num_vertices};
-    args_S_t args={A["Vertices"],A["Edges"],A["Vertices"],A["Edges"],L.a_num_vertices};
+    args_S_t args={A["Vertices"],A["Edges"],B["Vertices"],B["Edges"],L.a_num_vertices};
+    //args_S_t args={A["Vertices"],A["Edges"],A["Vertices"],A["Edges"],L.a_num_vertices};
     //std::cout<<"Edges "<<L.edgePtr()->Size()<<std::endl;
     L.edgePtr()->ForEach(createSquareMatrix, args);
     //check_graph(L);
