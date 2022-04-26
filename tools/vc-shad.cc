@@ -8,7 +8,10 @@
 #include <torch/script.h>
 
 #include <shad/core/vector.h>
+#include <shad/data_structures/array.h>
 #include <shad/core/algorithm.h>
+
+#include "mpi.h"
 
 torch::Tensor reload(const std::string &path) {
   std::ifstream file(path, std::ios::binary);
@@ -28,12 +31,19 @@ public:
   using dataset_type = torch::data::datasets::MapDataset<agile::CoraDataset, torch::data::transforms::Stack<>>;
   using data_loader_type = torch::data::StatelessDataLoader<dataset_type, sampler_type>;
 
+  TrainingState() = default;
+  TrainingState(const TrainingState &) = default;
+  TrainingState(TrainingState &&) = default;
+
+  TrainingState & operator=(const TrainingState &) = default;
+  TrainingState & operator=(TrainingState &&) = default;
+
   torch::jit::script::Module Module;
   agile::CoraDataset DataSet;
   at::Tensor TrainingMask;
   at::Tensor TestMask;
-  std::unique_ptr<data_loader_type> DataLoader;
-  std::unique_ptr<torch::optim::Adam> Adam;
+  std::shared_ptr<data_loader_type> DataLoader{nullptr};
+  std::shared_ptr<torch::optim::Adam> Adam{nullptr};
   std::vector<torch::jit::IValue> Inputs;
 };
 
@@ -114,9 +124,23 @@ void trainLoop(TrainingState & TS) {
   double total_loss = 0.0;
   size_t trainingSetSize = TS.TrainingMask.sum().item<int64_t>();
   size_t testSetSize = TS.TestMask.sum().item<int64_t>();
+  int64_t numRanks = shad::rt::numLocalities();
+
+  std::map<at::ScalarType, MPI_Datatype> torchToMPITypes = {
+    {at::kByte, MPI_UNSIGNED_CHAR},
+    {at::kChar, MPI_CHAR},
+    {at::kDouble, MPI_DOUBLE},
+    {at::kFloat, MPI_FLOAT},
+    {at::kInt, MPI_INT},
+    {at::kLong, MPI_LONG},
+    {at::kShort, MPI_SHORT},
+  };
+
   for (auto & batch : *TS.DataLoader) {
     TS.Inputs[0] = batch.data;
     auto groundTruth = batch.target;
+
+    std::cout << batch.data.sizes() << std::endl;
 
     TS.Module.train();
     auto output = TS.Module.forward(TS.Inputs).toTensor();
@@ -126,6 +150,16 @@ void trainLoop(TrainingState & TS) {
 
     TS.Adam->zero_grad();
     loss.backward();
+
+    for (const auto &param : TS.Module.named_parameters()) {
+        MPI_Allreduce(MPI_IN_PLACE, param.value.mutable_grad().data_ptr(),
+                      param.value.mutable_grad().numel(),
+                      torchToMPITypes.at(param.value.mutable_grad().scalar_type()),
+                      MPI_SUM, MPI_COMM_WORLD);
+
+        param.value.mutable_grad().data() = param.value.grad().data()/numRanks;
+    }
+
     TS.Adam->step();
 
     TS.Module.eval();
@@ -135,30 +169,34 @@ void trainLoop(TrainingState & TS) {
     test_correct += equal.index({TS.TestMask}).sum().item<int64_t>();
   }
   auto end = std::chrono::high_resolution_clock::now();
+#if 0
   std::cout
+    << shad::rt::thisLocality()
     << " Train Accuracy: "
     << static_cast<float>(train_correct) / trainingSetSize
     << ", Test Accuracy: " << static_cast<float>(test_correct) / testSetSize
     << " | Loss: " << total_loss
     << " | Time (s) : " << std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()
     << std::endl;
+#endif
 }
 
 
 namespace shad {
 int main(int argc, char *argv[]) {
-  size_t numLocalities = shad::rt::numLocalities();
-  shad::vector<TrainingState> TSs(numLocalities);
+  size_t parallelThreads= shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
+  TrainingState initState;
+  auto TSs = shad::Array<TrainingState>::Create(parallelThreads, initState);
 
   SetUpFunctor setUp(argc, argv);
 
   std::cout << "Loading module" << std::endl;
-  shad::for_each(shad::distributed_parallel_tag{}, TSs.begin(), TSs.end(), setUp);
+  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(), setUp);
 
 
   const size_t numEpochs = 200;
   for (size_t epoch = 0; epoch < numEpochs; ++epoch) {
-    shad::for_each(shad::distributed_parallel_tag{}, TSs.begin(), TSs.end(), trainLoop);
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(), trainLoop);
   }
 
   return EXIT_SUCCESS;
