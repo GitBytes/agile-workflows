@@ -3,7 +3,7 @@ from conans import ConanFile, CMake, tools
 
 class PyTorchScatterConan(ConanFile):
     name = "pytorch_sparse"
-    version = "0.6.13"
+    version = "0.7.0"
     license = "MIT"
     author = "<Put your name here> <And your email here>"
     url = "<Package recipe repository url here, for issues about the package>"
@@ -23,8 +23,8 @@ class PyTorchScatterConan(ConanFile):
 
     def source(self):
         self.run("git clone https://github.com/rusty1s/pytorch_sparse.git")
-        tools.replace_in_file("pytorch_sparse/CMakeLists.txt", "set(TORCHSPARSE_VERSION 0.6.13)",
-                              '''set(TORCHSPARSE_VERSION 0.6.13)
+        tools.replace_in_file("pytorch_sparse/CMakeLists.txt", "set(TORCHSPARSE_VERSION 0.7.0)",
+                              '''set(TORCHSPARSE_VERSION 0.7.0)
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()''')
 
