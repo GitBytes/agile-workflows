@@ -27,8 +27,8 @@ void getArg(int argc, char* argv[], int i, char *out) {
 
 struct TrainingState {
 public:
-  using sampler_type = torch::data::samplers::DistributedSequentialSampler;
-  using dataset_type = torch::data::datasets::MapDataset<agile::CoraDataset, torch::data::transforms::Stack<>>;
+  using sampler_type = torch::data::samplers::DistributedRandomSampler;
+  using dataset_type = torch::data::datasets::MapDataset<agile::CoraDataset, torch::data::transforms::Stack<agile::CoraData<>>>;
   using data_loader_type = torch::data::StatelessDataLoader<dataset_type, sampler_type>;
 
   TrainingState() = default;
@@ -40,12 +40,15 @@ public:
 
   torch::jit::script::Module Module;
   agile::CoraDataset DataSet;
-  at::Tensor TrainingMask;
-  at::Tensor TestMask;
-  std::shared_ptr<data_loader_type> DataLoader{nullptr};
+  std::shared_ptr<data_loader_type> TrainDataLoader{nullptr};
+  std::shared_ptr<data_loader_type> TestDataLoader{nullptr};
   std::shared_ptr<torch::optim::Adam> Adam{nullptr};
   std::vector<torch::jit::IValue> Inputs;
 };
+
+const int64_t trainingSetSize = 500;
+const int64_t testSetSize = 500;
+const size_t batchSize = 100;
 
 class SetUpFunctor {
 public:
@@ -67,29 +70,14 @@ public:
     // Partition in Training/Test Set
     using namespace torch::indexing;
     auto options = torch::TensorOptions().dtype(torch::kBool);
-    TS.TrainingMask = torch::zeros({numVertices}, options);
-    TS.TestMask = torch::zeros({numVertices}, options);
-
-    int64_t trainingSetSize = 500;
-    int64_t testSetSize = 500;
-    auto indices = torch::randint(0, numVertices, {trainingSetSize + testSetSize}, torch::TensorOptions().dtype(torch::kLong));
-    TS.TrainingMask.index_put_({indices.index({Slice(None, trainingSetSize)})}, true);
-    TS.TestMask.index_put_({indices.index({Slice(trainingSetSize, None)})}, true);
-
-    trainingSetSize = TS.TrainingMask.sum().item<int64_t>();
-    testSetSize = TS.TestMask.sum().item<int64_t>();
-
-    std::cout << shad::rt::thisLocality()
-              << ">Training set size : " << trainingSetSize
-              << ", Test set size : " << testSetSize
-              << std::endl;
 
     // Create DataLoader
-    size_t batchSize = numVertices / shad::rt::numLocalities();
     uint32_t thisLocality = static_cast<uint32_t>(shad::rt::thisLocality());
-    auto data_sampler= torch::data::samplers::DistributedSequentialSampler(numVertices, shad::rt::numLocalities(), thisLocality, false);
-    auto stackedDataSet = TS.DataSet.map(torch::data::transforms::Stack<>());
-    TS.DataLoader = torch::data::make_data_loader(std::move(stackedDataSet), data_sampler, batchSize);
+    auto train_sampler= torch::data::samplers::DistributedRandomSampler(trainingSetSize, shad::rt::numLocalities(), thisLocality, false);
+    auto test_sampler= torch::data::samplers::DistributedRandomSampler(testSetSize, shad::rt::numLocalities(), thisLocality, false);
+    auto stackedDataSet = TS.DataSet.map(torch::data::transforms::Stack<agile::CoraData<>>());
+    TS.TrainDataLoader = torch::data::make_data_loader(stackedDataSet, train_sampler, batchSize);
+    TS.TestDataLoader = torch::data::make_data_loader(stackedDataSet, test_sampler, batchSize);
 
     // Create Optimizer
     std::vector<at::Tensor> parameters;
@@ -103,7 +91,6 @@ public:
 
     // Set inputs
     TS.Inputs.resize(2);
-    TS.Inputs[1] = TS.DataSet.edge_index();
   }
 
   const char * modelFileName() const { return modelFileName_; }
@@ -121,9 +108,9 @@ void trainLoop(TrainingState & TS) {
   auto start = std::chrono::high_resolution_clock::now();
   size_t train_correct = 0;
   size_t test_correct = 0;
+  size_t train_size = 0;
+  size_t test_size = 0;
   double total_loss = 0.0;
-  size_t trainingSetSize = TS.TrainingMask.sum().item<int64_t>();
-  size_t testSetSize = TS.TestMask.sum().item<int64_t>();
   int64_t numRanks = shad::rt::numLocalities();
 
   std::map<at::ScalarType, MPI_Datatype> torchToMPITypes = {
@@ -136,49 +123,58 @@ void trainLoop(TrainingState & TS) {
     {at::kShort, MPI_SHORT},
   };
 
-  for (auto & batch : *TS.DataLoader) {
-    TS.Inputs[0] = batch.data;
-    auto groundTruth = batch.target;
-
-    std::cout << batch.data.sizes() << std::endl;
+  for (auto & batch : *TS.TrainDataLoader) {
+    TS.Inputs[0] = batch.Features;
+    TS.Inputs[1] = batch.EdgeIndex;
+    train_size += batch.Features.size(0);
+    auto groundTruth = batch.Labels;
 
     TS.Module.train();
     auto output = TS.Module.forward(TS.Inputs).toTensor();
 
-    auto loss = torch::nn::functional::nll_loss(output.index({TS.TrainingMask}), groundTruth.index({TS.TrainingMask}));
+    auto loss = torch::nn::functional::nll_loss(output.index({batch.Mask}), groundTruth.index({batch.Mask})) / int64_t(batchSize);
     total_loss += loss.item<double>();
 
-    TS.Adam->zero_grad();
     loss.backward();
-
-    for (const auto &param : TS.Module.named_parameters()) {
-        MPI_Allreduce(MPI_IN_PLACE, param.value.mutable_grad().data_ptr(),
-                      param.value.mutable_grad().numel(),
-                      torchToMPITypes.at(param.value.mutable_grad().scalar_type()),
-                      MPI_SUM, MPI_COMM_WORLD);
-
-        param.value.mutable_grad().data() = param.value.grad().data()/numRanks;
-    }
-
-    TS.Adam->step();
-
     TS.Module.eval();
     auto prediction = std::get<1>(output.max(1));
     auto equal = prediction.eq(groundTruth);
-    train_correct += equal.index({TS.TrainingMask}).sum().item<int64_t>();
-    test_correct += equal.index({TS.TestMask}).sum().item<int64_t>();
+    train_correct += equal.index({batch.Mask}).sum().item<int64_t>();
+  }
+
+  for (const auto &param : TS.Module.named_parameters()) {
+    MPI_Allreduce(MPI_IN_PLACE, param.value.mutable_grad().data_ptr(),
+                  param.value.mutable_grad().numel(),
+                  torchToMPITypes.at(param.value.mutable_grad().scalar_type()),
+                  MPI_SUM, MPI_COMM_WORLD);
+    param.value.mutable_grad().data() = param.value.mutable_grad().data() / numRanks;
+  }
+
+  TS.Adam->step();
+  TS.Adam->zero_grad();
+
+  for (auto & batch : *TS.TestDataLoader) {
+    test_size += batch.Features.size(0);
+    TS.Module.eval();
+    TS.Inputs[0] = batch.Features;
+    TS.Inputs[1] = batch.EdgeIndex;
+
+    auto groundTruth = batch.Labels;
+    auto output = TS.Module.forward(TS.Inputs).toTensor();
+    auto prediction = std::get<1>(output.max(1));
+    auto equal = prediction.eq(groundTruth);
+    test_correct += equal.index({batch.Mask}).sum().item<int64_t>();
   }
   auto end = std::chrono::high_resolution_clock::now();
-#if 0
+
   std::cout
     << shad::rt::thisLocality()
     << " Train Accuracy: "
-    << static_cast<float>(train_correct) / trainingSetSize
-    << ", Test Accuracy: " << static_cast<float>(test_correct) / testSetSize
+    << static_cast<float>(train_correct) / train_size
+    << ", Test Accuracy: " << static_cast<float>(test_correct) / test_size
     << " | Loss: " << total_loss
     << " | Time (s) : " << std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()
     << std::endl;
-#endif
 }
 
 
@@ -193,6 +189,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Loading module" << std::endl;
   shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(), setUp);
 
+  std::cout << "Setup done" << std::endl;
 
   const size_t numEpochs = 200;
   for (size_t epoch = 0; epoch < numEpochs; ++epoch) {

@@ -67,15 +67,14 @@ int main(int argc, char* argv[]) {
             << ", Test set size : " << testSetSize
             << std::endl;
 
-  auto stackedTrainSet = trainingSet.map(torch::data::transforms::Stack<>());
-  auto stackedTestSet = testSet.map(torch::data::transforms::Stack<>());
+  auto stackedTrainSet = trainingSet.map(torch::data::transforms::Stack<agile::CoraData<>>());
+  auto stackedTestSet = testSet.map(torch::data::transforms::Stack<agile::CoraData<>>());
 
   size_t batchSize = trainingSet.size().value() / 1;
   auto data_sampler = torch::data::samplers::DistributedSequentialSampler(trainingSet.size().value(),
                                                                           1, 0, false);
   auto data_loader = torch::data::make_data_loader(std::move(stackedTrainSet), data_sampler, batchSize);
 
-  inputs[1] = trainingSet.edge_index();
 
   for (size_t epoch = 0; epoch < numEpochs; ++epoch) {
     auto start = std::chrono::high_resolution_clock::now();
@@ -83,12 +82,13 @@ int main(int argc, char* argv[]) {
     size_t test_correct = 0;
     double total_loss = 0.0;
     for (auto &batch : *data_loader) {
-      auto input = batch.data;
-      auto groundTruth = batch.target;
+      auto &input = batch.Features;
+      auto & groundTruth = batch.Labels;
 
       model.train();
 
       inputs[0] = input;
+      inputs[1] = batch.EdgeIndex;
       auto output = model.forward(inputs).toTensor();
       auto loss = torch::nn::functional::nll_loss(output.index({training_mask}), groundTruth.index({training_mask}));
 
