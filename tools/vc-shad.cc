@@ -64,7 +64,8 @@ public:
     TS.Module = torch::jit::load(modelFileName_);
 
     // Load Dataset
-    TS.DataSet = agile::CoraDataset(edgeIndexFileName_, featureVectorsFileName_, labelFileName_);
+    auto levels = torch::tensor({5, 3, 2, 1});
+    TS.DataSet = agile::CoraDataset(edgeIndexFileName_, featureVectorsFileName_, labelFileName_, levels);
     size_t numVertices = TS.DataSet.size().value();
 
     // Partition in Training/Test Set
@@ -132,7 +133,7 @@ void trainLoop(TrainingState & TS) {
     TS.Module.train();
     auto output = TS.Module.forward(TS.Inputs).toTensor();
 
-    auto loss = torch::nn::functional::nll_loss(output.index({batch.Mask}), groundTruth.index({batch.Mask})) / int64_t(batchSize);
+    auto loss = torch::nn::functional::nll_loss(output.index({batch.Mask}), groundTruth.index({batch.Mask}));
     total_loss += loss.item<double>();
 
     loss.backward();

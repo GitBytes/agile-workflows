@@ -64,6 +64,8 @@ private:
   torch::Tensor _edgeIndex;
   torch::Tensor _featureVectors;
   torch::Tensor _labels;
+  torch::Tensor _CSR_idx;
+  torch::Tensor _levels;
 
 public:
   CoraDataset() = default;
@@ -71,27 +73,35 @@ public:
     : _edgeIndex(O._edgeIndex)
     , _featureVectors(O._featureVectors)
     , _labels(O._labels)
+    , _CSR_idx(O._CSR_idx)
+    , _levels(O._levels)
   {}
 
   CoraDataset(CoraDataset&& O)
     : _edgeIndex(std::move(O._edgeIndex))
     , _featureVectors(std::move(O._featureVectors))
     , _labels(std::move(O._labels))
+    , _CSR_idx(std::move(O._CSR_idx))
+    , _levels(std::move(O._levels))
   {}
 
   CoraDataset(const std::string &edgeIndex, const std::string& featureVectors,
-              const std::string &label);
+              const std::string &label, torch::Tensor levels);
 
   CoraDataset & operator=(const CoraDataset& O) {
     this->_edgeIndex = O._edgeIndex;
     this->_featureVectors = O._featureVectors;
     this->_labels = O._labels;
+    this->_CSR_idx = O._CSR_idx.clone();
+    this->_levels = O._levels.clone();
     return *this;
   }
   CoraDataset & operator=(CoraDataset && O) {
     this->_edgeIndex = std::move(O._edgeIndex);
     this->_featureVectors = std::move(O._featureVectors);
     this->_labels = std::move(O._labels);
+    this->_CSR_idx = std::move(O._CSR_idx);
+    this->_levels = std::move(O._levels);
     return *this;
   }
 

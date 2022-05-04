@@ -41,8 +41,9 @@ int main(int argc, char* argv[]) {
 
   using namespace torch::indexing;
   // Feature vector (2708, 1433)
-  auto trainingSet = agile::CoraDataset(argv[2], argv[3], argv[4]);
-  auto testSet = agile::CoraDataset(argv[2], argv[3], argv[4]);
+  auto levels = torch::tensor({5,3,2,1});
+  auto trainingSet = agile::CoraDataset(argv[2], argv[3], argv[4], levels);
+  auto testSet = agile::CoraDataset(argv[2], argv[3], argv[4], levels);
 
   size_t numVertices = trainingSet.size().value();
 
