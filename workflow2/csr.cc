@@ -1,51 +1,11 @@
 #include "agile/workflow2/main.h"
 #include "agile/workflow2/graph.h"
+#include "agile/workflow2/globalIDS.h"
 #include "agile/workflow2/csr.h"
 
 namespace agile::workflow2 {
 
 struct Args_t { uint64_t delta; uint64_t oid; };
-
-// Exclusive scan for vertex class array
-static void exclusiveRecursiveScan(Handle & handle, uint64_t pos, Vertex & elem, uint64_t & ndx, uint64_t & oid) {
-  auto Vertices = VertexType::GetPtr((VertexOID) oid);
-
-  uint64_t size = Vertices->Size();
-  uint64_t nelems = Vertices->getNElems();
-  std::vector<Vertex> & data = * Vertices->getData();
-
-  // if not the last set, spawn next scan
-  // ... next ndx is this ndx + # edges of last vertex in set 
-  if (pos + nelems < size) {
-     uint64_t my_ndx = ndx + data[nelems - 1].edges;
-     Vertices->AsyncApply(handle, pos + nelems, exclusiveRecursiveScan, my_ndx, oid);
-  }
-
-  for (uint64_t i = nelems - 1; i > 0; i --) data[i].edges = data[i - 1].edges + ndx;
-  data[0].edges = ndx;
-}
-
-
-void exclusiveScanVertices(uint64_t oid) {
-  auto Vertices = VertexType::GetPtr((VertexOID) oid);
-
-  auto localInclusiveScan = [](Handle & handle, const uint64_t & oid) {
-    auto Vertices = VertexType::GetPtr((VertexOID) oid);
-    std::vector<Vertex> * data = Vertices->getData();
-
-    uint64_t nelems = Vertices->getNElems();
-    for (uint64_t i = 1; i < nelems; i ++) (* data)[i].edges += (* data)[i - 1].edges;
-  };
-
-  Handle handle;
-  shad::rt::asyncExecuteOnAll(handle, localInclusiveScan, oid);
-  waitForCompletion(handle);
-
-  uint64_t ndx = 0;
-  Vertices->AsyncApply(handle, 0, exclusiveRecursiveScan, ndx, oid);
-  waitForCompletion(handle);
-}
-
 
 // Update the global ids on this local and spawn updateIDS_ on next local.
 void updateIDS_(Handle & handle, const Args_t & args) {
@@ -182,7 +142,7 @@ void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
        graph["Forums"], graph["Publications"], graph[" Topics"], graph["Vertices"]);
 
   waitForCompletion(handle);
-  exclusiveScanVertices(graph["Vertices"]);     // exclusive scan of edges to convert # edges to start location
+  exclusiveScanVertices<Vertex>(graph["Vertices"]);     // convert # edges to start location
 
 // ***** allocate space for Edges, fill pointers, and add to graph *****/
   num_edges  = (Vertices->At(num_vertices)).edges;
