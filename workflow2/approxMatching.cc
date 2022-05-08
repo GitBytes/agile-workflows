@@ -37,19 +37,17 @@ using FreqArr = std::array<uint64_t, 5>;
 
 void createSquareMatrix(uint64_t k, Edge & edge, uint64_t & AV_OID,
      uint64_t & AE_OID, uint64_t & BV_OID, uint64_t & BE_OID, uint64_t & a_num_vertices) {
-
-  uint64_t i = edge.src;
-  uint64_t j = edge.dst;
   auto A_Edges = EdgeType::GetPtr((EdgeOID) AE_OID);
   auto B_Edges = EdgeType::GetPtr((EdgeOID) BE_OID);
   auto A_Vertices = VertexType::GetPtr((VertexOID) AV_OID);
   auto B_Vertices = VertexType::GetPtr((VertexOID) BV_OID);
 
-  edge.weight += 1;     /// Initial weight
-
-  /// Get degree of i in A and resize nA, then get the neighbors in nA
+  edge.weight += 1;                                /// Initial weight
+  uint64_t i = edge.src_glbid;
+  uint64_t j = edge.dst_glbid;
   if (i >= a_num_vertices) std::swap(i, j);
-  uint64_t start  = (A_Vertices->At(i)).edges;
+
+  uint64_t start  = (A_Vertices->At(i)).edges;     /// Get src and dst degree count
   uint64_t end    = (A_Vertices->At(i + 1)).edges;
   uint64_t start1 = (B_Vertices->At(j - a_num_vertices)).edges;
   uint64_t end1   = (B_Vertices->At(j + 1 - a_num_vertices)).edges;
@@ -87,15 +85,10 @@ struct args_L_t {
 
 
 void copy_BEdges(Handle & handle, const args_L_t & args)  {
-  auto Edges = EdgeType::GetPtr((EdgeOID) args.edgeOID);
-  uint64_t locale = (uint32_t) shad::rt::thisLocality();
-
-  if (locale < shad::rt::numLocalities() - 1)     // check next locale for additional vertices of type
-     asyncExecuteAt(handle, shad::rt::Locality(locale + 1), copy_BEdges, args);
-
   Handle my_handle;
   args_L_t my_args = args;
   std::vector<Edge> edges(args.num_edges);
+  auto Edges = EdgeType::GetPtr((EdgeOID) args.edgeOID);
   auto itr_A = VertexLType::iterator::local_range(my_args.A_begin, my_args.A_end);
 
   Edges->AsyncGetElements(my_handle, edges.data(), args.edges, args.num_edges);    // get edges to copy
@@ -153,12 +146,14 @@ void create_LEdges(Handle & handle, const args_L_t & args)  {
     shad::rt::asyncExecuteAt(my_handle, shad::rt::Locality(0), create_BEdges, my_args);
     waitForCompletion(my_handle);
 
+    // since itr is first vertex of type, start copying edges from next vertex
     my_args.A_begin = VertexLType::iterator::iterator_from_local(my_args.A_begin, my_args.A_end, itr) + 1;
     if (my_args.A_begin == my_args.A_end) return;     // no A vertices left to scan
 
     VertexL next = * my_args.A_begin;
     my_args.num_edges = next.edges - my_args.edges;
-    shad::rt::asyncExecuteAt(handle, shad::rt::Locality(0), copy_BEdges, my_args);
+    // shad::rt::asyncExecuteAt(handle, shad::rt::Locality(0), copy_BEdges, my_args);
+    shad::rt::asyncExecuteOnAll(handle, copy_BEdges, my_args);
     return;
   }
 
@@ -240,7 +235,7 @@ void setMate(Handle &handle, uint64_t i, VertexL &vertex, uint64_t &vertexOID, u
   if (vertex.mate >= 0) return;
 
   uint64_t start = vertexPtr->At(i).edges;
-  uint64_t end   = vertexPtr->At(i + 1).edges;
+  uint64_t end = vertexPtr->At(i + 1).edges;
   if ((start - end) <= 0) return;
 
   int64_t id        = -1;
@@ -251,14 +246,14 @@ void setMate(Handle &handle, uint64_t i, VertexL &vertex, uint64_t &vertexOID, u
 
   if (start >= 0 && end <= edgePtr->Size()) {
      Handle my_handle;
-     std::vector<Edge> neighbors(end-start);
+     std::vector<Edge> neighbors(end - start);
 
-     edgePtr->AsyncGetElements(my_handle, neighbors.data(),start,end-start);
+     edgePtr->AsyncGetElements(my_handle, neighbors.data(), start, end - start);
      waitForCompletion(my_handle);
 
-     for (int index = 0; index < neighbors.size(); index++) {
+     for (int index = 0; index < neighbors.size(); index ++) {
          weight = neighbors[index].weight;
-         id = neighbors[index].dst;
+         id = neighbors[index].dst_glbid;
          int taken = vertexPtr->At(id).taken;
 
          if ( (taken == 0) && (weight > 0.0) &&
@@ -278,16 +273,13 @@ void setMate(Handle &handle, uint64_t i, VertexL &vertex, uint64_t &vertexOID, u
 
 void getApproxMatching(GraphL &L) {
   Handle handle;
-  auto my_rank=shad::rt::thisLocality();
-  auto total_ranks =shad::rt::numLocalities();
-  auto Counter = shad::Array<int>::Create(total_ranks, 0);
+  uint64_t arrayOID = (uint64_t) L.edgeOID;
+  uint64_t vertexOID = (uint64_t) L.vertexOID;
+
+  auto Counter = shad::Array<int>::Create(shad::rt::numLocalities(), 0);
   auto counterID = Counter->GetGlobalID();
-  uint64_t arrayOID=(uint64_t)L.edgeOID;
-  uint64_t vertexOID=(uint64_t)L.vertexOID;
-  uint32_t my_pos = (uint32_t)my_rank;
     
   /// Matching algorithm is two loops over the vertices
-
   /// First loop for each vertex u, find  the heaviest edge (u,v) and set the partner of u -> v
   uint64_t iter = 0;
 
@@ -302,16 +294,17 @@ void getApproxMatching(GraphL &L) {
     L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber,
          [](Handle & handle, size_t i, VertexL & vertex,
             uint64_t &arrayOID, uint64_t &vertexOID, shad::Array<int>::ObjectID &counterID) {
-            auto edgePtr=shad::Array<Edge>::GetPtr((EdgeOID)arrayOID);
-            auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)vertexOID);
-            auto Counter=shad::Array<int>::GetPtr(counterID);
+            auto edgePtr = shad::Array<Edge>::GetPtr((EdgeOID)arrayOID);
+            auto vertexPtr = shad::Array<VertexL>::GetPtr((VertexLOID)vertexOID);
+            auto Counter = shad::Array<int>::GetPtr(counterID);
             int64_t my_id=i; /// 5
             int64_t mate = vertex.mate;
             int64_t index = vertex.index;
             int taken = vertex.taken;
-            if (taken == 0 && mate!=-1 && my_id == vertexPtr->At(mate).mate) {
+            uint64_t size = vertexPtr->Size();
+            if (taken == 0 && mate != -1 && my_id == vertexPtr->At(mate).mate) {
                //// We got a match, RESET edges we need this for multiple matches
-               ///L.edgePtr()->At(vertex.index).weight=-1.0;
+               ///L.edgePtr()->At(vertex.index).weight = -1.0;
                //// NOTE: L.edgePtr()->AsyncApply(index,function(), args);
                vertex.taken = 1;
                double val = -1.00;
@@ -358,32 +351,29 @@ void reset_weight(GraphL &L) {
 }
 
 
-std::map<uint64_t, uint64_t> get_matching(GraphL &L, int verbose) {
+std::map<uint64_t, uint64_t> get_matching(GraphL &L) {
   Handle handle;
   std::map<uint64_t, uint64_t> match;
   std::vector<VertexL> vertex(L.vertexNumber);
+  std::cout << std::endl << "....Matching Extraction...." << std::endl << std::endl;
 
-    if(verbose==1)
-        std::cout << std::endl << "....Matching Extraction...." << std::endl << std::endl;
-    L.vertexPtr()->AsyncGetElements(handle,vertex.data(),0,L.vertexNumber);
-    shad::rt::waitForCompletion(handle);
-    for(int i=0;i<L.a_num_vertices;i++)
-    {    
-        uint64_t id=vertex[i].label;
-        if(vertex[i].taken==1)
-        {    
-            uint64_t mate=vertex[vertex[i].mate].label;
-            match.insert( std::pair<int,int>(id,mate));
-            if(verbose ==1)
-                std::cout << id << " " << mate << std::endl;
-        }
-    }
-    reset_weight(L);
-    return match;
+  L.vertexPtr()->AsyncGetElements(handle,vertex.data(),0,L.vertexNumber);
+  shad::rt::waitForCompletion(handle);
+
+  for (int i = 0; i < L.a_num_vertices; i++) {    
+    uint64_t id = vertex[i].label;
+    if (vertex[i].taken == 1) {    
+       uint64_t mate = vertex[vertex[i].mate].label;
+       match.insert( std::pair<int,int>(id,mate));
+       std::cout << id << " " << mate << std::endl;
+  } }
+
+  reset_weight(L);
+  return match;
 }
 
 
-void netAlign(std::string & patternFile,std::string & dataFile) {
+void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K) {
   std::cout << "Initialization Starts" << std::endl;
   double time1 = my_timer();
 
@@ -463,22 +453,13 @@ void netAlign(std::string & patternFile,std::string & dataFile) {
 
   std::cout << "L construction done in " << my_timer() - time2 << " seconds" << std::endl;
   time2 = my_timer();
-  // print_graph(L);
-  exit(0);
-    
+
 ///// BP LOGIC
   L.edgePtr()->ForEach(createSquareMatrix, A["Vertices"], A["Edges"], B["Vertices"], B["Edges"], L.a_num_vertices);
   std::cout << "BP done in " << my_timer() - time2 << " seconds" << std::endl;
   time2 = my_timer();
 
-  int top_k = 3;
-  std::vector<std::map<uint64_t,uint64_t> >result(top_k);
-
-  for (int i = 0; i < top_k; i++) {
-      getApproxMatching(L);
-      std::map<uint64_t,uint64_t> match=get_matching(L,1);
-      result.push_back(match);
-  }
+  for (int i = 0; i < Top_K; i++) { getApproxMatching(L); get_matching(L); }
 
   std::cout << "Matching done in " << my_timer() - time2 << " seconds" << std::endl;
   std::cout << "Total done in " << my_timer() - time1 << " seconds" << std::endl; 

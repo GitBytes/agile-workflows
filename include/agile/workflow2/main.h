@@ -48,7 +48,7 @@ TYPES insertToGraph(std::string & dataLine, Graph_t & graph);
 
 void CSR(uint64_t &, uint64_t &, Graph_t & graph);
 void WMD_pattern(Graph_t &);
-void netAlign(std::string & patternFile,std::string & dataFile);
+void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K);
 } // namespace agile::workflow2
 
 #endif  // MAIN_H
