@@ -3,6 +3,8 @@
 echo 'Running the first time setup script'
 
 pip install --user conan
+pip install --user torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
+pip install --user torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.11.0+cpu.html
 
 conan profile new default --detect &> /dev/null
 conan profile update settings.compiler.libcxx=libstdc++11 default
@@ -11,16 +13,17 @@ conan profile update settings.arch_build=riscv default
 conan profile update env.CC=$(which mpicc) default
 conan profile update env.CXX=$(which mpicxx) default
 
-if [ -d $HOME/.conan/data ]; then
-    rm -rf $HOME/.conan/data
-fi
-
 if grep riscv $HOME/.conan/settings.yml; then
     echo RISCV support already added. Skipping.
 else
     echo RISCV support added.
-    sed -i .bkp s/x86/x86, riscv/ $HOME/.conan/settings.yml
+    sed --in-place=.bkp 's/x86/x86, riscv/' $HOME/.conan/settings.yml
 fi
 
-conan create conan/gmt user/stable
-conan create conan/shad user/stable
+for i in $(ls conan/); do
+    if [ -d $HOME/.conan/data/$i ]; then
+        rm -rf $HOME/.conan/data/$i
+    fi
+
+    conan create conan/$i user/stable
+done
