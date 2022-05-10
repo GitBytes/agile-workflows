@@ -357,6 +357,11 @@ void create_edges(uint64_t i, VertexL& vertex, args_t_t &args)
     index=vertex.edges;
 
 }
+
+void setIndx(uint64_t i, VertexL &vertex)
+{
+    vertex.indx=vertex.edges;
+}
 void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
 {
     
@@ -453,6 +458,8 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L)
      
     //exclusiveScanVertices(L.vertexOID);     // exclusive scan for the vertex pointer array of L
     exclusiveScanVerticesL((uint64_t)L.vertexOID);
+    //// Set the VertexL indx to the start of the edgelist. Needed for the sorted case
+    L.vertexPtr()->ForEach(setIndx);
     /// Now get the all vertices (global ids) of a vertex type
 
    
@@ -480,6 +487,53 @@ struct args_M_t {
     uint64_t num_vertex;
     
 };
+
+void setMateSorted(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &args)
+{
+    if(i<args.num_vertex)
+    {
+        auto edgePtr=shad::Array<Edge>::GetPtr((EdgeOID)args.edgeOID);
+        auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)args.arrayOID);
+        if(vertex.mate < 0)
+        {    
+            uint64_t start=vertexPtr->At(i).indx; /// Start position in sorted array
+            uint64_t end=vertexPtr->At(i+1).edges;
+            
+            if((start-end)>0)
+            {
+                int64_t partner=-1;
+                int64_t id=-1;
+                int64_t heavyIndx=-1;
+                double heaviest=0.0;
+                double weight=0.0;
+
+                std::vector<Edge> neighbors(end-start);
+                shad::rt::Handle handle1; // Do it need additional handle?
+                edgePtr->AsyncGetElements(handle1,neighbors.data(),start,end-start);
+                shad::rt::waitForCompletion(handle1);
+
+                for(int indx=0;indx<neighbors.size();indx++)
+                {
+                    heavyIndx=start+indx;
+                    int taken=vertexPtr->At(id).taken;
+                    if(taken==0)
+                    {
+                        partner=neighbors[indx].dst;
+                        break;
+                    }
+                       
+                }
+                neighbors.clear(); 
+                
+                vertex.mate=partner;
+                vertex.indx=heavyIndx;
+                
+            }
+        }
+    }
+    
+
+}
 
 //void setMate(uint64_t i, VertexL &vertex, args_M_t &args)
 void setMate(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &args)
