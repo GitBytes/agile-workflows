@@ -63,11 +63,28 @@ void createSquareMatrix(uint64_t k, Edge & edge, uint64_t & AV_OID,
   B_Edges->AsyncGetElements(handle, Bneighbors.data(), start1, end1 - start1);
   shad::rt::waitForCompletion(handle);
 
-  for (int index1 = 0;      index1 < Aneighbors.size(); index1 ++) {
-  for (int index2 = index1; index2 < Bneighbors.size(); index2 ++) {
+  for (int index1 = 0; index1 < Aneighbors.size(); index1 ++) {
+  for (int index2 = 0; index2 < Bneighbors.size(); index2 ++) {
       if ( (Aneighbors[index1].type     == Bneighbors[index2].type) &&
-           (Aneighbors[index1].dst_type == Bneighbors[index2].dst_type) ) edge.weight++;
+           (Aneighbors[index1].dst_type == Bneighbors[index2].dst_type) ) edge.weight ++;
 } } }
+
+
+bool compByWeight(Edge & A, Edge & B) { return A.weight > B.weight;}
+
+void sortEdges(uint64_t i, VertexL & vertex, GraphL & L) {
+  uint64_t start = vertex.edges;
+  uint64_t end   = L.vertexPtr()->At(i + 1).edges;
+  if (start == end) return;
+
+  Handle handle;
+  std::vector<Edge> edges(end - start);
+  L.edgePtr()->AsyncGetElements(handle, edges.data(), start, end - start);
+
+  waitForCompletion(handle);
+  std::sort(edges.begin(), edges.end(), compByWeight);
+  L.edgePtr()->InsertAt(start, edges.data(), end - start);
+}
 
 
 struct args_L_t {
@@ -229,7 +246,7 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L) {
 }
 
 
-void setMate(Handle &handle, uint64_t i, VertexL &vertex, uint64_t &vertexOID, uint64_t &edgeOID, uint64_t &offset) {
+void setMate(Handle &handle, uint64_t i, VertexL &vertex, uint64_t &vertexOID, uint64_t &edgeOID, uint64_t &null) {
   auto edgePtr = shad::Array<Edge>::GetPtr((EdgeOID) edgeOID);
   auto vertexPtr = shad::Array<VertexL>::GetPtr((VertexLOID) vertexOID);
   if (vertex.mate >= 0) return;
@@ -238,37 +255,29 @@ void setMate(Handle &handle, uint64_t i, VertexL &vertex, uint64_t &vertexOID, u
   uint64_t end = vertexPtr->At(i + 1).edges;
   if ((start - end) <= 0) return;
 
-  int64_t id        = -1;
+  Handle my_handle;
   int64_t partner   = -1;
   int64_t heavyIndx = -1;
-  double weight     = 0.0;
   double heaviest   = 0.0;
+  std::vector<Edge> neighbors(end - start);
 
-  if (start >= 0 && end <= edgePtr->Size()) {
-     Handle my_handle;
-     std::vector<Edge> neighbors(end - start);
+  edgePtr->AsyncGetElements(my_handle, neighbors.data(), start, end - start);
+  waitForCompletion(my_handle);
 
-     edgePtr->AsyncGetElements(my_handle, neighbors.data(), start, end - start);
-     waitForCompletion(my_handle);
+  for (int index = 0; index < neighbors.size(); index ++) {
+    int64_t id = neighbors[index].dst_glbid;
+    double weight = neighbors[index].weight;
+    int64_t taken = vertexPtr->At(id).taken;
 
-     for (int index = 0; index < neighbors.size(); index ++) {
-         weight = neighbors[index].weight;
-         id = neighbors[index].dst_glbid;
-         int taken = vertexPtr->At(id).taken;
+    if ( (taken == 0) && ((weight > heaviest) || (weight == heaviest && id > partner )) ) {
+       partner   = id;
+       heaviest  = weight;
+       heavyIndx = start + index;
+  } }
 
-         if ( (taken == 0) && (weight > 0.0) &&
-              ((weight > heaviest) || (weight == heaviest && id > partner )) ) {
-              partner   = id;
-              heaviest  = weight;
-              heavyIndx = start + index;
-      }   }
-
-      neighbors.clear();
-      vertex.mate = partner;
-      vertex.index = heavyIndx;
-  } else {
-      std::cout << "Trouble: " << i << " " << start << " " << end << std::endl;
-} }
+  vertex.mate = partner;
+  vertex.index = heavyIndx;
+}
 
 
 void getApproxMatching(GraphL &L) {
@@ -286,12 +295,12 @@ void getApproxMatching(GraphL &L) {
   while (true) {
     iter += 1;
 
-    L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber, setMate, vertexOID, arrayOID, L.a_num_vertices);
+    L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber - 1, setMate, vertexOID, arrayOID, iter);
     waitForCompletion(handle);
 
     //// Second loop, check whether u -> v and v -> u. If yes then match it. If no then iterate.
     //// DO NOT FORGET TO RESET THE EDGE WEIGHTS AND MATE
-    L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber,
+    L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber - 1,
          [](Handle & handle, size_t i, VertexL & vertex,
             uint64_t &arrayOID, uint64_t &vertexOID, shad::Array<int>::ObjectID &counterID) {
             auto edgePtr = shad::Array<Edge>::GetPtr((EdgeOID)arrayOID);
@@ -340,18 +349,7 @@ void print_graph(GraphL &L) {
 } }
 
 
-void reset_weight(GraphL &L) {
-  Handle handle;
-  L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber,
-       [](Handle &handle, size_t i, VertexL &vertex, uint64_t &ns) {vertex.taken = 0; vertex.mate = -1;},
-       L.a_num_vertices
-  );
-
-  shad::rt::waitForCompletion(handle);
-}
-
-
-std::map<uint64_t, uint64_t> get_matching(GraphL &L) {
+void get_matching(GraphL &L) {
   Handle handle;
   std::map<uint64_t, uint64_t> match;
   std::vector<VertexL> vertex(L.vertexNumber);
@@ -362,14 +360,15 @@ std::map<uint64_t, uint64_t> get_matching(GraphL &L) {
 
   for (int i = 0; i < L.a_num_vertices; i++) {    
     uint64_t id = vertex[i].label;
-    if (vertex[i].taken == 1) {    
-       uint64_t mate = vertex[vertex[i].mate].label;
-       match.insert( std::pair<int,int>(id,mate));
-       std::cout << id << " " << mate << std::endl;
-  } }
+    uint64_t mate = vertex[vertex[i].mate].label;
+    if (vertex[i].taken == 1) std::cout << id << " " << mate << std::endl;
+  }
 
-  reset_weight(L);
-  return match;
+  // reset vertices
+  L.vertexPtr()->ForEachInRange(0, L.vertexNumber - 1,
+       [](size_t i, VertexL & vertex, uint64_t & ns) {vertex.taken = 0; vertex.mate = -1;},
+       L.a_num_vertices
+  );
 }
 
 
@@ -447,7 +446,7 @@ void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K
 
   std::cout << "File B reading done in " << my_timer() - time2 << " seconds" << std::endl;
   time2 = my_timer();
-    
+
   GraphL L;
   createBipartite(A,B,L);
 
@@ -456,6 +455,8 @@ void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K
 
 ///// BP LOGIC
   L.edgePtr()->ForEach(createSquareMatrix, A["Vertices"], A["Edges"], B["Vertices"], B["Edges"], L.a_num_vertices);
+  L.vertexPtr()->ForEachInRange(0, L.vertexNumber - 1, sortEdges, L);
+
   std::cout << "BP done in " << my_timer() - time2 << " seconds" << std::endl;
   time2 = my_timer();
 

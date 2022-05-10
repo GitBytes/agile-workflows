@@ -138,7 +138,7 @@ void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
 
 // ***** allocate space for Vertices and copy entries from GlobalIDS to Vertices *****/
   GlobalIDS->AsyncForEachEntry(handle, moveVertex, graph["Persons"], graph["ForumEvents"],
-       graph["Forums"], graph["Publications"], graph[" Topics"], graph["Vertices"]);
+       graph["Forums"], graph["Publications"], graph["Topics"], graph["Vertices"]);
 
   waitForCompletion(handle);
   exclusiveScanVertices<Vertex>(graph["Vertices"]);     // convert # edges to start location
@@ -151,9 +151,8 @@ void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
   graph["Edges"] = (uint64_t) (Edges->GetGlobalID());
 
 // ***** move edges from edge tables to Edges *****/
-  Vertices->ForEach(moveEdges, graph["purchasesOID"], graph["salesOID"],
-       graph["authorsOID"], graph["includesOID"], graph["hasTopicOID"],
-       graph["hasOrgOID"], graph["globalIDSOID"], graph["edgesOID"]);
+  Vertices->ForEach(moveEdges, graph["Purchases"], graph["Sales"], graph["Authors"],
+       graph["Includes"], graph["HasTopic"], graph["HasOrg"], graph["GlobalIDS"], graph["Edges"]);
 
   Edges->WaitForBufferedInsert();
 }
