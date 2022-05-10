@@ -20,16 +20,6 @@ enum class TYPES {
   NONE
 };
 
-class Freq{
-public:
-  uint64_t counter[100];
-  Freq()
-  {
-    for(int i=0; i<100;i++)
-      counter[i]=0;
-  }
-};
-
 } // namespace agile::workflow2
 
 #endif // GRAPHTYPES_H

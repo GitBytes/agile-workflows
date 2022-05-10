@@ -10,7 +10,7 @@ int main(int argc, char *argv[]) {
   Graph_t graph;
   std::string patternFile = argv[1];
   std::string dataFile = argv[2];
-  uint64_t num_edges, num_vertices;
+  uint64_t Top_K = std::stod(argv[3]);
 /*
   auto Persons      = PersonVertexType::Create(MEDIUM);
   auto ForumEvents  = ForumEventVertexType::Create(MEDIUM);
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
   WMD_pattern(graph);
   printf("Time for exact pattern matching = %lf\n", my_timer() - time1);
   */
-  netAlign(patternFile,dataFile);
+  netAlign(patternFile,dataFile, Top_K);
   return 0;
 }
 
