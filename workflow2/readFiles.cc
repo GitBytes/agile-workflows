@@ -50,7 +50,7 @@ void readFile(std::string & filename, Graph_t & graph) {
   while (getline(file, line)) {
     if (line[0] == '#') continue;     // skip comments
     std::vector <std::string> tokens = split(line, ',', 10);     // delimiter and # tokens set for wmd data file
-    //std::cout<<tokens[0]<<std::endl;
+
     if (tokens[0] == "Person") {
          PersonVertex record(tokens);
          Persons->BufferedAsyncInsert(handle, record.key(), record);
@@ -101,11 +101,9 @@ void readFile(std::string & filename, Graph_t & graph) {
          HasOrg->BufferedAsyncInsert(handle, record.key(), record);
          GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
          GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
-  } 
-     //shad::rt::waitForCompletion(handle);
-  }
+  } }
 
-  
+  shad::rt::waitForCompletion(handle);
 
   Persons->WaitForBufferedInsert();
   ForumEvents->WaitForBufferedInsert();
@@ -120,6 +118,8 @@ void readFile(std::string & filename, Graph_t & graph) {
   HasTopic->WaitForBufferedInsert();
   HasOrg->WaitForBufferedInsert();
   GlobalIDS->WaitForBufferedInsert();
+
+  file.close();
 }
 
 

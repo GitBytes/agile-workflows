@@ -118,5 +118,7 @@ void readFile(std::string & filename, Graph_t & graph) {
   HasTopic->WaitForBufferedInsert();
   HasOrg->WaitForBufferedInsert();
   GlobalIDS->WaitForBufferedInsert();
+
+  file.close();
 }
 } // namespace agile::workflow1

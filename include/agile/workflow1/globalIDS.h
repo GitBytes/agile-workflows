@@ -1,6 +1,7 @@
 #ifndef GLOBALIDS_H_
 #define GLOBALIDS_H_
 
+#include "shad/data_structures/array.h"
 #include "shad/data_structures/hashmap.h"
 #include "shad/extensions/data_types/data_types.h"
 
@@ -36,6 +37,51 @@ struct globalIdInserter {
 
   std::atomic<uint64_t> counter;
 };
+
+
+// Exclusive scan for vertex class array
+template <typename VTYPE>
+static void exclusiveRecursiveScan(Handle & handle, uint64_t pos, VTYPE & elem, uint64_t & ndx, uint64_t & oid) {
+  using arrayOID = shad::ObjectIdentifier<shad::Array<VTYPE>>;
+  auto arrayPtr  = shad::Array<VTYPE>::GetPtr((arrayOID) oid);
+
+  uint64_t size = arrayPtr->Size();
+  uint64_t nelems = arrayPtr->getNElems();
+  std::vector<VTYPE> * data = arrayPtr->getData();
+
+  // if not the last set, spawn next scan
+  // ... next ndx is this ndx + # edges of last vertex in set 
+  if (pos + nelems < size) {
+     uint64_t my_ndx = ndx + (* data)[nelems - 1].edges;
+     arrayPtr->AsyncApply(handle, pos + nelems, exclusiveRecursiveScan<VTYPE>, my_ndx, oid);
+  }
+
+  for (uint64_t i = nelems - 1; i > 0; i --) (* data)[i].edges = (* data)[i - 1].edges + ndx;
+  (* data)[0].edges = ndx;
+}
+
+
+template <typename VTYPE>
+void exclusiveScanVertices(uint64_t oid) {
+  using arrayOID = shad::ObjectIdentifier<shad::Array<VTYPE>>;
+  auto arrayPtr  = shad::Array<VTYPE>::GetPtr((arrayOID) oid);
+
+  auto localInclusiveScan = [](Handle & handle, const uint64_t & oid) {
+    auto arrayPtr = shad::Array<VTYPE>::GetPtr((arrayOID) oid);
+    std::vector<VTYPE> * data = arrayPtr->getData();
+
+    uint64_t nelems = arrayPtr->getNElems();
+    for (uint64_t i = 1; i < nelems; i ++) (* data)[i].edges += (* data)[i - 1].edges;
+  };
+
+  Handle handle;
+  shad::rt::asyncExecuteOnAll(handle, localInclusiveScan, oid);
+  shad::rt::waitForCompletion(handle);
+
+  uint64_t ndx = 0;
+  arrayPtr->AsyncApply(handle, 0, exclusiveRecursiveScan<VTYPE>, ndx, oid);
+  shad::rt::waitForCompletion(handle);
+}
 
 
 class Vertex {          // used by both GlobalIDS and Vertices

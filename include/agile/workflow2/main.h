@@ -34,8 +34,6 @@ using AllEdgeOID  = shad::ObjectIdentifier<AllEdgeType>;
 uint64_t String_to_Uint(std::string &);
 double String_to_Double(std::string &);
 double String_to_Date(std::string &);
-//void readFile(std::string & filename, Graph_t & graph);
-//void approxMatching();
 
 using Handle = shad::rt::Handle;
 using IntArray = shad::Array<int64_t>;
@@ -47,9 +45,10 @@ using Graph_t = std::map<std::string, uint64_t>;
 
 void readFile(std::string & filename, Graph_t & graph);
 TYPES insertToGraph(std::string & dataLine, Graph_t & graph);
+
 void CSR(uint64_t &, uint64_t &, Graph_t & graph);
 void WMD_pattern(Graph_t &);
-void netAlign(std::string & patternFile,std::string & dataFile);
+void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K);
 } // namespace agile::workflow2
 
 #endif  // MAIN_H
