@@ -47,8 +47,8 @@ bool proximity(TopicVertex &A, TopicVertex &B) {
 
 void StreamDataFile(shad::rt::Handle &, const std::string &dataFile) {
   double time_start = my_timer(); // temp to finish experiment
-  double max_time = 600;
-  int waitMillisec = 5;
+  double max_time = 6000;
+  int waitMillisec = 50;
   std::ifstream file(dataFile);
   if (file.is_open()) {
     printf("reading file %s\n", dataFile.c_str());
@@ -530,7 +530,7 @@ void CheckPartialMatch(shad::rt::Handle &, const Pattern_args_t &args) {
       }
     }
     // This is a Forum with Topic Info
-    if (tokens[3] != "") {
+    else if (tokens[3] != "") {
       uint64_t ForumID = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
       // if topic info is NYC
       if (tokens[6] == "60") {
@@ -543,7 +543,7 @@ void CheckPartialMatch(shad::rt::Handle &, const Pattern_args_t &args) {
     }
 
     // This is a publication with topic info
-    if (tokens[5] != "") {
+    else if (tokens[5] != "") {
       bool SP5 = SubPattern5Check(tokens, graph);
       // check if this addition resulted in a full pattern match
       if (SP5) {
@@ -622,7 +622,7 @@ void CheckPartialMatch(shad::rt::Handle &, const Pattern_args_t &args) {
       // if so; check for all all people 
     PatternCheck(graph);
   }
-  // vertices !!
+  // JFEO: add code for vertices here
   else if (t == TYPES::PERSON) {
     //check for SubPattern7 (ammo distributor)
     //check for SubPattern6 (bath bomb, pressure cooker, ammo)
@@ -751,6 +751,7 @@ int main(int argc, char *argv[]) {
   waitForCompletion(partialHandle);
 
   printf("handle waits returned\n");
+  
   // one last check after finishing all handles
   // PatternCheck(graph);
   // waitForCompletion(patternHandle);
