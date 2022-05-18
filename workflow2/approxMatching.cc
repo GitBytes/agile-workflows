@@ -100,6 +100,14 @@ struct args_L_t {
   VertexLType::iterator B_end;
 };
 
+struct args_M_t {
+  
+  uint64_t num_vertex;
+  uint64_t vertexOID;
+  uint64_t edgeOID;
+
+};
+
 
 void copy_BEdges(Handle & handle, const args_L_t & args)  {
   Handle my_handle;
@@ -251,10 +259,10 @@ void setMateSorted(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M
     if(i<args.num_vertex)
     {
         auto edgePtr=shad::Array<Edge>::GetPtr((EdgeOID)args.edgeOID);
-        auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)args.arrayOID);
+        auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)args.vertexOID);
         if(vertex.mate < 0)
         {    
-            uint64_t start=vertexPtr->At(i).indx; /// Start position in sorted array
+            uint64_t start=vertexPtr->At(i).index; /// Start position in sorted array
             uint64_t end=vertexPtr->At(i+1).edges;
             
             if((start-end)>0)
@@ -284,7 +292,7 @@ void setMateSorted(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M
                 neighbors.clear(); 
                 
                 vertex.mate=partner;
-                vertex.indx=heavyIndx;
+                vertex.index=heavyIndx;
                 
             }
         }
@@ -296,10 +304,11 @@ void setMateSorted(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M
 //void setMate(uint64_t i, VertexL &vertex, args_M_t &args)
 void setMate(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &args)
 {
+    auto edgePtr=shad::Array<Edge>::GetPtr((EdgeOID)args.edgeOID);
+    auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)args.vertexOID);
     if(i<args.num_vertex)
     {
-        auto edgePtr=shad::Array<Edge>::GetPtr((EdgeOID)args.edgeOID);
-        auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)args.arrayOID);
+        
         if(vertex.mate < 0)
         {    
             uint64_t start=vertexPtr->At(i).edges;
@@ -342,7 +351,7 @@ void setMate(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &ar
                     neighbors.clear(); 
                     
                     vertex.mate=partner;
-                    vertex.indx=heavyIndx;
+                    vertex.index=heavyIndx;
                     //std::cout<<"P: "<<i<<"->"<<vertex.mate<<" "<<heaviest<<" "<<vertex.indx<<std::endl;
                     
                 }
@@ -396,7 +405,12 @@ void getApproxMatching(GraphL &L) {
   while (true) {
     iter += 1;
 
-    L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber - 1, setMate, vertexOID, arrayOID, iter);
+    args_M_t margs;
+    margs.edgeOID = arrayOID;
+    margs.vertexOID = vertexOID;
+    margs.edgeOID = L.vertexNumber;
+
+    L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber - 1, setMate, margs);
     waitForCompletion(handle);
 
     //// Second loop, check whether u -> v and v -> u. If yes then match it. If no then iterate.
