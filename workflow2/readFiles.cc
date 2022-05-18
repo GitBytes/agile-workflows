@@ -146,71 +146,71 @@ TYPES insertToGraph(std::string & dataLine, Graph_t & graph) {
 
     if (tokens[0] == "Person") {
          PersonVertex record(tokens);
-         Persons->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::PERSON));
+         Persons->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::PERSON));
     } else if (tokens[0] == "ForumEvent") {
          ForumEventVertex record(tokens);
-         ForumEvents->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::FORUMEVENT));
+         ForumEvents->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::FORUMEVENT));
     } else if (tokens[0] == "Forum") {
          ForumVertex record(tokens);
-         Forums->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::FORUM));
+         Forums->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::FORUM));
     } else if (tokens[0] == "Publication") {
          PublicationVertex record(tokens);
-         Publications->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::PUBLICATION));
+         Publications->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::PUBLICATION));
     } else if (tokens[0] == "Topic") {
          TopicVertex record(tokens);
-         Topics->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::TOPIC));
+         Topics->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.key(), Vertex(0, 0, TYPES::TOPIC));
     } else if (tokens[0] == "Sale") {
          SaleEdge record(tokens);
-         Sales->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
+         Sales->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
+         GlobalIDS->AsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
 
          PurchaseEdge record1(tokens);
-         Purchases->BufferedAsyncInsert(handle, record1.key(), record1);
-         GlobalIDS->BufferedAsyncInsert(handle, record1.src(), Vertex(0, 1, record1.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, record1.dst(), Vertex(0, 0, record1.dst_type));
+         Purchases->AsyncInsert(handle, record1.key(), record1);
+         GlobalIDS->AsyncInsert(handle, record1.src(), Vertex(0, 1, record1.src_type));
+         GlobalIDS->AsyncInsert(handle, record1.dst(), Vertex(0, 0, record1.dst_type));
     } else if (tokens[0] == "Author") {
          AuthorEdge record(tokens);
-         Authors->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
+         Authors->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
+         GlobalIDS->AsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
     } else if (tokens[0] == "Includes") {
          IncludesEdge record(tokens);
-         Includes->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
+         Includes->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
+         GlobalIDS->AsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
     } else if (tokens[0] == "HasTopic") {
          HasTopicEdge record(tokens);
-         HasTopic->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
+         HasTopic->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
+         GlobalIDS->AsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
     } else if (tokens[0] == "HasOrg") {
          HasOrgEdge record(tokens);
-         HasOrg->BufferedAsyncInsert(handle, record.key(), record);
-         GlobalIDS->BufferedAsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
+         HasOrg->AsyncInsert(handle, record.key(), record);
+         GlobalIDS->AsyncInsert(handle, record.src(), Vertex(0, 1, record.src_type));
+         GlobalIDS->AsyncInsert(handle, record.dst(), Vertex(0, 0, record.dst_type));
     }
 
-  //shad::rt::waitForCompletion(handle);
+    shad::rt::waitForCompletion(handle);
 
-  Persons->WaitForBufferedInsert();
-  ForumEvents->WaitForBufferedInsert();
-  Forums->WaitForBufferedInsert();
-  Publications->WaitForBufferedInsert();
-  Topics->WaitForBufferedInsert();
+//   Persons->WaitForBufferedInsert();
+//   ForumEvents->WaitForBufferedInsert();
+//   Forums->WaitForBufferedInsert();
+//   Publications->WaitForBufferedInsert();
+//   Topics->WaitForBufferedInsert();
 
-  Purchases->WaitForBufferedInsert();
-  Sales->WaitForBufferedInsert();
-  Authors->WaitForBufferedInsert();
-  Includes->WaitForBufferedInsert();
-  HasTopic->WaitForBufferedInsert();
-  HasOrg->WaitForBufferedInsert();
-  GlobalIDS->WaitForBufferedInsert();
+//   Purchases->WaitForBufferedInsert();
+//   Sales->WaitForBufferedInsert();
+//   Authors->WaitForBufferedInsert();
+//   Includes->WaitForBufferedInsert();
+//   HasTopic->WaitForBufferedInsert();
+//   HasOrg->WaitForBufferedInsert();
+//   GlobalIDS->WaitForBufferedInsert();
 
   return t;
 }
