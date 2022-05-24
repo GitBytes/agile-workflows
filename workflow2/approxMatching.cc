@@ -35,25 +35,34 @@
 namespace agile::workflow2{
 using FreqArr = std::array<uint64_t, 5>;
 
-void createSquareMatrix(uint64_t k, Edge & edge, uint64_t & AV_OID,
-     uint64_t & AE_OID, uint64_t & BV_OID, uint64_t & BE_OID, uint64_t & a_num_vertices) {
-  auto A_Edges = EdgeType::GetPtr((EdgeOID) AE_OID);
-  auto B_Edges = EdgeType::GetPtr((EdgeOID) BE_OID);
-  auto A_Vertices = VertexType::GetPtr((VertexOID) AV_OID);
-  auto B_Vertices = VertexType::GetPtr((VertexOID) BV_OID);
 
+struct args_S_t {
+  uint64_t AV_OID;
+  uint64_t AE_OID;
+  uint64_t BV_OID;
+  uint64_t BE_OID;
+  uint64_t a_num_vertices;
+};
+
+void createSquareMatrix(uint64_t k, Edge & edge, args_S_t &args) {
+  auto A_Edges = EdgeType::GetPtr((EdgeOID) args.AE_OID);
+  auto B_Edges = EdgeType::GetPtr((EdgeOID) args.BE_OID);
+  auto A_Vertices = VertexType::GetPtr((VertexOID) args.AV_OID);
+  auto B_Vertices = VertexType::GetPtr((VertexOID) args.BV_OID);
+  
   edge.weight += 1;                                /// Initial weight
   uint64_t i = edge.src_glbid;
   uint64_t j = edge.dst_glbid;
-  if (i >= a_num_vertices) std::swap(i, j);
+  if (i >= args.a_num_vertices) std::swap(i, j);
 
+  //// Problem
   uint64_t start  = (A_Vertices->At(i)).edges;     /// Get src and dst degree count
   uint64_t end    = (A_Vertices->At(i + 1)).edges;
-  uint64_t start1 = (B_Vertices->At(j - a_num_vertices)).edges;
-  uint64_t end1   = (B_Vertices->At(j + 1 - a_num_vertices)).edges;
+  uint64_t start1 = (B_Vertices->At(j - args.a_num_vertices)).edges;
+  uint64_t end1   = (B_Vertices->At(j + 1 - args.a_num_vertices)).edges;
 
   if ((end - start) <= 0 || (end1 - start1) <= 0) return;
-
+  /*
   Handle handle;
   std::vector<Edge> Aneighbors(end - start);
   A_Edges->AsyncGetElements(handle, Aneighbors.data(), start, end - start);
@@ -63,11 +72,16 @@ void createSquareMatrix(uint64_t k, Edge & edge, uint64_t & AV_OID,
   B_Edges->AsyncGetElements(handle, Bneighbors.data(), start1, end1 - start1);
   shad::rt::waitForCompletion(handle);
 
-  for (int index1 = 0; index1 < Aneighbors.size(); index1 ++) {
-  for (int index2 = 0; index2 < Bneighbors.size(); index2 ++) {
+  for (int index1 = 0; index1 < Aneighbors.size(); index1 ++) 
+  {
+    for (int index2 = 0; index2 < Bneighbors.size(); index2 ++) 
+    {
       if ( (Aneighbors[index1].type     == Bneighbors[index2].type) &&
-           (Aneighbors[index1].dst_type == Bneighbors[index2].dst_type) ) edge.weight ++;
-} } }
+           (Aneighbors[index1].dst_type == Bneighbors[index2].dst_type) ) 
+           edge.weight ++;
+    } 
+  } */
+}
 
 
 bool compByWeight(Edge & A, Edge & B) { return A.weight > B.weight;}
@@ -454,13 +468,12 @@ void getApproxMatching(GraphL &L) {
 void print_graph(GraphL &L) {
   for (int i = 0; i < L.vertexNumber; i++) {
     VertexL v = L.vertexPtr()->At(i);
-    printf("%lu %lu %lu %lu %d %d %d\n", v.id, v.label, v.edges, (uint64_t) v.type, v.mate, v.index, v.taken);
+    printf("%lu %lu %lu\n", v.id, v.edges, (uint64_t) v.type);
   }
-
+  std::cout<<"----------"<<std::endl;
   for (int i = 0; i < L.edgeNumber; i++) {
     Edge e = L.edgePtr()->At(i);
-    printf("%lu %lu %lf %lu %lu %lu %lu %lu\n", e.src, e.dst, e.weight,
-         (uint64_t) e.type, (uint64_t) e.src_type, (uint64_t) e.dst_type, e.src_glbid, e.dst_glbid);
+    printf("%lu %lu %lf %lu %lu\n", e.src_glbid, e.dst_glbid, e.weight, (uint64_t) e.src_type, (uint64_t) e.dst_type );
 } }
 
 
@@ -564,18 +577,27 @@ void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K
 
   GraphL L;
   createBipartite(A,B,L);
-
+  print_graph(L);
   std::cout << "L construction done in " << my_timer() - time2 << " seconds" << std::endl;
   time2 = my_timer();
 
 ///// BP LOGIC
-  L.edgePtr()->ForEach(createSquareMatrix, A["Vertices"], A["Edges"], B["Vertices"], B["Edges"], L.a_num_vertices);
-  L.vertexPtr()->ForEachInRange(0, L.vertexNumber - 1, sortEdges, L);
+  args_S_t args;
+  args.AV_OID=A["Vertices"];
+  args.AE_OID=A["Edges"];
+  args.BV_OID=B["Vertices"];
+  args.BE_OID=B["Edges"];
+  args.a_num_vertices=L.a_num_vertices;
+  //L.edgePtr()->ForEach(createSquareMatrix, args);
 
-  std::cout << "BP done in " << my_timer() - time2 << " seconds" << std::endl;
+  //std::cout << "BP done in " << my_timer() - time2 << " seconds" << std::endl;
   time2 = my_timer();
+  
+ // L.vertexPtr()->ForEachInRange(0, L.vertexNumber - 1, sortEdges, L);
 
-  for (int i = 0; i < Top_K; i++) { getApproxMatching(L); get_matching(L); }
+  
+
+  //for (int i = 0; i < Top_K; i++) { getApproxMatching(L); get_matching(L); }
 
   std::cout << "Matching done in " << my_timer() - time2 << " seconds" << std::endl;
   std::cout << "Total done in " << my_timer() - time1 << " seconds" << std::endl; 
