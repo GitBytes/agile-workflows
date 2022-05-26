@@ -5,6 +5,8 @@
 #include "shad/data_structures/hashmap.h"
 #include "shad/extensions/data_types/data_types.h"
 
+#include "graphTypes.h"
+
 namespace agile::workflow2 {
 
 template <typename T>
@@ -89,17 +91,20 @@ class Vertex {          // used by both GlobalIDS and Vertices
     uint64_t id;        // GlobalIDS: global id ... Vertices: vertex id
     uint64_t edges;     // GlobalIDS: number of edges ... Vertices: start index in Edges
     TYPES    type;
+    Triples  triples;
 
     Vertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
       edges = shad::data_types::kNullValue<uint64_t>;
       type  = TYPES::NONE;
+      std::memset(triples, 0, sizeof(Triples));
     }
 
     Vertex (uint64_t id_, uint64_t edges_, TYPES type_) {
       id    = id_;
       edges = edges_;
       type  = type_;
+      std::memset(triples, 0, sizeof(Triples));
     }
 };
 
