@@ -49,8 +49,19 @@ struct args_L_t {
   VertexLType::iterator B_end;
 };
 
+struct args_W_t{
+  uint64_t offset; 
+  uint64_t BV_OID;
+};
+
+struct args_CW_t{
+  uint64_t & A_ndx, 
+  uint8_t * ret, 
+  uint32_t * retSize
+};
+
 using FreqArr = std::array<uint64_t, 5>;
-bool compByWeight(Edge & A, Edge & B) { return A.weight > B.weight;}
+bool compByWeight(Edge & A, Edge & B) { return ((A.weight > B.weight) || ((A.weight == B.weight) && (A.dst_glbid > B.dst_glbid)));}
 
 void CW_(Handle & h, uint64_t B_ndx, Vertex & BV, uint64_t & A_ndx, uint8_t * ret, uint32_t * retSize) {
   double weight = 1.0;
@@ -72,11 +83,11 @@ void copyVertices(const uint64_t & vertexOID) {
 }
 
 
-void edgeWeights(Handle & handle, uint64_t i, Edge & edge, uint64_t & offset, uint64_t & BV_OID) {
+void edgeWeights(Handle & handle, uint64_t i, Edge & edge, args_W_t &args) {
   uint32_t retSize;
-  auto B_Vertices = VertexType::GetPtr((VertexOID) BV_OID);
+  auto B_Vertices = VertexType::GetPtr((VertexOID) args.BV_OID);
   uint64_t A_ndx = std::min(edge.src_glbid, edge.dst_glbid);
-  uint64_t B_ndx = std::max(edge.src_glbid, edge.dst_glbid) - offset;
+  uint64_t B_ndx = std::max(edge.src_glbid, edge.dst_glbid) - args.offset;
   B_Vertices->AsyncApplyWithRetBuff(handle, B_ndx, CW_, (uint8_t *) & edge.weight, & retSize, A_ndx);
 }
 
@@ -395,6 +406,18 @@ void print_graphL(GraphL &L) {
          (uint64_t) e.type, (uint64_t) e.src_type, (uint64_t) e.dst_type, e.src_glbid, e.dst_glbid);
 } }
 
+void print_graphLS(GraphL &L) {
+  for (int i = 0; i < L.vertexNumber; i++) {
+    VertexL v = L.vertexPtr()->At(i);
+    printf("%lu %lu %lu %lu\n", v.id, v.label, v.edges, (uint64_t) v.type);
+  }
+  std::cout<<"--------------"<<std::endl;
+  for (int i = 0; i < L.edgeNumber; i++) {
+    Edge e = L.edgePtr()->At(i);
+    printf("%lu %lu %lf %lu %lu %lu\n", e.src_glbid, e.dst_glbid, e.weight,
+         (uint64_t) e.type, (uint64_t) e.src_type, (uint64_t) e.dst_type);
+} }
+
 
 void get_matching(GraphL &L) {
   Handle handle;
@@ -498,7 +521,7 @@ void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K
 
   GraphL L;
   createBipartite(A, B, L);
-
+  print_graphLS(L);
   std::cout << "L construction done in " << my_timer() - time2 << " seconds" << std::endl;
   std::cout << "BiPartite Graph: " << L.vertexNumber << " vertices, " << L.edgePtr()->Size() << " edges" << std::endl;
   time2 = my_timer();
@@ -507,10 +530,11 @@ void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K
 
   Handle handle;
   shad::rt::executeOnAll(copyVertices, A["Vertices"]);
-  L.edgePtr()->AsyncForEach(handle, edgeWeights, L.a_num_vertices, B["Vertices"]);
+  args_W_t argsE={L.a_num_vertices, B["Vertices"]};
+  L.edgePtr()->AsyncForEach(handle, edgeWeights, argsE);
 
   waitForCompletion(handle);
-  L.vertexPtr()->ForEachInRange(0, L.vertexNumber, sortEdges, L);
+  L.vertexPtr()->ForEachInRange(0, L.vertexNumber-1, sortEdges, L);
 
   std::cout << "BP done in " << my_timer() - time2 << " seconds" << std::endl;
   time2 = my_timer();
