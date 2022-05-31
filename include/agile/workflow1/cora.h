@@ -108,7 +108,7 @@ public:
 
 private:
   std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
-  _build_ego_graph(size_t idx);
+  _build_ego_graph(int64_t idx);
 };
 
 } // namespace agile

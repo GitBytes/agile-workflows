@@ -46,7 +46,7 @@ void CoraDataset::filter(torch::Tensor &mask) {
 }
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
-CoraDataset::_build_ego_graph(size_t idx) {
+CoraDataset::_build_ego_graph(int64_t idx) {
   using namespace torch::indexing;
   auto bool_tensor = torch::TensorOptions().dtype(torch::kBool);
   auto vertex_mask = torch::zeros(_featureVectors.size(0), bool_tensor);
@@ -59,7 +59,7 @@ CoraDataset::_build_ego_graph(size_t idx) {
   int64_t position = 0;
   auto next = frontier.begin();
   auto end_of_level = frontier.end();
-  while (level < 3 && next != end_of_level) {
+  while (level < _levels.size(0) && next != end_of_level) {
     auto v = *next++;
     if (vertex_mask[v].item<bool>() == false) {
       vertex_mask[v] = true;
