@@ -314,7 +314,7 @@ void setMateSorted(uint64_t i, VertexL &vertex, args_M_t &args)
                   
                   vertex.mate=partner;
                   vertex.index=heavyIndx;
-                  std::cout<<"P: "<<i<<"->"<<vertex.mate<<" "<<heaviest<<" "<<vertex.index<<std::endl;
+                  //std::cout<<"P: "<<i<<"->"<<vertex.mate<<" "<<heaviest<<" "<<vertex.index<<std::endl;
                 }
                 else std::cout<<"Troubling: "<<i<<" "<<start<<" "<<end<<std::endl;
                 
@@ -412,7 +412,7 @@ void getApproxMatching(GraphL &L)
     //L.vertexPtr()->ForEachInRange(0, L.vertexNumber, setMateSorted, margs);
     waitForCompletion(handle);
 
-    std::cout<<"&&&&&&&&&&&&&&&&&&&&"<<std::endl;
+    //std::cout<<"&&&&&&&&&&&&&&&&&&&&"<<std::endl;
     
     //// Second loop, check whether u -> v and v -> u. If yes then match it. If no then iterate.
     //// DO NOT FORGET TO RESET THE EDGE WEIGHTS AND MATE
