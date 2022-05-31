@@ -5,12 +5,37 @@
 #include <limits>
 #include <vector>
 #include <type_traits>
-
-#include "agile/workflow2/main.h"
 #include "shad/data_structures/hashmap.h"
 #include "shad/extensions/data_types/data_types.h"
 
+#include "agile/workflow2/main.h"
+#include "agile/workflow2/graphTypes.h"
+
 namespace agile::workflow2 {
+
+struct ME_result {uint64_t NE; Triples triples;};
+
+
+void incrTriple(TYPES src, TYPES type, TYPES dst, Triples & weights) {
+  if        ( (src == TYPES::PERSON) && (type == TYPES::SALE) && (dst == TYPES::PERSON) ) {   
+     weights[(uint64_t) TRIPLES::PERSON_SALE_PERSON] += 1;
+  } else if ( (src == TYPES::PERSON) && (type == TYPES::PURCHASE) && (dst == TYPES::PERSON) ) { 
+     weights[(uint64_t) TRIPLES::PERSON_PURCHASE_PERSON] += 1;
+  } else if ( (src == TYPES::PERSON) && (type == TYPES::AUTHOR) && (dst == TYPES::FORUMEVENT) ) { 
+     weights[(uint64_t) TRIPLES::PERSON_AUTHOR_FORUMEVENT] += 1;
+  } else if ( (src == TYPES::PERSON) && (type == TYPES::AUTHOR) && (dst == TYPES::PUBLICATION) ) { 
+     weights[(uint64_t) TRIPLES::PERSON_AUTHOR_PUBLICATION] += 1;
+  } else if ( (src == TYPES::FORUMEVENT) && (type == TYPES::HASTOPIC) && (dst == TYPES::TOPIC) ) { 
+     weights[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC] += 1;
+  } else if ( (src == TYPES::FORUM) && (type == TYPES::HASTOPIC) && (dst == TYPES::TOPIC) ) { 
+     weights[(uint64_t) TRIPLES::FORUM_HASTOPIC_TOPIC] += 1;
+  } else if ( (src == TYPES::FORUM) && (type == TYPES::INCLUDES) && (dst == TYPES::FORUMEVENT) ) { 
+     weights[(uint64_t) TRIPLES::FORUM_INCLUDES_FORUMEVENT] += 1;
+  } else if ( (src == TYPES::PUBLICATION) && (type == TYPES::HASORG) && (dst == TYPES::TOPIC) ) { 
+     weights[(uint64_t) TRIPLES::PUBLICATION_HASORG_TOPIC] += 1;
+  } else if ( (src == TYPES::PUBLICATION) && (type == TYPES::HASTOPIC) && (dst == TYPES::TOPIC) ) { 
+     weights[(uint64_t) TRIPLES::PUBLICATION_HASTOPIC_TOPIC] += 1;
+} } 
 
 template <typename VTYPE>
 void updateGLBID(Handle & handle, const uint64_t & key, VTYPE & value, uint64_t & id) {
@@ -23,8 +48,11 @@ void MoveTableEdges(Handle & handle, const uint64_t & key, std::vector<VTYPE> & 
   uint64_t & ndx, uint64_t & globalIDSOID, uint64_t & edgesOID, uint8_t * ret, uint32_t * retSize) {
 
   TYPES type;
-  uint64_t NE = 0;
+  ME_result result;
   auto GlobalIDS = GlobalIDType::GetPtr((GlobalIDOID) globalIDSOID);
+
+  result.NE = 0;
+  std::memset(result.triples, 0, sizeof(Triples));
 
   if      (std::is_same <VTYPE, PurchaseEdge>::value) type = TYPES::PURCHASE;
   else if (std::is_same <VTYPE, SaleEdge>::value)     type = TYPES::SALE;
@@ -50,11 +78,14 @@ void MoveTableEdges(Handle & handle, const uint64_t & key, std::vector<VTYPE> & 
   for (auto & E1 : value) {
     Edge E2( E1.src(), E1.dst(), 0.0, type, E1.src_type, E1.dst_type, 0, 0 );
     GlobalIDS->AsyncApply(handle, E2.src, srcLambda, ndx, E2, globalIDSOID, edgesOID);
-    ndx ++; NE ++;
+
+    ndx ++;
+    result.NE ++;
+    incrTriple(E1.src_type, type, E1.dst_type, result.triples);
   };
 
-  * retSize = sizeof(uint64_t);
-  memcpy(ret, & NE, sizeof(uint64_t));
+  * retSize = sizeof(ME_result);
+  memcpy(ret, & result, sizeof(ME_result));
 };
 
 void exclusiveScanVertices(uint64_t arrayOID);

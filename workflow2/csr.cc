@@ -63,9 +63,6 @@ void moveEdges(uint64_t pos, Vertex & value,
   uint64_t & purchasesOID, uint64_t & salesOID, uint64_t & authorsOID, uint64_t & includesOID,
   uint64_t & hasTopicOID,  uint64_t & hasOrgOID, uint64_t & globalIDSOID, uint64_t & edgesOID) {
 
-  Handle handle;
-  uint32_t retSize;
-  uint64_t ndx = value.edges, NE = 0;
   auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) purchasesOID);
   auto Sales     = SaleEdgeType::GetPtr((SaleEdgeOID) salesOID);
   auto Authors   = AuthorEdgeType::GetPtr((AuthorEdgeOID) authorsOID);
@@ -73,49 +70,78 @@ void moveEdges(uint64_t pos, Vertex & value,
   auto HasTopic  = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) hasTopicOID);
   auto HasOrg    = HasOrgEdgeType::GetPtr((HasOrgEdgeOID) hasOrgOID);
 
-  if (value.type == TYPES::PERSON) {     // Person has purchase, sale, and author edges
+  Handle handle;
+  ME_result result;
+  uint32_t resultSize;
+
+  result.NE = 0;
+  std::memset(result.triples, 0, sizeof(Triples));
+  uint64_t ndx = value.edges;
+
+// ***** Person has purchase, sale, and author edges *****
+  if (value.type == TYPES::PERSON) {
      Purchases->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<PurchaseEdge>,
-          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
-     ndx += NE; NE = 0;
 
+     ndx += result.NE;
+     for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
+
+     result.NE = 0;
+     std::memset(result.triples, 0, sizeof(Triples));
      Sales->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<SaleEdge>,
-          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
-     ndx += NE; NE = 0;
 
+     ndx += result.NE;
+     for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
+
+     result.NE = 0;
+     std::memset(result.triples, 0, sizeof(Triples));
      Authors->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<AuthorEdge>,
-          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
 
-  } else if (value.type == TYPES::FORUMEVENT) {     // ForumEvent has has_topic edges
+// ***** ForumEvent has has_topic edges *****
+  } else if (value.type == TYPES::FORUMEVENT) {
      HasTopic->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasTopicEdge>,
-          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
 
-  } else if (value.type == TYPES::FORUM) {     // Forum has includes and has_topic edges
+// ***** Forum has includes and has_topic edges *****
+  } else if (value.type == TYPES::FORUM) {
      Includes->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<IncludesEdge>,
-          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
-     ndx += NE; NE = 0;
 
+     ndx += result.NE;
+     for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
+
+     result.NE = 0;
+     std::memset(result.triples, 0, sizeof(Triples));
      HasTopic->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasTopicEdge>,
-          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
 
-  } else if (value.type == TYPES::PUBLICATION) {     // Publication has has_org and has_topic edges
+// ***** Publication has has_org and has_topic edges *****
+  } else if (value.type == TYPES::PUBLICATION) {
      HasOrg->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasOrgEdge>,
-          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
-     ndx += NE; NE = 0;
 
+     ndx += result.NE;
+     for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
+
+     result.NE = 0;
+     std::memset(result.triples, 0, sizeof(Triples));
      HasTopic->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasTopicEdge>,
-          (uint8_t *) & NE, & retSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
 
   } else return;
 
   waitForCompletion(handle);
+  for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
 }
 
 
