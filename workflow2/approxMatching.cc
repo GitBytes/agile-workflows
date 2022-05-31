@@ -54,14 +54,19 @@ struct args_W_t{
   uint64_t BV_OID;
 };
 
-struct args_CW_t{
-  uint64_t & A_ndx, 
-  uint8_t * ret, 
-  uint32_t * retSize
+struct args_M_t {
+  
+  uint64_t num_vertex;
+  uint64_t vertexOID;
+  uint64_t edgeOID;
+
 };
 
 using FreqArr = std::array<uint64_t, 5>;
-bool compByWeight(Edge & A, Edge & B) { return ((A.weight > B.weight) || ((A.weight == B.weight) && (A.dst_glbid > B.dst_glbid)));}
+bool compByWeight(Edge & A, Edge & B) 
+{ 
+  return ((A.weight > B.weight) || ((A.weight == B.weight) && (A.dst_glbid > B.dst_glbid)));
+}
 
 void CW_(Handle & h, uint64_t B_ndx, Vertex & BV, uint64_t & A_ndx, uint8_t * ret, uint32_t * retSize) {
   double weight = 1.0;
@@ -138,7 +143,7 @@ void create_BEdges(Handle & handle, const args_L_t & args) {
   for (auto itr = itr_B.begin(); itr != itr_B.end(); itr ++) {     // for each vertex B on this locale
     if ((* itr).type != args.type) continue;                       // ... B vertex has wrong type
 
-    Edge edge(args.src, (* itr).label, 0.0, args.type, args.type, args.type, args.glbid, (* itr).id);
+    Edge edge(args.src, (* itr).label, 1.0, args.type, args.type, args.type, args.glbid, (* itr).id);
     Edges->AsyncInsertAt(handle, my_args.edges, edge);
     my_args.edges ++;
   }
@@ -251,69 +256,140 @@ void createBipartite(Graph_t &A, Graph_t &B, GraphL &L) {
 }
 
 
-/* 
-void setMateSorted(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &args) {
-    if (i < args.num_vertex) {
-        auto edgePtr=shad::Array<Edge>::GetPtr((EdgeOID)args.edgeOID);
-        auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)args.arrayOID);
-        if (vertex.mate < 0) {    
-            uint64_t start = vertexPtr->At(i).indx; /// Start position in sorted array
-            uint64_t end   = vertexPtr->At(i+1).edges;
-
-            if ((start - end) > 0) {
-                int64_t partner = -1;
-                int64_t id = -1;
-                int64_t heavyIndx = -1;
-                double heaviest = 0.0;
-                double weight = 0.0;
-
-                std::vector<Edge> neighbors(end-start);
-                shad::rt::Handle handle1; // Do it need additional handle?
-                edgePtr->AsyncGetElements(handle1,neighbors.data(),start,end-start);
-                shad::rt::waitForCompletion(handle1);
-
-                for (int indx = 0; indx < neighbors.size(); indx++) {
-                    heavyIndx=start+indx;
-                    int taken=vertexPtr->At(id).taken;
-                    if (taken == 0) { partner = neighbors[indx].dst; break; }
+void setMateSorted(uint64_t i, VertexL &vertex, args_M_t &args)
+//void setMateSorted(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &args)
+{
+    auto edgePtr=shad::Array<Edge>::GetPtr((EdgeOID)args.edgeOID);
+    auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)args.vertexOID);
+    if(i<args.num_vertex)
+    {
+        
+        if(vertex.mate < 0)
+        {    
+            int64_t start,end;
+            start=vertexPtr->At(i).index; /// Start position in sorted array
+            
+            if(start==-1)
+            {
+              start=vertexPtr->At(i).edges;
+              end=vertexPtr->At(i+1).edges;
+              //std::cout<<"AA Trouble: "<<i<<" "<<start<<" "<<end<<" "<<edgePtr->Size()<<std::endl;
+            }
+            else
+            {
+              end=vertexPtr->At(i+1).edges;
+              //std::cout<<"A Trouble: "<<i<<" "<<start<<" "<<end<<" "<<edgePtr->Size()<<std::endl;
+            }
+            
+            
+            if((end-start)>0)
+            {
+                int64_t partner=-1;
+                int64_t id=-1;
+                int64_t heavyIndx=-1;
+                double heaviest=0.0;
+                double weight=0.0;
+                
+                if(start>=0 && end<=edgePtr->Size())
+                {
+                  std::vector<Edge> neighbors(end-start);
+                  shad::rt::Handle handle1; // Do it need additional handle?
+                  edgePtr->AsyncGetElements(handle1,neighbors.data(),start,end-start);
+                  shad::rt::waitForCompletion(handle1);
+  
+                  for(int indx=0;indx<neighbors.size();indx++)
+                  {
+                      id=neighbors[indx].dst_glbid;
+                      int taken=vertexPtr->At(id).taken;
+                      weight=neighbors[indx].weight;
+                      if(taken==0 && weight > 0.0)
+                      {
+                          partner=id;
+                          heavyIndx=start+indx;
+                          break;
+                      }
+                        
+                  }
+                  neighbors.clear(); 
+                  
+                  vertex.mate=partner;
+                  vertex.index=heavyIndx;
+                  std::cout<<"P: "<<i<<"->"<<vertex.mate<<" "<<heaviest<<" "<<vertex.index<<std::endl;
                 }
+                else std::cout<<"Troubling: "<<i<<" "<<start<<" "<<end<<std::endl;
+                
+            }
+        }
+    }
+    
 
-                neighbors.clear(); 
-                vertex.mate = partner;
-                vertex.indx = heavyIndx;
-}   }   }   }
+}
 
-void setMate(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &args) {
-  uint64_t start = vertexPtr->At(i).edges;
-  uint64_t end = vertexPtr->At(i + 1).edges;
-  if ((start - end) <= 0) return;
+void setMate(uint64_t i, VertexL &vertex, args_M_t &args)
+//void setMate(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &args)
+{
+    auto edgePtr=shad::Array<Edge>::GetPtr((EdgeOID)args.edgeOID);
+    auto vertexPtr=shad::Array<VertexL>::GetPtr((VertexLOID)args.vertexOID);
+    if(i<args.num_vertex)
+    {
+        
+        if(vertex.mate < 0)
+        {    
+            uint64_t start=vertexPtr->At(i).edges;
+            uint64_t end=vertexPtr->At(i+1).edges;
+            
+            if((end-start)>0)
+            {
+                int64_t partner=-1;
+                int64_t id=-1;
+                int64_t heavyIndx=-1;
+                double heaviest=0.0;
+                double weight=0.0;
 
-  Handle my_handle;
-  int64_t partner   = -1;
-  int64_t heavyIndx = -1;
-  double heaviest   = 0.0;
-  std::vector<Edge> neighbors(end - start);
+                if(start>=0 && end<=edgePtr->Size())
+                {
+                    shad::rt::Handle handle1;
+                    std::vector<Edge> neighbors(end-start); 
+                    edgePtr->AsyncGetElements(handle1,neighbors.data(),start,end-start);
+                    shad::rt::waitForCompletion(handle1);
+                    //std::cout<<"A Trouble: "<<i<<" "<<start<<" "<<end<<" "<<edgePtr->Size()<<std::endl;
 
-  edgePtr->AsyncGetElements(my_handle, neighbors.data(), start, end - start);
-  waitForCompletion(my_handle);
+                    //// NOTE: SHOULD I DO Async on L->edgePtr() ??
+                    
+                    for(int indx=0;indx<neighbors.size();indx++)
+                    {
+                        
+                        weight=neighbors[indx].weight;
+                        id=neighbors[indx].dst_glbid;
+                        //std::cout<<weight<<" | ("<<i<<","<<id<<")"<<std::endl;
+                        int taken=vertexPtr->At(id).taken;
+                        if((taken == 0) && (weight > 0.0) && (( weight > heaviest) || (weight == heaviest && id > partner )))
+                        {
+                            partner=id;
+                            heaviest=weight;
+                            heavyIndx=start+indx;
+                        }
+                            
+                    }
+                    neighbors.clear(); 
+                    
+                    vertex.mate=partner;
+                    vertex.index=heavyIndx;
+                    std::cout<<"P: "<<i<<"->"<<vertex.mate<<" "<<heaviest<<" "<<vertex.index<<std::endl;
+                    
+                }
+                else std::cout<<"Trouble: "<<i<<" "<<start<<" "<<end<<std::endl;
+            }
+        }
+    }
+    
 
-  for (int index = 0; index < neighbors.size(); index ++) {
-    int64_t id = neighbors[index].dst_glbid;
-    double weight = neighbors[index].weight;
-    int64_t taken = vertexPtr->At(id).taken;
-
-    if ( (taken == 0) && ((weight > heaviest) || (weight == heaviest && id > partner )) ) {
-       partner   = id;
-       heaviest  = weight;
-       heavyIndx = start + index;
-  } }
-
-  vertex.mate = partner;
-  vertex.index = heavyIndx;
+  
 }
 
 
-void getApproxMatching(GraphL &L) {
+void getApproxMatching(GraphL &L) 
+{
   Handle handle;
   uint64_t arrayOID = (uint64_t) L.edgeOID;
   uint64_t vertexOID = (uint64_t) L.vertexOID;
@@ -324,18 +400,20 @@ void getApproxMatching(GraphL &L) {
   /// Matching algorithm is two loops over the vertices
   /// First loop for each vertex u, find  the heaviest edge (u,v) and set the partner of u -> v
   uint64_t iter = 0;
-
+  
   while (true) {
-    iter += 1;
+    //iter += 1;
 
-    args_M_t margs;
-    margs.edgeOID = arrayOID;
-    margs.vertexOID = vertexOID;
-    margs.edgeOID = L.vertexNumber;
-
-    L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber - 1, setMate, margs);
+    args_M_t margs={L.vertexNumber,vertexOID,arrayOID};
+    
+    L.vertexPtr()->ForEachInRange(0, L.vertexNumber, setMateSorted, margs);
+    //L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber - 1, setMate, margs);
+    //L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber, setMateSorted, margs);
+    //L.vertexPtr()->ForEachInRange(0, L.vertexNumber, setMateSorted, margs);
     waitForCompletion(handle);
 
+    std::cout<<"&&&&&&&&&&&&&&&&&&&&"<<std::endl;
+    
     //// Second loop, check whether u -> v and v -> u. If yes then match it. If no then iterate.
     //// DO NOT FORGET TO RESET THE EDGE WEIGHTS AND MATE
     L.vertexPtr()->AsyncForEachInRange(handle, 0, L.vertexNumber - 1,
@@ -369,10 +447,14 @@ void getApproxMatching(GraphL &L) {
     shad::rt::waitForCompletion(handle);
     int flag = Counter->At(0);
 
-    if (iter == 10) break;
-    if (flag == 1) Counter->InsertAt(0,0); else break;
-} }
-*/
+    if (iter == 10) 
+      break;
+    if (flag == 1) 
+      Counter->InsertAt(0,0); 
+    else 
+      break;
+  } 
+}
 
 
 void print_graph(uint64_t edgeOID, uint64_t vertexOID) {
@@ -521,7 +603,7 @@ void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K
 
   GraphL L;
   createBipartite(A, B, L);
-  print_graphLS(L);
+  //print_graphLS(L);
   std::cout << "L construction done in " << my_timer() - time2 << " seconds" << std::endl;
   std::cout << "BiPartite Graph: " << L.vertexNumber << " vertices, " << L.edgePtr()->Size() << " edges" << std::endl;
   time2 = my_timer();
@@ -531,15 +613,15 @@ void netAlign(std::string & patternFile,std::string & dataFile, uint64_t & Top_K
   Handle handle;
   shad::rt::executeOnAll(copyVertices, A["Vertices"]);
   args_W_t argsE={L.a_num_vertices, B["Vertices"]};
-  L.edgePtr()->AsyncForEach(handle, edgeWeights, argsE);
+  //L.edgePtr()->AsyncForEach(handle, edgeWeights, argsE);
 
   waitForCompletion(handle);
   L.vertexPtr()->ForEachInRange(0, L.vertexNumber-1, sortEdges, L);
-
+  print_graphLS(L);
   std::cout << "BP done in " << my_timer() - time2 << " seconds" << std::endl;
   time2 = my_timer();
 
-  // for (int i = 0; i < Top_K; i++) { getApproxMatching(L); get_matching(L); }
+  for (int i = 0; i < Top_K; i++) { getApproxMatching(L); get_matching(L); }
 
   std::cout << "Matching done in " << my_timer() - time2 << " seconds" << std::endl;
   std::cout << "Total done in " << my_timer() - time1 << " seconds" << std::endl; 
