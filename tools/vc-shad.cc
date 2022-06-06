@@ -39,7 +39,7 @@ public:
     getArg(argc, argv, 4, labelFileName_);
   }
 
-  void operator()(TrainingState &TS) {
+  void operator()(agile::workflow1::TrainingState &TS) {
     // Load Module
     TS.Module = torch::jit::load(modelFileName_);
 
@@ -93,7 +93,8 @@ private:
   char labelFileName_[256];
 };
 
-void trainLoop(TrainingState &TS) {
+
+void trainLoop(agile::workflow1::TrainingState &TS) {
   auto start = std::chrono::high_resolution_clock::now();
   size_t train_correct = 0;
   size_t test_correct = 0;
@@ -172,8 +173,8 @@ void trainLoop(TrainingState &TS) {
 namespace shad {
 int main(int argc, char *argv[]) {
   size_t parallelThreads = shad::rt::numLocalities();
-  TrainingState initState;
-  auto TSs = shad::Array<TrainingState>::Create(parallelThreads, initState);
+  agile::workflow1::TrainingState initState;
+  auto TSs = shad::Array<agile::workflow1::TrainingState>::Create(parallelThreads, initState);
 
   SetUpFunctor setUp(argc, argv);
 
