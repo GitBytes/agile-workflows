@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "agile/workflow1/cora.h"
+#include "agile/workflow1/gnn.h"
 
 #include <torch/script.h>
 #include <torch/torch.h>
@@ -24,29 +25,6 @@ void getArg(int argc, char *argv[], int i, char *out) {
   std::memcpy(out, argv[i], len);
   out[len] = '\0';
 }
-
-struct TrainingState {
-public:
-  using sampler_type = torch::data::samplers::DistributedRandomSampler;
-  using dataset_type = torch::data::datasets::MapDataset<
-      agile::CoraDataset, torch::data::transforms::Stack<agile::CoraData<>>>;
-  using data_loader_type =
-      torch::data::StatelessDataLoader<dataset_type, sampler_type>;
-
-  TrainingState() = default;
-  TrainingState(const TrainingState &) = default;
-  TrainingState(TrainingState &&) = default;
-
-  TrainingState &operator=(const TrainingState &) = default;
-  TrainingState &operator=(TrainingState &&) = default;
-
-  torch::jit::script::Module Module;
-  agile::CoraDataset DataSet;
-  std::shared_ptr<data_loader_type> TrainDataLoader{nullptr};
-  std::shared_ptr<data_loader_type> TestDataLoader{nullptr};
-  std::shared_ptr<torch::optim::Adam> Adam{nullptr};
-  std::vector<torch::jit::IValue> Inputs;
-};
 
 const int64_t trainingSetSize = 500;
 const int64_t testSetSize = 500;
