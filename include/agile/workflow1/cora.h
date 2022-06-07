@@ -65,6 +65,8 @@ private:
   torch::Tensor _levels;
 
 public:
+  using Data = CoraData<>;
+
   CoraDataset() = default;
   CoraDataset(const CoraDataset &O)
       : _edgeIndex(O._edgeIndex), _featureVectors(O._featureVectors),
