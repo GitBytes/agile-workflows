@@ -38,7 +38,6 @@ using intSetOID = shad::ObjectIdentifier<intSet>;
 
 void readFile(std::string & filename, Graph_t & graph);
 void CSR(uint64_t &, uint64_t &, Graph_t & graph);
-void GNN(uint64_t &, uint64_t &, Graph_t &);
 
 } // namespace agile::workflow1
 

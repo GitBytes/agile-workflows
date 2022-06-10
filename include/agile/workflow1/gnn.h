@@ -6,6 +6,9 @@
 #include <vector>
 
 #include "agile/workflow1/globalIDS.h"
+#include "agile/workflow1/main.h"
+#include "agile/workflow1/wmd.h"
+
 #include "shad/data_structures/array.h"
 #include "torch/script.h"
 #include "torch/torch.h"
@@ -30,7 +33,7 @@ public:
   TrainingState &operator=(TrainingState &&) = default;
 
   torch::jit::script::Module Module;
-  agile::CoraDataset DataSet;
+  Dataset DataSet;
   std::shared_ptr<data_loader_type> TrainDataLoader{nullptr};
   std::shared_ptr<data_loader_type> TestDataLoader{nullptr};
   std::shared_ptr<torch::optim::Adam> Adam{nullptr};
@@ -179,6 +182,10 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
                    .count()
             << std::endl;
 }
+
+typename shad::Array<agile::workflow1::TrainingState<WMDDataset>>::ObjectID
+GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph, std::string modelFileName);
+
 } // namespace agile::workflow1
 
 #endif

@@ -1,6 +1,7 @@
 #include "agile/workflow1/graph.h"
 #include "agile/workflow1/main.h"
 #include "agile/workflow1/wmd.h"
+#include "agile/workflow1/gnn.h"
 
 #define NUM_FEATURES 22
 
@@ -85,7 +86,8 @@ void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
                             num_bins);
 }
 
-void GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph) {
+typename shad::Array<agile::workflow1::TrainingState<WMDDataset>>::ObjectID
+GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph, std::string modelFileName) {
   Handle handle;
   auto Vertices = VertexType::GetPtr((VertexOID)graph["Vertices"]);
   auto Embeddings = EmbeddingType::Create(num_vertices * NUM_FEATURES, 0);
@@ -102,13 +104,15 @@ void GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph) {
 
   size_t parallelThreads = shad::rt::numLocalities();
   TrainingState<WMDDataset> initState;
-  auto TSs shad::Array<TrainingState<WMDDataset>>::Create(parallelThreads,
-                                                          initState);
+  auto TSs = shad::Array<TrainingState<WMDDataset>>::Create(parallelThreads,
+                                                            initState);
 
-  SetUpTrainingContext<WMDDataset> setup(graph["Vertices"], graph["Edges"],
-                                         graph["Embeddings"]);
+  SetUpTrainingContext<WMDDataset> setup(Vertices->GetGlobalID(), (EdgeOID)graph["Edges"],
+                                         Embeddings->GetGlobalID(), modelFileName);
 
-  std::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
-                vcTrainLoop<TrainingState<WMDDataset>>);
+  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+                 agile::workflow1::vcTrainLoop<TrainingState<WMDDataset>>);
+
+  return TSs->GetGlobalID();
 }
 } // namespace agile::workflow1

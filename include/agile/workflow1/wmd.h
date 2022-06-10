@@ -111,6 +111,10 @@ public:
   //! representation that is built at the beginning of the workflow.
   WMDData<> get(size_t idx) override;
 
+  torch::optional<size_t> size() const override {
+    return VertexType::GetPtr(_verticesOID)->Size() - 1;
+  }
+
 private:
   std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
   _build_ego_graph(int64_t idx);

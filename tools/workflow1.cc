@@ -1,5 +1,6 @@
 #include "agile/workflow1/main.h"
 #include "agile/workflow1/graph.h"
+#include "agile/workflow1/gnn.h"
 
 namespace shad {
   using namespace agile::workflow1;
@@ -65,7 +66,7 @@ int main(int argc, char *argv[]) {
 
   time1 = my_timer();
 
-  //GNN(num_edges, num_vertices, graph);
+  auto trainedModels = GNN(num_edges, num_vertices, graph, argv[2]);
   printf("Time for workflow 1 = %lf\n", my_timer() - time1);
 
   return 0;
