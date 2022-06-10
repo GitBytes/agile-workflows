@@ -65,6 +65,8 @@ private:
   torch::Tensor _levels;
 
 public:
+  using Data = CoraData<>;
+
   CoraDataset() = default;
   CoraDataset(const CoraDataset &O)
       : _edgeIndex(O._edgeIndex), _featureVectors(O._featureVectors),
@@ -108,7 +110,7 @@ public:
 
 private:
   std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
-  _build_ego_graph(size_t idx);
+  _build_ego_graph(int64_t idx);
 };
 
 } // namespace agile
