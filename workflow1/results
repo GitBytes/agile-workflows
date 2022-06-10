@@ -1,4 +1,4 @@
-salloc: Granted job allocation 155745
+salloc: Granted job allocation 155244
 ----------------------------------------------------------------------------------------------------
                                         GMT config
 ----------------------------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ dta_prealloc_helper_chunks       yes             256
          COMPILER_VERSION                          
 ----------------------------------------------------------------------------------------------------
 reading file /lustre/scratch/feo/wmd/data.csv
-Time for graph construction = 208.858426
+Time for graph construction = 135.657909
 
 Number of persons      = 4892914
 Number of forum_events = 5058040
@@ -70,26 +70,10 @@ Number of hasOrg edges   = 1396222
 Total number of edges    = 37814530
 Total number of vertices = 10410232
 
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-pattern found for person 1128501731262832684
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-Time for exact pattern matching = 10.235024
+Time for workflow 1 = 23.665075
 ----------------------------------------------------------------------------------------------------
-salloc: Relinquishing job allocation 155745
-salloc: Granted job allocation 155746
+salloc: Relinquishing job allocation 155244
+salloc: Granted job allocation 155245
 ----------------------------------------------------------------------------------------------------
                                         GMT config
 ----------------------------------------------------------------------------------------------------
@@ -143,7 +127,7 @@ dta_prealloc_helper_chunks       yes             256
          COMPILER_VERSION                          
 ----------------------------------------------------------------------------------------------------
 reading file /lustre/scratch/feo/wmd/data.10.csv
-Time for graph construction = 31.154279
+Time for graph construction = 20.490084
 
 Number of persons      = 888268
 Number of forum_events = 505808
@@ -161,14 +145,10 @@ Number of hasOrg edges   = 137917
 Total number of edges    = 3758460
 Total number of vertices = 1476133
 
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-pattern found for person 1128501731262832684
-Time for exact pattern matching = 2.374385
+Time for workflow 1 = 3.781705
 ----------------------------------------------------------------------------------------------------
-salloc: Relinquishing job allocation 155746
-salloc: Granted job allocation 155747
+salloc: Relinquishing job allocation 155245
+salloc: Granted job allocation 155246
 ----------------------------------------------------------------------------------------------------
                                         GMT config
 ----------------------------------------------------------------------------------------------------
@@ -222,7 +202,7 @@ dta_prealloc_helper_chunks       yes             256
          COMPILER_VERSION                          
 ----------------------------------------------------------------------------------------------------
 reading file /lustre/scratch/feo/wmd/data.200.csv
-Time for graph construction = 443.025074
+Time for graph construction = 252.270428
 
 Number of persons      = 5861533
 Number of forum_events = 12706520
@@ -240,22 +220,6 @@ Number of hasOrg edges   = 2098558
 Total number of edges    = 78958255
 Total number of vertices = 19428727
 
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-WARNING: Called wait on a NULL handle
-pattern found for person 1128501731262832684
-WARNING: Called wait on a NULL handle
-Time for exact pattern matching = 13.019343
+Time for workflow 1 = 45.864035
 ----------------------------------------------------------------------------------------------------
-salloc: Relinquishing job allocation 155747
+salloc: Relinquishing job allocation 155246

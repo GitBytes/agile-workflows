@@ -1,5 +1,5 @@
-#include "agile/workflow2/graph.h"
-#include "agile/workflow2/main.h"
+#include "agile/wk2_partial/graph.h"
+#include "agile/wk2_partial/main.h"
 /*
  * Types of edges
  *  Sale edge (&purchase edge)[buyer - seller - product - date] -- BLUE
@@ -15,7 +15,7 @@
  *
  */
 namespace shad {
-using namespace agile::workflow2;
+using namespace agile::wk2_partial;
 std::queue<std::string> dataQueue;
 std::mutex queueMutex;
 std::condition_variable dataCV;

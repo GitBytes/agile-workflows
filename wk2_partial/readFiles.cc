@@ -1,10 +1,10 @@
 #include <limits>
 #include <string>
 
-#include "agile/workflow2/main.h"
-#include "agile/workflow2/graph.h"
+#include "agile/wk2_partial/main.h"
+#include "agile/wk2_partial/graph.h"
 
-namespace agile::workflow2 {
+namespace agile::wk2_partial {
 
 std::vector <std::string> split(std::string & line, char delim, uint64_t size = 0) {
   uint64_t ndx = 0, start = 0;
@@ -215,4 +215,4 @@ TYPES insertToGraph(std::string & dataLine, Graph_t & graph) {
   return t;
 }
 
-} // namespace agile::workflow2
+} // namespace agile::wk2_partial

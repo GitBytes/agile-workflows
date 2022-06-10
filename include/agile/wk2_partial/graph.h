@@ -8,16 +8,16 @@
 #include "shad/data_structures/hashmap.h"
 #include "shad/extensions/data_types/data_types.h"
 
-#include "agile/workflow2/main.h"
-#include "agile/workflow2/graphTypes.h"
-#include "agile/workflow2/globalIDS.h"
+#include "agile/wk2_partial/main.h"
+#include "agile/wk2_partial/graphTypes.h"
+#include "agile/wk2_partial/globalIDS.h"
 
 #define UINT   shad::data_types::UINT
 #define DOUBLE shad::data_types::DOUBLE
 #define USDATE shad::data_types::USDATE
 #define ENCODE shad::data_types::encode
 
-namespace agile::workflow2 {
+namespace agile::wk2_partial {
 
 class PersonVertex {
   public:
@@ -343,6 +343,6 @@ using HasTopicEdgeOID  = shad::ObjectIdentifier<HasTopicEdgeType>;
 using HasOrgEdgeType = shad::Multimap<uint64_t, HasOrgEdge>;
 using HasOrgEdgeOID  = shad::ObjectIdentifier<HasOrgEdgeType>;
 
-} // namespace agile::workflow2
+} // namespace agile::wk2_partial
 
 #endif // GRAPH_H

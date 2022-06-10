@@ -1,17 +1,15 @@
-#include "agile/workflow2/main.h"
-#include "agile/workflow2/graph.h"
+#include "agile/wk2_exact/main.h"
+#include "agile/wk2_exact/graph.h"
 
 namespace shad {
-  using namespace agile::workflow2;
+  using namespace agile::wk2_exact;
 
 int main(int argc, char *argv[]) {
   double time1 = my_timer();
 
   Graph_t graph;
-  std::string patternFile = argv[1];
-  std::string dataFile = argv[2];
-  uint64_t Top_K = std::stod(argv[3]);
-/*
+  std::string dataFile = argv[1];
+
   auto Persons      = PersonVertexType::Create(MEDIUM);
   auto ForumEvents  = ForumEventVertexType::Create(MEDIUM);
   auto Forums       = ForumVertexType::Create(SMALL);
@@ -24,7 +22,6 @@ int main(int argc, char *argv[]) {
   auto Includes     = IncludesEdgeType::Create(LARGE);
   auto HasTopic     = HasTopicEdgeType::Create(LARGE);
   auto HasOrg       = HasOrgEdgeType::Create(MEDIUM);
-  auto GlobalIDS    = GlobalIDType::Create(LARGE);
 
   graph["Persons"]      = (uint64_t) (Persons->GetGlobalID());
   graph["ForumEvents"]  = (uint64_t) (ForumEvents->GetGlobalID());
@@ -38,11 +35,8 @@ int main(int argc, char *argv[]) {
   graph["Includes"]     = (uint64_t) (Includes->GetGlobalID());
   graph["HasTopic"]     = (uint64_t) (HasTopic->GetGlobalID());
   graph["HasOrg"]       = (uint64_t) (HasOrg->GetGlobalID());
-  graph["GlobalIDS"]    = (uint64_t) (GlobalIDS->GetGlobalID());
 
   readFile(dataFile, graph);               // read file, create vertex and edge tables, assign locale ids
-  CSR(num_edges, num_vertices, graph);     // create vertex and compressed edge data structures
-
   printf("Time for graph construction = %lf\n", my_timer() - time1);
 
   printf("\n");
@@ -61,15 +55,16 @@ int main(int argc, char *argv[]) {
   printf("Number of hasOrg edges   = %lu\n", HasOrg->Size());
 
   printf("\n");
-  printf("Total number of edges    = %lu\n", num_edges);
-  printf("Total number of vertices = %lu\n\n", num_vertices);
+  printf("Total number of vertices = %lu\n",
+       Persons->Size() + ForumEvents->Size() + Forums->Size() + Publications->Size() + Topics->Size());
+  printf("Total number of edges    = %lu\n", 
+       Purchases->Size() + Sales->Size() + Authors->Size() + Includes->Size() + HasTopic->Size() + HasOrg->Size());
 
   time1 = my_timer();
 
   WMD_pattern(graph);
   printf("Time for exact pattern matching = %lf\n", my_timer() - time1);
-  */
-  netAlign(patternFile,dataFile, Top_K);
+
   return 0;
 }
 

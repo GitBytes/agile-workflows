@@ -1,9 +1,9 @@
-#include "agile/workflow2/main.h"
-#include "agile/workflow2/graph.h"
-#include "agile/workflow2/globalIDS.h"
-#include "agile/workflow2/csr.h"
+#include "agile/wk2_partial/main.h"
+#include "agile/wk2_partial/graph.h"
+#include "agile/wk2_partial/globalIDS.h"
+#include "agile/wk2_partial/csr.h"
 
-namespace agile::workflow2 {
+namespace agile::wk2_partial {
 
 struct Args_t { uint64_t delta; uint64_t oid; };
 
@@ -71,77 +71,57 @@ void moveEdges(uint64_t pos, Vertex & value,
   auto HasOrg    = HasOrgEdgeType::GetPtr((HasOrgEdgeOID) hasOrgOID);
 
   Handle handle;
-  ME_result result;
+  uint64_t NE = 0;
   uint32_t resultSize;
-
-  result.NE = 0;
-  std::memset(result.triples, 0, sizeof(Triples));
   uint64_t ndx = value.edges;
 
 // ***** Person has purchase, sale, and author edges *****
   if (value.type == TYPES::PERSON) {
      Purchases->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<PurchaseEdge>,
-          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & NE, & resultSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
 
-     ndx += result.NE;
-     for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
-
-     result.NE = 0;
-     std::memset(result.triples, 0, sizeof(Triples));
+     ndx += NE; NE = 0;
      Sales->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<SaleEdge>,
-          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & NE, & resultSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
 
-     ndx += result.NE;
-     for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
-
-     result.NE = 0;
-     std::memset(result.triples, 0, sizeof(Triples));
+     ndx += NE; NE = 0;
      Authors->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<AuthorEdge>,
-          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & NE, & resultSize, ndx, globalIDSOID, edgesOID);
 
 // ***** ForumEvent has has_topic edges *****
   } else if (value.type == TYPES::FORUMEVENT) {
      HasTopic->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasTopicEdge>,
-          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & NE, & resultSize, ndx, globalIDSOID, edgesOID);
 
 // ***** Forum has includes and has_topic edges *****
   } else if (value.type == TYPES::FORUM) {
      Includes->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<IncludesEdge>,
-          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & NE, & resultSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
 
-     ndx += result.NE;
-     for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
-
-     result.NE = 0;
-     std::memset(result.triples, 0, sizeof(Triples));
+     ndx += NE; NE = 0;
      HasTopic->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasTopicEdge>,
-          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & NE, & resultSize, ndx, globalIDSOID, edgesOID);
 
 // ***** Publication has has_org and has_topic edges *****
   } else if (value.type == TYPES::PUBLICATION) {
      HasOrg->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasOrgEdge>,
-          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & NE, & resultSize, ndx, globalIDSOID, edgesOID);
 
      waitForCompletion(handle);
 
-     ndx += result.NE;
-     for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
-
-     result.NE = 0;
-     std::memset(result.triples, 0, sizeof(Triples));
+     ndx += NE; NE = 0;
      HasTopic->AsyncApplyWithRetBuff(handle, value.id, MoveTableEdges<HasTopicEdge>,
-          (uint8_t *) & result, & resultSize, ndx, globalIDSOID, edgesOID);
+          (uint8_t *) & NE, & resultSize, ndx, globalIDSOID, edgesOID);
 
   } else return;
 
   waitForCompletion(handle);
-  for (uint64_t i = 0; i < NUMTRIPLES; i ++) value.triples[i] += result.triples[i];
 }
 
 
@@ -184,4 +164,4 @@ void CSR(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph) {
   Edges->WaitForBufferedInsert();
 }
 
-} // namespace agile::workflow2
+} // namespace agile::wk2_partial

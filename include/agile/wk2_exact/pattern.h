@@ -3,7 +3,7 @@
 
 #include "shad/data_structures/hashmap.h"
 
-namespace agile::workflow2 {
+namespace agile::wk2_exact {
 
 template <typename T>
 struct intTimeInserter {
@@ -33,6 +33,6 @@ struct intTimeInserter {
 using intTimeMap = shad::Hashmap<uint64_t, time_t, shad::MemCmp<uint64_t>, intTimeInserter<time_t> >;
 using intTimeMapOID  = shad::ObjectIdentifier<intTimeMap>;
 
-} // namespace agile::workflow2
+} // namespace agile::wk2_exact
 
 #endif // PATTERN_H

@@ -43,9 +43,11 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} ${CMAKE_CXX_FLAGS
 find_package(MPI REQUIRED)
 find_package(Threads REQUIRED)
 
-add_subdirectory(workflow1)
-add_subdirectory(workflow2)
 add_subdirectory(tools)
+add_subdirectory(workflow1)
+add_subdirectory(wk2_approx)
+add_subdirectory(wk2_exact)
+add_subdirectory(wk2_partial)
 
 enable_testing()
 include(CTest)

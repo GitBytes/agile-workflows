@@ -1,8 +1,8 @@
-#include "agile/workflow2/main.h"
-#include "agile/workflow2/graph.h"
-#include "agile/workflow2/pattern.h"
+#include "agile/wk2_partial/main.h"
+#include "agile/wk2_partial/graph.h"
+#include "agile/wk2_partial/pattern.h"
 
-namespace agile::workflow2 {
+namespace agile::wk2_partial {
 
 struct Pattern_args_t {
   uint64_t ForumEventsOID;
@@ -267,4 +267,4 @@ void WMD_pattern(Graph_t & graph) {
   Persons->ForEachEntry(transEvents, args);
 }
 
-} // namespace agile::workflow2
+} // namespace agile::wk2_partial
