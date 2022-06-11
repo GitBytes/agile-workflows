@@ -207,15 +207,21 @@ void biPartiteEdges(const uint64_t & key, Vertex & vertex, uint64_t & null) {
 
   for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr) {     // for each LHS vertex
     V_struct & vA = (* itr).second;
-    if (vA.type != vB.type) continue;        // an edge exists only for vertices of the same type
+    if (vA.type != vB.type) continue;               // an edge exists only for vertices of the same type
 
-    double weight = 1.0;                     // compute the weight of the edge
-    for (uint64_t i = 0; i < NUMTRIPLES; ++ i) weight += vA.triples[i] * vB.triples[i];
+    double dot = 0.0, lenVA = 0.0, lenVB = 0.0;     // compute the cosine similarity of the SPO vectors
 
-    vB.edges.push_back( Edge(vA.id, weight) );
+    for (uint64_t i = 0; i < NUMTRIPLES; ++ i) {
+      dot   += vA.triples[i] * vB.triples[i];
+      lenVA += vA.triples[i] * vA.triples[i];
+      lenVB += vB.triples[i] * vB.triples[i];
+    }
+
+    double cosSimilarity = dot / (sqrt(lenVA) * sqrt(lenVB));
+    vB.edges.push_back( Edge(vA.id, cosSimilarity) );
 
     lock_LHS.lock();
-       vA.edges.push_back( Edge(vB.id, weight) );
+       vA.edges.push_back( Edge(vB.id, cosSimilarity) );
     lock_LHS.unlock();
   }
 
@@ -265,27 +271,6 @@ void createBipartite(Graph_t & A, Graph_t & B, uint64_t & LHS_OID, uint64_t & RH
   uint64_t null;
   VertexType::GetPtr((VertexOID) RHS_OID)->ForEachEntry(biPartiteEdges, null);
   shad::rt::executeOnAll(sort_LHS, null);        // sort edges in local copy of LHS
-
-  for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr) {
-    V_struct entry = (* itr).second;
-    printf("%lu %lu\n", entry.id, (uint64_t) entry.type);
-    printf("  ");
-    for (uint64_t j = 0; j < NUMTRIPLES; ++ j) printf(" %lu", entry.triples[j]);
-    printf("\n");
-    for (auto edge : entry.edges) printf("  %lu %lf\n", edge.first, edge.second);
-  }
-
-  printf("\n\n ********************* \n\n");
-
-  for (auto itr = local_RHS.begin(); itr != local_RHS.end(); ++ itr) {
-    V_struct entry = (* itr).second;
-    printf("%lu %lu\n", entry.id, (uint64_t) entry.type);
-    printf("  ");
-    for (uint64_t j = 0; j < NUMTRIPLES; ++ j) printf(" %lu", entry.triples[j]);
-    printf("\n");
-    for (auto edge : entry.edges) printf("  %lu %lf\n", edge.first, edge.second);
-  }
-
 };
 
 } // namespace agile::wk2_approx
