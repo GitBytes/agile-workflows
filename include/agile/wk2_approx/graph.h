@@ -313,11 +313,17 @@ class Vertex {
     uint64_t id;        // vertex id
     TYPES    type;
     Triples  triples;
+    int64_t mate;
+    double mate_weight;
+    int64_t taken;
 
     Vertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
       type  = TYPES::NONE;
       triples.fill(0);
+      mate  = -1;
+      mate_weight = -1.0;
+      taken =  0;
     }
 };
 
