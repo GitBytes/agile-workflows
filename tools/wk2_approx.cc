@@ -7,7 +7,8 @@
 
 namespace shad {
   using namespace agile::wk2_approx;
-
+  using Weight = std::pair<uint64_t, double>;
+  
 int main(int argc, char *argv[]) {
   std::string patternFile = argv[1];
   std::string dataFile    = argv[2];
@@ -99,8 +100,12 @@ int main(int argc, char *argv[]) {
   uint64_t LHS_OID = (uint64_t) (LHS->GetGlobalID());
   uint64_t RHS_OID = (uint64_t) (RHS->GetGlobalID());
   createBipartite(A, B, LHS_OID, RHS_OID);
-
   printf("Time to construct bipartite graph = %lf\n", my_timer() - time1);
+  
+  time1 = my_timer();
+  ApproxMatching(LHS_OID, RHS_OID);
+  getMatching(LHS_OID, RHS_OID);
+  printf("Time to Match = %lf\n", my_timer() - time1);
   return 0;
 
 }

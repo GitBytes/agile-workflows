@@ -18,6 +18,8 @@ using Graph_t = std::map<std::string, uint64_t>;
 
 void readFile(std::string &, Graph_t &);
 void createBipartite(Graph_t &, Graph_t &, uint64_t &, uint64_t &);
+void ApproxMatching(uint64_t &, uint64_t &);
+void getMatching(uint64_t &, uint64_t &);
 } // namespace agile::wk2_approx
 
 #endif  // MAIN_H
