@@ -104,14 +104,14 @@ int main(int argc, char *argv[]) {
   SetUpFunctor setUp(argc, argv);
 
   std::cout << "Loading module" << std::endl;
-  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end() - 1,
                  setUp);
 
   std::cout << "Setup done" << std::endl;
 
   const size_t numEpochs = 200;
   for (size_t epoch = 0; epoch < numEpochs; ++epoch) {
-    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end() - 1,
                    agile::workflow1::vcTrainLoop<TrainingState>);
   }
 

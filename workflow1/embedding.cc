@@ -1,7 +1,7 @@
+#include "agile/workflow1/gnn.h"
 #include "agile/workflow1/graph.h"
 #include "agile/workflow1/main.h"
 #include "agile/workflow1/wmd.h"
-#include "agile/workflow1/gnn.h"
 
 #define NUM_FEATURES 22
 
@@ -87,7 +87,8 @@ void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
 }
 
 typename shad::Array<agile::workflow1::TrainingState<WMDDataset>>::ObjectID
-GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph, std::string modelFileName) {
+GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
+    std::string modelFileName) {
   Handle handle;
   auto Vertices = VertexType::GetPtr((VertexOID)graph["Vertices"]);
   auto Embeddings = EmbeddingType::Create(num_vertices * NUM_FEATURES, 0);
@@ -102,16 +103,28 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph, std::string mod
   Vertices->AsyncForEachInRange(handle, 0, num_vertices, TwoHopFeatures, args);
   waitForCompletion(handle);
 
+  std::cout << "Embeddings created" << std::endl;
+
   size_t parallelThreads = shad::rt::numLocalities();
   TrainingState<WMDDataset> initState;
   auto TSs = shad::Array<TrainingState<WMDDataset>>::Create(parallelThreads,
                                                             initState);
+  SetUpTrainingContext<WMDDataset> setup(
+      Vertices->GetGlobalID(), (EdgeOID)graph["Edges"],
+      Embeddings->GetGlobalID(), modelFileName);
+  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end() - 1,
+                 setup);
 
-  SetUpTrainingContext<WMDDataset> setup(Vertices->GetGlobalID(), (EdgeOID)graph["Edges"],
-                                         Embeddings->GetGlobalID(), modelFileName);
+  std::cout << "Initialized Training State" << std::endl;
 
-  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
-                 agile::workflow1::vcTrainLoop<TrainingState<WMDDataset>>);
+  const size_t numEpochs = 200;
+  for (size_t epoch = 0; epoch < numEpochs; ++epoch) {
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(),
+                   TSs->end() - 1,
+                   agile::workflow1::vcTrainLoop<TrainingState<WMDDataset>>);
+  }
+
+  std::cout << "Model Trained" << std::endl;
 
   return TSs->GetGlobalID();
 }
