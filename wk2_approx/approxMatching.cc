@@ -1,3 +1,4 @@
+//// person of interest = 1128501731262832684
 //===------------------------------------------------------------*- C++ -*-===//
 //
 //                                     SHAD
@@ -23,20 +24,23 @@
 //===----------------------------------------------------------------------===/
 
 #include <mutex>
+#include <algorithm>
+#include "shad/data_structures/atomic.h"
 #include "agile/wk2_approx/graph.h"
 
-using Edge = std::pair<uint64_t, double>;
+using intAtomic = shad::Atomic<int64_t>;
+using intAtomicOID = shad::ObjectIdentifier<intAtomic>;
 
 struct V_struct {
+  bool taken;
   uint64_t id;
   agile::wk2_approx::TYPES type;
   agile::wk2_approx::Triples triples;
-  int64_t mate  = -1;
-  int64_t index = -1;
-  int64_t taken =  0;
-  std::vector<Edge> edges;
+  agile::wk2_approx::Edge mate;
+  std::vector<agile::wk2_approx::Edge> edges;
 };
 
+uint64_t null;
 std::mutex lock_LHS;
 std::mutex lock_RHS;
 std::map<uint64_t, V_struct> local_LHS;
@@ -44,13 +48,16 @@ std::map<uint64_t, V_struct> local_RHS;
 
 namespace agile::wk2_approx {
 
-void printer(const uint64_t &i, Vertex &vertex, uint64_t & null)
-{
-  std::cout<<vertex.id<<" "<<vertex.mate<<" "<<vertex.mate_weight<<std::endl;
-}
+struct args_t {
+  uint64_t LHS_OID;
+  uint64_t Matched_OID;
+};
+
+
 bool compEdge(Edge & A, Edge & B) {
-  return ( (A.second > B.second) || ( (A.second == B.second) && (A.first > B.first) ) );
+    return ( (A.second > B.second) || ( (A.second == B.second) && (A.first > B.first) ) );
 }
+
 
 bool proximity(TopicVertex & A, TopicVertex & B) {
   double lon_miles = 0.91 * std::abs(A.lon - B.lon);
@@ -172,29 +179,43 @@ void PublicationVertex_(Handle & handle, const uint64_t & key, PublicationVertex
 }
 
 
-// Make a local copy of the LHS shad hashmap on each locale.
+// Copy LHS shad hashmap to local map on each locale.
 void copy_LHS(const uint64_t & LHS_OID) {
   auto LHS = VertexType::GetPtr((VertexOID) LHS_OID);
 
   for (auto itr = LHS->begin(); itr != LHS->end(); ++ itr) {
     std::pair<uint64_t, Vertex> entry = (* itr);
+    auto itr_local = local_LHS.find(entry.first);
 
-    V_struct my_entry;
-    my_entry.id      = entry.second.id;
-    my_entry.type    = entry.second.type;
-    my_entry.triples = entry.second.triples;
-    my_entry.mate    = -1;
-    my_entry.index   = -1;
-    my_entry.taken   =  0;
+    if (itr_local == local_LHS.end()) {     // entry is not in local map, create entry
+       V_struct my_entry;
+       my_entry.id      = entry.second.id;
+       my_entry.type    = entry.second.type;
+       my_entry.triples = entry.second.triples;
+       my_entry.mate    = entry.second.mate;
+       my_entry.taken   = entry.second.taken;
+       local_LHS[entry.first] = my_entry;
+    } else {
+       (* itr_local).second.mate  = entry.second.mate;
+       (* itr_local).second.taken = entry.second.taken;
+} } }
 
-    local_LHS[my_entry.id] = my_entry;
-  } 
-}
+
+// Update mate of local LHS copies on each locale.
+void update_LHS(const uint64_t & LHS_OID) {
+  Vertex vertex;
+  auto LHS = VertexType::GetPtr((VertexOID) LHS_OID);
+
+  for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr) {
+    if ((* itr).second.taken) continue;       // vertex already matched, so mate has not changed
+    LHS->Lookup((* itr).first, & vertex);     // get global copy
+    (* itr).second.mate  = vertex.mate;
+    (* itr).second.taken = vertex.taken;
+} }
 
 
 // Sort edges in local copy of LHS
 void sort_LHS(const uint64_t & null) {
-
   for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr)
     std::sort((* itr).second.edges.begin(), (* itr).second.edges.end(), compEdge);
 }
@@ -206,27 +227,31 @@ void biPartiteEdges(const uint64_t & key, Vertex & vertex, uint64_t & null) {
   vB.id      = vertex.id;
   vB.type    = vertex.type;
   vB.triples = vertex.triples;
-  vB.mate    = -1;
-  vB.index   = -1;
-  vB.taken   =  0;
+  vB.mate    = vertex.mate;
+  vB.taken   =  vertex.taken;
 
   for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr) {     // for each LHS vertex
     V_struct & vA = (* itr).second;
     if (vA.type != vB.type) continue;               // an edge exists only for vertices of the same type
 
-    double dot = 0.0, lenVA = 0.0, lenVB = 0.0;     // compute the cosine similarity of the SPO vectors
+    double similarity = 0.0;                        // compute the cosine similarity of the SPO vectors
+    double adj = 0.0, dot = 0.0, lenVA = 0.0, lenVB = 0.0;
 
     for (uint64_t i = 0; i < NUMTRIPLES; ++ i) {
+      double minTriple = std::min(vA.triples[i], vB.triples[i]);
+      adj   += minTriple * minTriple;
       dot   += vA.triples[i] * vB.triples[i];
       lenVA += vA.triples[i] * vA.triples[i];
       lenVB += vB.triples[i] * vB.triples[i];
     }
 
-    double cosSimilarity = dot / (sqrt(lenVA) * sqrt(lenVB));
-    vB.edges.push_back( Edge(vA.id, cosSimilarity) );
+    if ((lenVA != 0.0) && (lenVB != 0.0))
+       similarity = (sqrt(adj) * dot) / (sqrt(lenVA) * sqrt(lenVB));
+
+    vB.edges.push_back( Edge(vA.id, similarity) );
 
     lock_LHS.lock();
-       vA.edges.push_back( Edge(vB.id, cosSimilarity) );
+       vA.edges.push_back( Edge(vB.id, similarity) );
     lock_LHS.unlock();
   }
 
@@ -238,266 +263,69 @@ void biPartiteEdges(const uint64_t & key, Vertex & vertex, uint64_t & null) {
 }
 
 
-void setMateB(const uint64_t &i, Vertex &vertex, uint64_t & LHS_OID)
-//void setMateSorted(shad::rt::Handle & handle,uint64_t i, VertexL &vertex, args_M_t &args)
-{
-    V_struct & vB = local_RHS[vertex.id]; /// vertex is global and vB is local
-    auto LHS = VertexType::GetPtr((VertexOID) LHS_OID);
-    int64_t start,end;
-    if(vertex.taken == 0) ///// Carefull, taken is stored globally
-    {    
-        start=vB.index; /// Start position in sorted array
-        end=vB.edges.size();
-        if(start==-1)
-          start=0;
-        
-        if((end-start)>0)
-        {
-            int64_t partner=-1;
-            double weight=0.0;
-        
-            for(int indx=start;indx<end;indx++)
-            {
-                partner=vB.edges[indx].first;
-                weight=vB.edges[indx].second;
-                Vertex v;
-                bool found=LHS->Lookup(partner, &v);
-                if(!found)
-                {
-                    std::cout<<"Key not Found"<<std::endl;
-                    return;
-                }
+static void updateGlobalMate(const uint64_t & id, Vertex & vertex, Edge & mate) {
+  if (compEdge(mate, vertex.mate)) {
+     vertex.mate.first  = mate.first;
+     vertex.mate.second = mate.second;
+} }
 
-                int taken=v.taken;
-                if(taken==0 && weight > 0.0)
-                {
-                    vB.mate=partner;   //setting mate in local
-                    vertex.mate=partner;  //setting mate in global
-                    vertex.mate_weight=weight;
-                    vB.index=indx;
-                    break;
-                }                 
-            }             
-        }
-    }
 
-}
-
-static void updateGlobalMate(const uint64_t &i, Vertex & vertex, int64_t &local_mate, double &local_weight) {
-  
-  if((vertex.mate_weight < local_weight) || (vertex.mate_weight == local_weight && vertex.mate < local_mate))
-  {
-     vertex.mate=local_mate;
-     vertex.mate_weight=local_weight;
-  }
+static void setMate(Handle & handle, const uint64_t & id, Vertex & vertex, bool & taken) {
+  if (taken) vertex.taken = true;
+  else       vertex.mate  = {shad::data_types::kNullValue<uint64_t>, 0.0};
 }
 
 
-struct Args_t {uint64_t LHS_OID; uint64_t RHS_OID;};
-//void setMateA(const uint64_t & LHS_OID)
-void setMateA(const Args_t & args)
-{
-    auto LHS = VertexType::GetPtr((VertexOID) args.LHS_OID);
-    auto RHS = VertexType::GetPtr((VertexOID) args.RHS_OID);
-
-    for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr) 
-    {     // for each LHS vertex
-      V_struct & vA = (* itr).second; //// LOCAL
-      Vertex vertex;  
-      bool found=LHS->Lookup(vA.id, &vertex); /// GLOBAL
-
-      int64_t start,end;
-      if(vertex.taken == 0) //// Carefull
-      {    
-          start=vA.index; /// Start position in sorted array
-          end=vA.edges.size();
-          if(start==-1)
-            start=0;
-          
-          if((end-start)>0)
-          {
-              int64_t partner=-1;
-              double weight=0.0;
-          
-              for(int indx=start;indx<end;indx++)
-              {
-                  partner=vA.edges[indx].first;
-                  weight=vA.edges[indx].second;
-                  Vertex v;
-                  bool found=RHS->Lookup(partner, &v);
-                  if(!found)
-                  {
-                    std::cout<<"Key not Found"<<std::endl;
-                    return;
-                  }
-
-                  int taken=v.taken;
-                  if(taken==0 && weight > 0.0)
-                  {
-                      vA.index=indx;
-                      vA.mate=partner;
-                      LHS->Apply(vA.id,updateGlobalMate,partner,weight);
-                      break;
-                  }                 
-              }             
-          }
-
-      }
-    }
-
+static void resetMate(const uint64_t & id, Vertex & vertex, uint64_t & null) {
+  vertex.taken = false;
+  vertex.mate  = {shad::data_types::kNullValue<uint64_t>, 0.0};
 }
 
-void findA2B(const uint64_t &i, Vertex &vertex, uint64_t & RHS_OID, uint64_t & counterID)
-{
-  Handle handle;
-  V_struct & vA = local_LHS[vertex.id]; //local vertex
-  auto RHS = VertexType::GetPtr((VertexOID) RHS_OID);
-  auto Counter = shad::Array<int>::GetPtr((shad::Array<int>::ObjectID)counterID);
-  int64_t my_id=i; 
-  int64_t mate = vertex.mate;
-  int taken = vertex.taken;
-  Vertex v;
-  RHS->Lookup(mate,&v);
-  if (taken == 0 && mate != -1 && my_id == v.mate) 
-  {
-      //// We got a match, RESET edges we need this for multiple matches
-      vertex.taken = 1;
-      if(vA.mate==vertex.mate) // this means local mate ended up as global mate
-        vA.edges[vA.index].second=-1;  // resetting the weight so that it won't be considered again
-      else
-        vA.mate=-1;
 
-      Counter->AsyncInsertAt(handle,0,1);
-
-  } else 
-      if(taken == 0) {vertex.mate = -1; vA.mate=-1;}
-}
-
-void findB2A(const uint64_t &i, Vertex &vertex, uint64_t & LHS_OID, uint64_t & counterID)
-{
-  Handle handle;
-  V_struct & vB = local_RHS[vertex.id]; //local vertex
+void mate_LHS(const uint64_t & LHS_OID) {
   auto LHS = VertexType::GetPtr((VertexOID) LHS_OID);
-  auto Counter = shad::Array<int>::GetPtr((shad::Array<int>::ObjectID)counterID);
-  int64_t my_id=i; 
-  int64_t mate = vertex.mate;
-  int taken = vertex.taken;
-  Vertex v;
-  LHS->Lookup(mate,&v);
-  if (taken == 0 && mate != -1 && my_id == v.mate) 
-  {
-      //// We got a match, RESET edges we need this for multiple matches
-      vertex.taken = 1;
-      vB.edges[vB.index].second=-1;
-      Counter->AsyncInsertAt(handle,0,1);
 
-  } else 
-      if(taken == 0) {vertex.mate = -1; vB.mate=-1;}
-  
-}
+  for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr) {     // for each LHS vertex
+    if ((* itr).second.taken) continue;                     // ... vertex is already matched
 
+    for (Edge & mate : (* itr).second.edges) {              // ... for each RHS mate
+      auto itr_B = local_RHS.find(mate.first);              // ... ... find first local RHS mate that is not taken
+      if (itr_B == local_RHS.end()) continue;
+      if ((* itr_B).second.taken)   continue;
 
-void findMatching(uint64_t & LHS_OID, uint64_t & RHS_OID, uint64_t & counterID)
-{
-  uint64_t null;
-  Handle handle;
-  auto LHS = VertexType::GetPtr((VertexOID) LHS_OID);
-  auto RHS = VertexType::GetPtr((VertexOID) RHS_OID);
-
-  LHS->ForEachEntry(findA2B, RHS_OID, counterID);
-  RHS->ForEachEntry(findB2A, LHS_OID, counterID);
-}
-
-void ApproxMatching(uint64_t & LHS_OID, uint64_t & RHS_OID)
-{
-  uint64_t null;
-  auto LHS = VertexType::GetPtr((VertexOID) LHS_OID);
-  auto RHS = VertexType::GetPtr((VertexOID) RHS_OID);
-
-  auto Counter = shad::Array<int>::Create(shad::rt::numLocalities(), 0);
-  uint64_t counterID = (uint64_t)Counter->GetGlobalID();
-  
-  int64_t iter=0;
-  while(true)
-  {  
-    //shad::rt::executeOnAll(copy_LHS, LHS_OID); 
-    //shad::rt::executeOnAll(setMateA, LHS_OID); // Setting mate from A->B
-    Args_t my_args = {LHS_OID, RHS_OID};
-    shad::rt::executeOnAll(setMateA, my_args); // Setting mate from A->B
-    //LHS->ForEachEntry(printer, null);
-    //std::cout<<std::endl;
-    RHS->ForEachEntry(setMateB, LHS_OID); // Setting mate from B->A
-    //RHS->ForEachEntry(printer, null);
-    //std::cout<<std::endl;
-
-    findMatching(LHS_OID,RHS_OID,counterID); // If mates are pointing to each other then MATCH
-    
-    /// Check if the algorithm found any match in this loop
-    /// if no -> matching algorithm terminates
-    /// If yes, reset and find new matches
-    int flag = Counter->At(0);
-    if (flag == 0) 
+      LHS->Apply((* itr).first, updateGlobalMate, mate);    // ... ... update global mate for this vertex
       break;
-    else 
-      Counter->InsertAt(0,0);
-      std::cout<<++iter<<std::endl; 
-  }
-  
-}
+} } }
 
 
-void resetVertices(const uint64_t &i, Vertex &vertex, uint64_t & side)
-{
-  vertex.taken = 0;
-  vertex.mate = -1; 
- 
-  if(side==0) // LEFT hand side (local)
-  {
-    V_struct & v = local_LHS[vertex.id];
-    v.taken=0;
-    v.mate=-1;
-  }
-  else //RIGHT hand side (local)
-  {
-    V_struct & v = local_RHS[vertex.id];
-    v.taken=0;
-    v.mate=-1;
-  }
-  
-  
-}
-void getMatching(uint64_t & LHS_OID, uint64_t & RHS_OID) 
-{
-  Handle handle;
-  std::map<uint64_t, uint64_t> match;
-  auto LHS = VertexType::GetPtr((VertexOID) LHS_OID);
-  auto RHS = VertexType::GetPtr((VertexOID) RHS_OID);
+void check_mate(Handle & handle, const args_t & args) {
+  auto LHS = VertexType::GetPtr((VertexOID) args.LHS_OID);
 
-  std::cout << std::endl << "....Matching Extraction...." << std::endl << std::endl;
+  for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr) {     // for each LHS vertex
+    uint64_t A = (* itr).first;
+    V_struct & vA = (* itr).second;
 
-  for (auto itr = LHS->begin(); itr != LHS->end(); ++ itr) 
-  {
-    std::pair<uint64_t, Vertex> entry = (* itr);
-    std::cout<<entry.second.id<<" "<<entry.second.mate<<std::endl;
-  }
-  
-  /*
-  LHS->AsyncGetElements(handle,vertex.data(),0,L.vertexNumber);
-  shad::rt::waitForCompletion(handle);
+    if (vA.taken) continue;                      // ... A is already matched, so continue
+    uint64_t B = vA.mate.first;                  // ... A wants to mate with B
+    auto itr_vB = local_RHS.find(B);
 
-  for (int i = 0; i < L.a_num_vertices; i++) {    
-    uint64_t id = vertex[i].label;
-    uint64_t mate = vertex[vertex[i].mate].label;
-    if (vertex[i].taken == 1) std::cout << id << " " << mate << std::endl;
-  }*/
+    if (itr_vB == local_RHS.end()) continue;     // ... B is not local, so another locale will check this A
+    V_struct & vB = (* itr_vB).second;
+    if (vB.taken) continue;                      // ... B is taken, note on next iteration A will mate with another B
 
-  // reset vertices
-  uint64_t side=0;
-  LHS->ForEachEntry(resetVertices, side);
-  side=1;
-  RHS->ForEachEntry(resetVertices, side);
-      
-}
+    for (Edge edge : vB.edges) {                 // ... for each edge B --> LHS vertex
+      uint64_t V = edge.first;                   // ... ... B wants to mate with V
+      if (local_LHS[V].taken) continue;          // ... ... V is already matched, continue to find best choice
+
+      if (V == A) {                              // ... ... match found 
+         vB.mate  = edge;
+         vA.taken = vB.taken = true;
+         intAtomic::GetPtr((intAtomicOID) args.Matched_OID)->AsyncFetchAdd(handle, 1);
+      }
+
+      LHS->AsyncApply(handle, A, setMate, vA.taken);
+      break;
+} } }
 
 
 void createBipartite(Graph_t & A, Graph_t & B, uint64_t & LHS_OID, uint64_t & RHS_OID) {
@@ -533,11 +361,43 @@ void createBipartite(Graph_t & A, Graph_t & B, uint64_t & LHS_OID, uint64_t & RH
   VertexType::GetPtr((VertexOID) LHS_OID)->WaitForBufferedInsert();
   VertexType::GetPtr((VertexOID) RHS_OID)->WaitForBufferedInsert();
 
-  shad::rt::executeOnAll(copy_LHS, LHS_OID);     // make a local copy of the LHS
+  shad::rt::executeOnAll(copy_LHS, LHS_OID);     // copy LHS to each locale
 
-  uint64_t null;
   VertexType::GetPtr((VertexOID) RHS_OID)->ForEachEntry(biPartiteEdges, null);
   shad::rt::executeOnAll(sort_LHS, null);        // sort edges in local copy of LHS
 };
+
+
+void ApproxMatching(uint64_t & LHS_OID, uint64_t & RHS_OID) {
+  Handle handle;
+  auto Matched = intAtomic::Create(0);                           // number of matched Pattern vertices
+  uint64_t Matched_OID = (uint64_t) (Matched->GetGlobalID());
+
+  uint64_t prev_matched = 0;
+  args_t args = {LHS_OID, Matched_OID};
+  uint64_t num_pattern_vertices = VertexType::GetPtr((VertexOID) LHS_OID)->Size();
+
+  VertexType::GetPtr((VertexOID) LHS_OID)->ForEachEntry(resetMate, null);
+  shad::rt::executeOnAll(copy_LHS, LHS_OID);                   // copy LHS to each locale
+  
+  while (prev_matched < num_pattern_vertices) {  
+    shad::rt::executeOnAll(mate_LHS, LHS_OID);                 // set mate for each LHS vertex
+    shad::rt::executeOnAll(update_LHS, LHS_OID);               // update local LHS on each locale
+    shad::rt::asyncExecuteOnAll(handle, check_mate, args);     // check if LHS and RHS mates match
+
+    waitForCompletion(handle);
+    uint64_t matched_now = Matched->Load();
+    if (prev_matched < matched_now) prev_matched = matched_now; else break;     // no more vertices to match
+  }
+
+// print match
+  printf("\n ********** Match ********** \n");
+
+  for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr)
+    if ((* itr).second.mate.first == shad::data_types::kNullValue<uint64_t>)
+       printf("Pattern vertex %2lu matched to Data vertex **********\n", (* itr).first);
+    else
+       printf("Pattern vertex %2lu matched to Data vertex %lu\n", (* itr).first, (* itr).second.mate.first);
+}
 
 } // namespace agile::wk2_approx

@@ -308,22 +308,23 @@ class HasOrgEdge {
     uint64_t dst() { return organization; }
 };
 
+
+using Edge = std::pair<uint64_t, double>;
+
 class Vertex {
   public:
+    bool taken;
     uint64_t id;        // vertex id
     TYPES    type;
     Triples  triples;
-    int64_t mate;
-    double mate_weight;
-    int64_t taken;
+    Edge     mate;
 
     Vertex () {
+      taken = false;
       id    = shad::data_types::kNullValue<uint64_t>;
       type  = TYPES::NONE;
       triples.fill(0);
-      mate  = -1;
-      mate_weight = -1.0;
-      taken =  0;
+      mate  = {shad::data_types::kNullValue<uint64_t>, 0.0};
     }
 };
 

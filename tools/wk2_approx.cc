@@ -103,8 +103,8 @@ int main(int argc, char *argv[]) {
   printf("Time to construct bipartite graph = %lf\n", my_timer() - time1);
   
   time1 = my_timer();
-  ApproxMatching(LHS_OID, RHS_OID);
-  getMatching(LHS_OID, RHS_OID);
+
+  for (uint64_t i = 0; i < Top_K; ++ i) ApproxMatching(LHS_OID, RHS_OID);
   printf("Time to Match = %lf\n", my_timer() - time1);
   return 0;
 
