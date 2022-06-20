@@ -62,18 +62,16 @@ public:
     if (modelFileName.size() > 256)
       throw "Filename too long";
 
-    std::memcpy(modelFileName_, modelFileName.c_str(), modelFileName.size());
+    std::strcpy(modelFileName_, modelFileName.c_str());
   }
 
   void operator()(TrainingState<Dataset> &TS) {
     // Load Module
     TS.Module = torch::jit::load(modelFileName_);
-
     // Load Dataset
-    auto levels = torch::tensor({5, 3, 2, 1});
-    TS.DataSet = Dataset(levels, _verticesOID, _edgesOID, _featuresOID);
-    size_t numVertices = TS.DataSet.size().value();
+    TS.DataSet = Dataset(_verticesOID, _edgesOID, _featuresOID);
 
+    size_t numVertices = TS.DataSet.size().value();
     // Partition in Training/Test Set
     using namespace torch::indexing;
     auto options = torch::TensorOptions().dtype(torch::kBool);
@@ -170,6 +168,7 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
     auto equal = prediction.eq(groundTruth);
     test_correct += equal.index({batch.Mask}).sum().template item<int64_t>();
   }
+
   auto end = std::chrono::high_resolution_clock::now();
 
   std::cout << shad::rt::thisLocality() << " Train Accuracy: "

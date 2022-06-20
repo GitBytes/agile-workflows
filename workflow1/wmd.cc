@@ -12,6 +12,8 @@ WMDData<> WMDDataset::get(size_t idx) {
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 WMDDataset::_build_ego_graph(int64_t idx) {
+
+  auto levels = torch::tensor({5, 3, 2, 1});
   auto EdgesPtr = EdgeType::GetPtr(_edgesOID);
   auto VerticesPtr = VertexType::GetPtr(_verticesOID);
 
@@ -27,7 +29,7 @@ WMDDataset::_build_ego_graph(int64_t idx) {
   int64_t position = 0;
   auto next = frontier.begin();
   auto end_of_level = frontier.end();
-  while (level < _levels.size(0) && next != end_of_level) {
+  while (level < levels.size(0) && next != end_of_level) {
     auto v = *next++;
     if (vertex_mask[v].item<bool>() == false) {
       vertex_mask[v] = true;
@@ -37,17 +39,16 @@ WMDDataset::_build_ego_graph(int64_t idx) {
       int endEL = VerticesPtr->At(v + 1).edges;
 
       int num_neighbors =
-          std::min<int>(endEL - startEL, _levels[level].item<int64_t>());
+          std::min<int>(endEL - startEL, levels[level].item<int64_t>());
       std::vector<Edge> neighborhood(num_neighbors);
 
       shad::rt::Handle h;
-      EdgesPtr->AsyncGetElements(
-          h, neighborhood.data(), startEL,
-          num_neighbors);
+      EdgesPtr->AsyncGetElements(h, neighborhood.data(), startEL,
+                                 num_neighbors);
       shad::rt::waitForCompletion(h);
 
       for (int i = 0; i < neighborhood.size(); ++i) {
-        auto u = neighborhood[i].dst;
+        auto u = neighborhood[i].dst_glbid;
         frontier.push_back(u);
       }
     }
@@ -77,13 +78,11 @@ WMDDataset::_build_ego_graph(int64_t idx) {
     std::vector<Edge> neighborhood(num_neighbors);
 
     shad::rt::Handle h;
-    EdgesPtr->AsyncGetElements(
-        h, neighborhood.data(), startEL,
-        num_neighbors);
+    EdgesPtr->AsyncGetElements(h, neighborhood.data(), startEL, num_neighbors);
     shad::rt::waitForCompletion(h);
 
     for (int64_t i = 0; i < neighborhood.size(); ++i) {
-      int64_t v = neighborhood[i].dst;
+      int64_t v = neighborhood[i].dst_glbid;
       if (vertex_mask[v].item<bool>()) {
         sources.push_back(vertex_mapping[*itr]);
         destinations.push_back(vertex_mapping[v]);
@@ -107,7 +106,7 @@ WMDDataset::_build_ego_graph(int64_t idx) {
   }
 
   // The result tensor stores the edge list of the ego-graph.
-  auto result = torch::zeros({2, sources.size()});
+  auto result = torch::zeros({2, sources.size()}, options);
   result.slice(0, 0, 1) =
       torch::from_blob(sources.data(), {sources.size()}, options).clone();
   result.slice(0, 1, 2) =
@@ -123,15 +122,22 @@ WMDDataset::_build_ego_graph(int64_t idx) {
   vertex.index_put_({indices}, true);
   vertex.index_put_({vertex_mapping[idx]}, true);
 
+  std::vector<float> floatFeatures(featureVectors.begin(),
+                                   featureVectors.end());
+
   shad::rt::waitForCompletion(h);
 
   // The features as computed by the TwoHopFeatures function.
-  auto features = torch::from_blob(featureVectors.data(),
-                                   {vertex_set.size(), NumFeauters}, options).clone();
+  auto features =
+      torch::from_blob(floatFeatures.data(), {vertex_set.size(), NumFeauters},
+                       torch::TensorOptions().dtype(torch::kFloat))
+          .clone();
+
   // The vertex type as for each of the vertices in the ego-graph.
-  auto labels =  torch::from_blob(vertexTypes.data(),
-                                  {vertex_set.size()}, options).clone();
+  auto labels =
+      torch::from_blob(vertexTypes.data(), {vertex_set.size()}, options)
+          .clone();
 
   return std::make_tuple(result, features, labels, vertex);
 }
-} // namespace agile
+} // namespace agile::workflow1

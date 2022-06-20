@@ -61,9 +61,6 @@ public:
   using ArrayOID = typename shad::Array<uint64_t>::ObjectID;
 
 private:
-  torch::Tensor _levels; //!< A tensor storing the number of neighbors to select
-                         //!< at each depth from the vertex.
-
   VertexOID _verticesOID;
   EdgeOID _edgesOID;
   ArrayOID _featuresOID;
@@ -73,29 +70,33 @@ public:
   static constexpr int NumFeauters = 22;
 
   WMDDataset()
-      : _levels(), _verticesOID(VertexOID::kNullID),
+      : _verticesOID(VertexOID::kNullID),
         _edgesOID(EdgeOID::kNullID), _featuresOID(ArrayOID::kNullID) {}
 
   WMDDataset(const WMDDataset &O)
-      : _levels(O._levels), _verticesOID(O._verticesOID),
+      : _verticesOID(O._verticesOID),
         _edgesOID(O._edgesOID), _featuresOID(O._featuresOID) {}
 
   WMDDataset(WMDDataset &&O)
-      : _levels(std::move(O._levels)), _verticesOID(O._verticesOID),
+      : _verticesOID(O._verticesOID),
         _edgesOID(O._edgesOID), _featuresOID(O._featuresOID) {}
 
   WMDDataset &operator=(const WMDDataset &O) {
-    this->_levels = O._levels;
+    this->_verticesOID = O._verticesOID;
+    this->_edgesOID = O._edgesOID;
+    this->_featuresOID = O._featuresOID;
     return *this;
   }
 
   WMDDataset(const VertexOID &VertexArrayID, const EdgeOID &EdgeArrayOID,
-             const ArrayOID &FeaturesArrayID, torch::Tensor l)
-      : _levels(l), _verticesOID(VertexArrayID), _edgesOID(EdgeArrayOID),
-        _featuresOID(FeaturesArrayID) {}
+             const ArrayOID &FeaturesArrayID)
+      :  _verticesOID(VertexArrayID),
+        _edgesOID(EdgeArrayOID), _featuresOID(FeaturesArrayID) {}
 
   WMDDataset &operator=(WMDDataset &&O) {
-    this->_levels = std::move(O._levels);
+    this->_verticesOID = O._verticesOID;
+    this->_edgesOID = O._edgesOID;
+    this->_featuresOID = O._featuresOID;
     return *this;
   }
 

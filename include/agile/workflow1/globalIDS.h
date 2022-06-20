@@ -106,14 +106,14 @@ public:
 
 class Edge {
 public:
-  uint64_t src; // vertex id of src
-  uint64_t dst; // vertex id of dst
+  uint64_t src; //! vertex id of src in the original id space.
+  uint64_t dst; //! vertex id of dst in the original id space.
   double weight;
-  TYPES type;
-  TYPES src_type;
-  TYPES dst_type;
-  uint64_t src_glbid;
-  uint64_t dst_glbid;
+  TYPES type;         //! the edge type.
+  TYPES src_type;     //! the type of the source vertex.
+  TYPES dst_type;     //! the type of the destination vertex.
+  uint64_t src_glbid; //! vertex ids used in the CSR graph.
+  uint64_t dst_glbid; //! vertex ids used in the CSR graph.
 
   Edge() {
     src = shad::data_types::kNullValue<uint64_t>;
