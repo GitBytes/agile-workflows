@@ -16,7 +16,22 @@ namespace agile::wk2_approx {
 using Handle = shad::rt::Handle;
 using Graph_t = std::map<std::string, uint64_t>;
 
-void readFile(std::string &, Graph_t &);
+struct RF_args_t {
+  uint64_t Persons_OID;
+  uint64_t ForumEvents_OID;
+  uint64_t Forums_OID;
+  uint64_t Publications_OID;
+  uint64_t Topics_OID;
+  uint64_t Purchases_OID;
+  uint64_t Sales_OID;
+  uint64_t Authors_OID;
+  uint64_t Includes_OID;
+  uint64_t HasTopic_OID;
+  uint64_t HasOrg_OID;
+  char filename [120];
+};
+
+void readFile(Handle & handle, const RF_args_t & args);
 void createBipartite(Graph_t &, Graph_t &, uint64_t &, uint64_t &);
 void ApproxMatching(uint64_t &, uint64_t &);
 void getMatching(uint64_t &, uint64_t &);

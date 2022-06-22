@@ -7,6 +7,7 @@ namespace shad {
 int main(int argc, char *argv[]) {
   double time1 = my_timer();
 
+  Handle handle;
   Graph_t graph;
   std::string dataFile = argv[1];
 
@@ -15,7 +16,6 @@ int main(int argc, char *argv[]) {
   auto Forums       = ForumVertexType::Create(SMALL);
   auto Publications = PublicationVertexType::Create(SMALL);
   auto Topics       = TopicVertexType::Create(SMALL);
-
   auto Purchases    = PurchaseEdgeType::Create(MEDIUM);
   auto Sales        = SaleEdgeType::Create(MEDIUM);
   auto Authors      = AuthorEdgeType::Create(LARGE);
@@ -28,7 +28,6 @@ int main(int argc, char *argv[]) {
   graph["Forums"]       = (uint64_t) (Forums->GetGlobalID());
   graph["Publications"] = (uint64_t) (Publications->GetGlobalID());
   graph["Topics"]       = (uint64_t) (Topics->GetGlobalID());
-
   graph["Purchases"]    = (uint64_t) (Purchases->GetGlobalID());
   graph["Sales"]        = (uint64_t) (Sales->GetGlobalID());
   graph["Authors"]      = (uint64_t) (Authors->GetGlobalID());
@@ -36,10 +35,39 @@ int main(int argc, char *argv[]) {
   graph["HasTopic"]     = (uint64_t) (HasTopic->GetGlobalID());
   graph["HasOrg"]       = (uint64_t) (HasOrg->GetGlobalID());
 
-  readFile(dataFile, graph);               // read file, create vertex and edge tables, assign locale ids
-  printf("Time for graph construction = %lf\n", my_timer() - time1);
+  RF_args_t args;
+  args.Persons_OID = graph["Persons"];
+  args.ForumEvents_OID = graph["ForumEvents"];
+  args.Forums_OID = graph["Forums"];
+  args.Publications_OID = graph["Publications"];
+  args.Topics_OID = graph["Topics"];
+  args.Purchases_OID = graph["Purchases"];
+  args.Sales_OID = graph["Sales"];
+  args.Authors_OID = graph["Authors"];
+  args.Includes_OID = graph["Includes"];
+  args.HasTopic_OID = graph["HasTopic"];
+  args.HasOrg_OID = graph["HasOrg"];
+  memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
 
-  printf("\n");
+  printf("Reading data file %s\n",  dataFile.c_str());    // read file, create tables, assign locale ids
+  shad::rt::asyncExecuteOnAll(handle, readFile, args);
+  shad::rt::waitForCompletion(handle);
+
+  Persons->WaitForBufferedInsert();
+  ForumEvents->WaitForBufferedInsert();
+  Forums->WaitForBufferedInsert();
+  Publications->WaitForBufferedInsert();
+  Topics->WaitForBufferedInsert();
+
+  Purchases->WaitForBufferedInsert();
+  Sales->WaitForBufferedInsert();
+  Authors->WaitForBufferedInsert();
+  Includes->WaitForBufferedInsert();
+  HasTopic->WaitForBufferedInsert();
+  HasOrg->WaitForBufferedInsert();
+
+  printf("Time for graph construction = %lf\n\n", my_timer() - time1);
+
   printf("Number of persons      = %lu\n", Persons->Size());
   printf("Number of forum_events = %lu\n", ForumEvents->Size());
   printf("Number of forums       = %lu\n", Forums->Size());
