@@ -1,9 +1,9 @@
 from conans import ConanFile, CMake, tools
 
 
-class PyTorchScatterConan(ConanFile):
+class PyTorchSparseConan(ConanFile):
     name = "pytorch_sparse"
-    version = "0.7.0"
+    version = "0.6.11"
     license = "MIT"
     author = "<Put your name here> <And your email here>"
     url = "<Package recipe repository url here, for issues about the package>"
@@ -13,6 +13,12 @@ class PyTorchScatterConan(ConanFile):
     options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = {"shared": False, "fPIC": True}
     generators = "cmake"
+    scm = {
+        "type": "git",
+        "subfolder": "pytorch_sparse",
+        "url": "https://github.com/rusty1s/pytorch_sparse.git",
+        "revision": "0.6.11"
+    }
 
     def config_options(self):
         if self.settings.os == "Windows":
@@ -22,9 +28,8 @@ class PyTorchScatterConan(ConanFile):
         self.requires('libtorch/1.11.0@user/stable')
 
     def source(self):
-        self.run("git clone https://github.com/rusty1s/pytorch_sparse.git")
-        tools.replace_in_file("pytorch_sparse/CMakeLists.txt", "set(TORCHSPARSE_VERSION 0.7.0)",
-                              '''set(TORCHSPARSE_VERSION 0.7.0)
+        tools.replace_in_file("pytorch_sparse/CMakeLists.txt", "set(TORCHSPARSE_VERSION 0.6.11)",
+                              '''set(TORCHSPARSE_VERSION 0.6.11)
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()''')
 

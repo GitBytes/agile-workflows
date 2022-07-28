@@ -13,6 +13,12 @@ class PyTorchScatterConan(ConanFile):
     options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = {"shared": False, "fPIC": True}
     generators = "cmake"
+    scm = {
+        "type": "git",
+        "subfolder": "pytorch_scatter",
+        "url": "https://github.com/rusty1s/pytorch_scatter.git",
+        "revision": "pytorch_1_11"
+    }
 
     def config_options(self):
         if self.settings.os == "Windows":
@@ -22,7 +28,6 @@ class PyTorchScatterConan(ConanFile):
         self.requires('libtorch/1.11.0@user/stable')
 
     def source(self):
-        self.run("git clone https://github.com/rusty1s/pytorch_scatter.git")
         tools.replace_in_file("pytorch_scatter/CMakeLists.txt", "set(TORCHSCATTER_VERSION 2.0.9)",
                               '''set(TORCHSCATTER_VERSION 2.0.9)
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
