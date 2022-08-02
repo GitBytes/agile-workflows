@@ -1,0 +1,237 @@
+#ifndef GLOBALIDS_H_
+#define GLOBALIDS_H_
+
+#include <cstdint>
+#include <limits>
+#include <string>
+#include <vector>
+#include <sys/stat.h>
+
+#include "shad/data_structures/array.h"
+#include "shad/data_structures/hashmap.h"
+#include "shad/data_structures/multimap.h"
+#include "shad/extensions/data_types/data_types.h"
+
+#define TINY   5000
+#define SMALL  500000
+#define MEDIUM 5000000
+#define LARGE  50000000
+
+#define UINT   shad::data_types::UINT
+#define DOUBLE shad::data_types::DOUBLE
+#define USDATE shad::data_types::USDATE
+#define ENCODE shad::data_types::encode
+
+namespace agile::kernel_constructXEdges {
+
+using Handle = shad::rt::Handle;
+
+struct RF_args_t {
+  uint64_t Edges_OID;
+  uint64_t GlobalIDS_OID;
+  char filename [120];
+};
+
+enum class TYPES {
+  PERSON,
+  FORUMEVENT,
+  FORUM,
+  PUBLICATION,
+  TOPIC,
+  PURCHASE,
+  SALE,
+  AUTHOR,
+  WRITTENBY,
+  INCLUDES,
+  INCLUDEDIN,
+  HASTOPIC,
+  TOPICIN,
+  HASORG,
+  ORGIN,
+  NONE
+};
+
+template <typename T>
+struct globalIdInserter {
+  globalIdInserter() : counter(0lu) { }
+
+  bool operator()(T *const lhs, const T &rhs, bool same_key) {
+    if (same_key) {     // entry in hashmap, increment edges
+       lhs->edges += rhs.edges;
+    } else {            // entry not in hashmap, assign next local id
+       T temp = rhs;
+       temp.id = counter ++;
+       * lhs = std::move(temp);
+    }
+
+    return true;
+  }
+
+  bool Insert(T *const lhs, const T &rhs, bool same_key) {
+    if (same_key) {     // entry in hashmap, increment edges
+       lhs->edges += rhs.edges;
+    } else {            // entry not in hashmap, assign next local id
+       T temp = rhs;
+       temp.id = counter ++;
+       * lhs = std::move(temp);
+    }
+
+    return true;
+  }
+
+  std::atomic<uint64_t> counter;
+};
+
+
+// Exclusive scan for vertex class array
+template <typename VTYPE>
+static void exclusiveRecursiveScan(Handle & handle, uint64_t pos, VTYPE & elem, uint64_t & ndx, uint64_t & oid) {
+  using arrayOID = shad::ObjectIdentifier<shad::Array<VTYPE>>;
+  auto arrayPtr  = shad::Array<VTYPE>::GetPtr((arrayOID) oid);
+
+  uint64_t size = arrayPtr->Size();
+  uint64_t nelems = arrayPtr->getNElems();
+  std::vector<VTYPE> * data = arrayPtr->getData();
+
+  // if not the last set, spawn next scan
+  // ... next ndx is this ndx + # edges of last vertex in set 
+  if (pos + nelems < size) {
+     uint64_t my_ndx = ndx + (* data)[nelems - 1].edges;
+     arrayPtr->AsyncApply(handle, pos + nelems, exclusiveRecursiveScan<VTYPE>, my_ndx, oid);
+  }
+
+  for (uint64_t i = nelems - 1; i > 0; i --) (* data)[i].edges = (* data)[i - 1].edges + ndx;
+  (* data)[0].edges = ndx;
+}
+
+
+template <typename VTYPE>
+void exclusiveScanVertices(uint64_t oid) {
+  using arrayOID = shad::ObjectIdentifier<shad::Array<VTYPE>>;
+  auto arrayPtr  = shad::Array<VTYPE>::GetPtr((arrayOID) oid);
+
+  auto localInclusiveScan = [](Handle & handle, const uint64_t & oid) {
+    auto arrayPtr = shad::Array<VTYPE>::GetPtr((arrayOID) oid);
+    std::vector<VTYPE> * data = arrayPtr->getData();
+
+    uint64_t nelems = arrayPtr->getNElems();
+    for (uint64_t i = 1; i < nelems; i ++) (* data)[i].edges += (* data)[i - 1].edges;
+  };
+
+  Handle handle;
+  shad::rt::asyncExecuteOnAll(handle, localInclusiveScan, oid);
+  shad::rt::waitForCompletion(handle);
+
+  uint64_t ndx = 0;
+  arrayPtr->AsyncApply(handle, 0, exclusiveRecursiveScan<VTYPE>, ndx, oid);
+  shad::rt::waitForCompletion(handle);
+}
+
+
+class Vertex {          // used by both GlobalIDS and Vertices
+  public:
+    uint64_t id;        // GlobalIDS: global id ... Vertices: vertex id
+    uint64_t edges;     // GlobalIDS: number of edges ... Vertices: start index in Edges
+    TYPES    type;
+
+    Vertex () {
+      id    = shad::data_types::kNullValue<uint64_t>;
+      edges = shad::data_types::kNullValue<uint64_t>;
+      type  = TYPES::NONE;
+    }
+
+    Vertex (uint64_t id_, uint64_t edges_, TYPES type_) {
+      id    = id_;
+      edges = edges_;
+      type  = type_;
+    }
+};
+
+class Edge {
+  public:
+    uint64_t src;     // vertex id of src
+    uint64_t dst;     // vertex id of dst
+    TYPES    type;
+    TYPES    src_type;
+    TYPES    dst_type;
+    uint64_t src_glbid;
+    uint64_t dst_glbid;
+
+    Edge () {
+      src       = shad::data_types::kNullValue<uint64_t>;
+      dst       = shad::data_types::kNullValue<uint64_t>;
+      type      = TYPES::NONE;
+      src_type  = TYPES::NONE;
+      dst_type  = TYPES::NONE;
+      src_glbid = shad::data_types::kNullValue<uint64_t>;
+      dst_glbid = shad::data_types::kNullValue<uint64_t>;
+    }
+
+    Edge (std::vector <std::string> & tokens) {
+      if (tokens[0] == "Sale") {
+         src       = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+         dst       = ENCODE<uint64_t, std::string, UINT>(tokens[2]);
+         type      = TYPES::SALE;
+         src_type  = TYPES::PERSON;
+         dst_type  = TYPES::PERSON;
+         src_glbid = shad::data_types::kNullValue<uint64_t>;
+         dst_glbid = shad::data_types::kNullValue<uint64_t>;
+      } else if (tokens[0] == "Author") {
+         src  = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+         type      = TYPES::AUTHOR;
+         src_type  = TYPES::PERSON;
+         src_glbid = shad::data_types::kNullValue<uint64_t>;
+         dst_glbid = shad::data_types::kNullValue<uint64_t>;
+         if      (tokens[3] != "") dst = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
+         else if (tokens[4] != "") dst = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
+         else if (tokens[5] != "") dst = ENCODE<uint64_t, std::string, UINT>(tokens[5]);
+         if      (tokens[3] != "") dst_type = TYPES::FORUM;
+         else if (tokens[4] != "") dst_type = TYPES::FORUMEVENT;
+         else if (tokens[5] != "") dst_type = TYPES::PUBLICATION;
+      } else if (tokens[0] == "Includes") {
+         src       = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
+         dst       = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
+         type      = TYPES::INCLUDES;
+         src_type  = TYPES::FORUM;
+         dst_type  = TYPES::FORUMEVENT;
+         src_glbid = shad::data_types::kNullValue<uint64_t>;
+         dst_glbid = shad::data_types::kNullValue<uint64_t>;
+      } else if (tokens[0] == "HasTopic") {
+         dst       = ENCODE<uint64_t, std::string, UINT>(tokens[6]);;
+         type      = TYPES::HASTOPIC;
+         dst_type  = TYPES::TOPIC;
+         src_glbid = shad::data_types::kNullValue<uint64_t>;
+         dst_glbid = shad::data_types::kNullValue<uint64_t>;
+         if      (tokens[3] != "") src = ENCODE<uint64_t, std::string, UINT>(tokens[3]);
+         else if (tokens[4] != "") src = ENCODE<uint64_t, std::string, UINT>(tokens[4]);
+         else if (tokens[5] != "") src = ENCODE<uint64_t, std::string, UINT>(tokens[5]);
+         if      (tokens[3] != "") src_type = TYPES::FORUM;
+         else if (tokens[4] != "") src_type = TYPES::FORUMEVENT;
+         else if (tokens[5] != "") src_type = TYPES::PUBLICATION;
+      } else if (tokens[0] == "HasOrg") {
+         src       = ENCODE<uint64_t, std::string, UINT>(tokens[1]);;
+         dst       = ENCODE<uint64_t, std::string, UINT>(tokens[1]);;
+         type      = TYPES::HASORG;
+         src_type  = TYPES::PUBLICATION;
+         dst_type  = TYPES::TOPIC;
+         src_glbid = shad::data_types::kNullValue<uint64_t>;
+         dst_glbid = shad::data_types::kNullValue<uint64_t>;
+      }
+    }
+};
+
+using GlobalIDType = shad::Hashmap<uint64_t, Vertex, shad::MemCmp<uint64_t>, globalIdInserter<Vertex> >;
+using GlobalIDOID  = shad::ObjectIdentifier<GlobalIDType>;
+
+using EdgeType = shad::Multimap<uint64_t, Edge>;
+using EdgeOID  = shad::ObjectIdentifier<EdgeType>;
+
+using XEdgeType = shad::Array<Edge>;
+using XEdgeOID  = shad::ObjectIdentifier<XEdgeType>;
+
+using VertexType = shad::Array<Vertex>;                              // index == vertex glbid
+using VertexOID  = shad::ObjectIdentifier<VertexType>;
+
+} // namespace agile::kernel_constructXEdges
+
+#endif // GLOBALIDS_H
