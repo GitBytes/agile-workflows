@@ -1,5 +1,5 @@
-#ifndef GRAPH_H_
-#define GRAPH_H_
+#ifndef MAIN_H_
+#define MAIN_H_
 
 #include <cstdint>
 #include <limits>
@@ -345,6 +345,7 @@ class HasOrgEdge {
     uint64_t dst() { return organization; }
 };
 
+
 using Handle = shad::rt::Handle;
 
 using PersonVertexType = shad::Hashmap<uint64_t, PersonVertex>;
@@ -382,4 +383,4 @@ using HasOrgEdgeOID  = shad::ObjectIdentifier<HasOrgEdgeType>;
 
 } // namespace agile::kernel_constructTables
 
-#endif // GRAPH_H
+#endif // MAIN_H

@@ -1,5 +1,5 @@
-#ifndef GLOBALIDS_H_
-#define GLOBALIDS_H_
+#ifndef MAIN_H_
+#define MAIN_H_
 
 #include <cstdint>
 #include <limits>
@@ -94,14 +94,13 @@ static void exclusiveRecursiveScan(Handle & handle, uint64_t pos, VTYPE & elem, 
   std::vector<VTYPE> * data = arrayPtr->getData();
 
   // if not the last set, spawn next scan
-  // ... next ndx is this ndx + # edges of last vertex in set 
+  // ... next ndx is this ndx + start of last vertex in set + # edges of last vertex in set
   if (pos + nelems < size) {
-     uint64_t my_ndx = ndx + (* data)[nelems - 1].edges;
+     uint64_t my_ndx = ndx + (*data)[nelems - 1].start + (*data)[nelems - 1].edges;
      arrayPtr->AsyncApply(handle, pos + nelems, exclusiveRecursiveScan<VTYPE>, my_ndx, oid);
   }
 
-  for (uint64_t i = nelems - 1; i > 0; i --) (* data)[i].edges = (* data)[i - 1].edges + ndx;
-  (* data)[0].edges = ndx;
+  for (uint64_t i = 0; i < nelems; ++ i) (*data)[i].start += ndx;
 }
 
 
@@ -113,9 +112,10 @@ void exclusiveScanVertices(uint64_t oid) {
   auto localInclusiveScan = [](Handle & handle, const uint64_t & oid) {
     auto arrayPtr = shad::Array<VTYPE>::GetPtr((arrayOID) oid);
     std::vector<VTYPE> * data = arrayPtr->getData();
-
     uint64_t nelems = arrayPtr->getNElems();
-    for (uint64_t i = 1; i < nelems; i ++) (* data)[i].edges += (* data)[i - 1].edges;
+
+    for (uint64_t i = 1; i < nelems; ++ i)
+      (*data)[i].start = (*data)[i - 1].start + (*data)[i - 1].edges;
   };
 
   Handle handle;
@@ -131,18 +131,21 @@ void exclusiveScanVertices(uint64_t oid) {
 class Vertex {          // used by both GlobalIDS and Vertices
   public:
     uint64_t id;        // GlobalIDS: global id ... Vertices: vertex id
-    uint64_t edges;     // GlobalIDS: number of edges ... Vertices: start index in Edges
+    uint64_t edges;     // number of edges
+    uint64_t start;     // start index in compressed edge list
     TYPES    type;
 
     Vertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
-      edges = shad::data_types::kNullValue<uint64_t>;
+      edges = 0;
+      start = 0;
       type  = TYPES::NONE;
     }
 
     Vertex (uint64_t id_, uint64_t edges_, TYPES type_) {
       id    = id_;
       edges = edges_;
+      start = 0;
       type  = type_;
     }
 };
@@ -234,4 +237,4 @@ using VertexOID  = shad::ObjectIdentifier<VertexType>;
 
 } // namespace agile::kernel_constructXEdges
 
-#endif // GLOBALIDS_H
+#endif // MAIN_H

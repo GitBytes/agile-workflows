@@ -161,30 +161,17 @@ int main(int argc, char *argv[]) {
        Purchases->Size() + Sales->Size() + Authors->Size() + Includes->Size() + HasTopic->Size() + HasOrg->Size());
 
 /***** write out data structures for downstream kernels *****/
-/*
-  printf("Persons\n");
-  Persons->PrintAllEntries();
-  printf("\nForum Events\n");
-  ForumEvents->PrintAllEntries();
-  printf("\nForums\n");
-  Forums->PrintAllEntries();
-  printf("\nPublications\n");
-  Publications->PrintAllEntries();
-  printf("\nTopics\n");
-  Topics->PrintAllEntries();
-  printf("\nPurchases\n");
-  Purchases->PrintAllEntries();
-  printf("\nSales\n");
-  Sales->PrintAllEntries();
-  printf("\nAuthors\n");
-  Authors->PrintAllEntries();
-  printf("\nIncludes\n");
-  Includes->PrintAllEntries();
-  printf("\nHas Topic\n");
-  HasTopic->PrintAllEntries();
-  printf("\nHas Org\n");
-  HasOrg->PrintAllEntries();
-*/
+  printf("{Persons:\n");
+  printf("{Forum Events:\n");
+  printf("{Forums:\n");
+  printf("{Publications:\n");
+  printf("{Topics:\n");
+  printf("{Purchases:\n");
+  printf("{Sales:\n");
+  printf("{Authors:\n");
+  printf("{Includes:\n");
+  printf("{Has Topic:\n");
+  printf("{Has Org:\n");
 
   return 0;
 }
