@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-#include "agile/workflow1/globalIDS.h"
 #include "shad/data_structures/array.h"
+#include "agile/workflow1/graph.h"
 #include "torch/torch.h"
 
 namespace agile::workflow1 {
@@ -62,7 +62,7 @@ public:
 
 private:
   VertexOID _verticesOID;
-  EdgeOID _edgesOID;
+  XEdgeOID _edgesOID;
   ArrayOID _featuresOID;
 
 public:
@@ -71,7 +71,7 @@ public:
 
   WMDDataset()
       : _verticesOID(VertexOID::kNullID),
-        _edgesOID(EdgeOID::kNullID), _featuresOID(ArrayOID::kNullID) {}
+        _edgesOID(XEdgeOID::kNullID), _featuresOID(ArrayOID::kNullID) {}
 
   WMDDataset(const WMDDataset &O)
       : _verticesOID(O._verticesOID),
@@ -88,7 +88,7 @@ public:
     return *this;
   }
 
-  WMDDataset(const VertexOID &VertexArrayID, const EdgeOID &EdgeArrayOID,
+  WMDDataset(const VertexOID &VertexArrayID, const XEdgeOID &EdgeArrayOID,
              const ArrayOID &FeaturesArrayID)
       :  _verticesOID(VertexArrayID),
         _edgesOID(EdgeArrayOID), _featuresOID(FeaturesArrayID) {}

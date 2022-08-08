@@ -86,8 +86,8 @@ void readFile(Handle & handle, const RF_args_t & args) {
 
        Edge writtenBY = authors;
        writtenBY.type = TYPES::WRITTENBY;
-       std::swap(authors.src, authors.dst);
-       std::swap(authors.src_type, authors.dst_type);
+       std::swap(writtenBY.src, writtenBY.dst);
+       std::swap(writtenBY.src_type, writtenBY.dst_type);
        Edges->BufferedAsyncInsert(handle, writtenBY.src, writtenBY);
 
        GlobalIDS->BufferedAsyncInsert(handle, authors.src,   Vertex(0, 1, authors.src_type));
@@ -159,7 +159,7 @@ void updateIDS(Handle & handle, const Args_t & args) {
 }
 
 
-// Fill in Vertices ... store {key, value.edges, value.type} at index value.id
+// Fill in Vertices ... insert {key, value.edges, value.type} at index value.id
 void moveVertex(Handle & handle, const uint64_t & key, Vertex & value, uint64_t & verticesOID) {
   auto Vertices = VertexType::GetPtr((VertexOID) verticesOID);
   Vertices->AsyncInsertAt(handle, value.id, Vertex(key, value.edges, value.type));
@@ -182,8 +182,8 @@ void moveEdges(Handle & handle, const uint64_t & src_id, std::vector<Edge> & edg
   auto GlobalIDS = GlobalIDType::GetPtr((GlobalIDOID) globalIDSOID);
 
   Vertex srcVertex;
-  GlobalIDS->Lookup(src_id, & srcVertex);
-  uint64_t ndx = Vertices->At(srcVertex.id).edges;                           // start index for src vertex edges
+  GlobalIDS->Lookup(src_id, & srcVertex);                                    // lookup global id for src vertex
+  uint64_t ndx = Vertices->At(srcVertex.id).start;                           // start index for src vertex edges
 
   for (auto edge : edges) {                                                  // for each edge of src vertex
     edge.src_glbid = srcVertex.id;

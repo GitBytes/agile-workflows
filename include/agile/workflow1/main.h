@@ -20,10 +20,16 @@
 
 namespace agile::workflow1 {
 using Handle = shad::rt::Handle;
-using Graph_t     = std::map<std::string, uint64_t>;
+using Graph_t = std::map<std::string, uint64_t>;
 
-void readFile(std::string & filename, Graph_t & graph);
-void CSR(uint64_t &, uint64_t &, Graph_t & graph);
+struct RF_args_t {
+  uint64_t Edges_OID;
+  uint64_t GlobalIDS_OID;
+  char filename [120];
+};
+
+void readFile(Handle & handle, const RF_args_t & args);
+void CSR(Graph_t, uint64_t, uint64_t);
 
 } // namespace agile::workflow1
 

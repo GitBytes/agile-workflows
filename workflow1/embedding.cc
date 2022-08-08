@@ -1,6 +1,6 @@
-#include "agile/workflow1/gnn.h"
-#include "agile/workflow1/graph.h"
 #include "agile/workflow1/main.h"
+#include "agile/workflow1/graph.h"
+#include "agile/workflow1/gnn.h"
 #include "agile/workflow1/wmd.h"
 
 #define NUM_FEATURES 22
@@ -20,7 +20,7 @@ struct Args_t {
 // vector
 void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
                     Args_t &args) {
-  auto Edges = EdgeType::GetPtr((EdgeOID)args.edgesOID);
+  auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
   auto Vertices = VertexType::GetPtr((VertexOID)args.verticesOID);
   auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID)args.embeddingsOID);
 
@@ -60,7 +60,7 @@ void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
 // vector
 void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
                     Args_t &args) {
-  auto Edges = EdgeType::GetPtr((EdgeOID)args.edgesOID);
+  auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
   auto Vertices = VertexType::GetPtr((VertexOID)args.verticesOID);
   auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID)args.embeddingsOID);
 
@@ -95,7 +95,7 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 
   Embeddings->FillPtrs();
   graph["Embeddings"] = (uint64_t)(Embeddings->GetGlobalID());
-  Args_t args = {graph["Edges"], graph["Vertices"], graph["Embeddings"]};
+  Args_t args = {graph["XEdges"], graph["Vertices"], graph["Embeddings"]};
 
   Vertices->AsyncForEachInRange(handle, 0, num_vertices, OneHopFeatures, args);
   waitForCompletion(handle);
@@ -110,7 +110,7 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
   auto TSs = shad::Array<TrainingState<WMDDataset>>::Create(parallelThreads,
                                                             initState);
   SetUpTrainingContext<WMDDataset> setup(
-      Vertices->GetGlobalID(), (EdgeOID)graph["Edges"],
+      Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"],
       Embeddings->GetGlobalID(), modelFileName);
   shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end() - 1,
                  setup);

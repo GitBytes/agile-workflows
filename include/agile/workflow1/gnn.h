@@ -5,8 +5,8 @@
 #include <memory>
 #include <vector>
 
-#include "agile/workflow1/globalIDS.h"
 #include "agile/workflow1/main.h"
+#include "agile/workflow1/graph.h"
 #include "agile/workflow1/wmd.h"
 
 #include "shad/data_structures/array.h"
@@ -49,12 +49,12 @@ template <typename Dataset> class SetUpTrainingContext {
 
   char modelFileName_[256];
   VertexOID _verticesOID;
-  EdgeOID _edgesOID;
+  XEdgeOID _edgesOID;
   ArrayOID _featuresOID;
 
 public:
   SetUpTrainingContext(const VertexOID &VertexArrayID,
-                       const EdgeOID &EdgeArrayOID,
+                       const XEdgeOID &EdgeArrayOID,
                        const ArrayOID &FeaturesArrayID,
                        std::string modelFileName)
       : _verticesOID(VertexArrayID), _edgesOID(EdgeArrayOID),

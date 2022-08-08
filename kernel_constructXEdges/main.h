@@ -85,7 +85,7 @@ struct globalIdInserter {
 
 // Exclusive scan for vertex class array
 template <typename VTYPE>
-static void exclusiveRecursiveScan(Handle & handle, uint64_t pos, VTYPE & elem, uint64_t & ndx, uint64_t & oid) {
+static void exclusiveRecursiveScan(Handle & handle, uint64_t pos, VTYPE & elem, uint64_t & offset, uint64_t & oid) {
   using arrayOID = shad::ObjectIdentifier<shad::Array<VTYPE>>;
   auto arrayPtr  = shad::Array<VTYPE>::GetPtr((arrayOID) oid);
 
@@ -94,13 +94,13 @@ static void exclusiveRecursiveScan(Handle & handle, uint64_t pos, VTYPE & elem, 
   std::vector<VTYPE> * data = arrayPtr->getData();
 
   // if not the last set, spawn next scan
-  // ... next ndx is this ndx + start of last vertex in set + # edges of last vertex in set
+  // ... next offset is this offset + start of last vertex in set + # edges of last vertex in set
   if (pos + nelems < size) {
-     uint64_t my_ndx = ndx + (*data)[nelems - 1].start + (*data)[nelems - 1].edges;
-     arrayPtr->AsyncApply(handle, pos + nelems, exclusiveRecursiveScan<VTYPE>, my_ndx, oid);
+     uint64_t my_offset = offset + (*data)[nelems - 1].start + (*data)[nelems - 1].edges;
+     arrayPtr->AsyncApply(handle, pos + nelems, exclusiveRecursiveScan<VTYPE>, my_offset, oid);
   }
 
-  for (uint64_t i = 0; i < nelems; ++ i) (*data)[i].start += ndx;
+  for (uint64_t i = 0; i < nelems; ++ i) (*data)[i].start += offset;
 }
 
 
@@ -122,8 +122,8 @@ void exclusiveScanVertices(uint64_t oid) {
   shad::rt::asyncExecuteOnAll(handle, localInclusiveScan, oid);
   shad::rt::waitForCompletion(handle);
 
-  uint64_t ndx = 0;
-  arrayPtr->AsyncApply(handle, 0, exclusiveRecursiveScan<VTYPE>, ndx, oid);
+  uint64_t offset = 0;
+  arrayPtr->AsyncApply(handle, 0, exclusiveRecursiveScan<VTYPE>, offset, oid);
   shad::rt::waitForCompletion(handle);
 }
 
@@ -200,7 +200,7 @@ class Edge {
          src_glbid = shad::data_types::kNullValue<uint64_t>;
          dst_glbid = shad::data_types::kNullValue<uint64_t>;
       } else if (tokens[0] == "HasTopic") {
-         dst       = ENCODE<uint64_t, std::string, UINT>(tokens[6]);;
+         dst       = ENCODE<uint64_t, std::string, UINT>(tokens[6]);
          type      = TYPES::HASTOPIC;
          dst_type  = TYPES::TOPIC;
          src_glbid = shad::data_types::kNullValue<uint64_t>;
@@ -212,8 +212,8 @@ class Edge {
          else if (tokens[4] != "") src_type = TYPES::FORUMEVENT;
          else if (tokens[5] != "") src_type = TYPES::PUBLICATION;
       } else if (tokens[0] == "HasOrg") {
-         src       = ENCODE<uint64_t, std::string, UINT>(tokens[1]);;
-         dst       = ENCODE<uint64_t, std::string, UINT>(tokens[1]);;
+         src       = ENCODE<uint64_t, std::string, UINT>(tokens[5]);
+         dst       = ENCODE<uint64_t, std::string, UINT>(tokens[6]);
          type      = TYPES::HASORG;
          src_type  = TYPES::PUBLICATION;
          dst_type  = TYPES::TOPIC;

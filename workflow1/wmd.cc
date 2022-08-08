@@ -14,7 +14,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 WMDDataset::_build_ego_graph(int64_t idx) {
 
   auto levels = torch::tensor({5, 3, 2, 1});
-  auto EdgesPtr = EdgeType::GetPtr(_edgesOID);
+  auto EdgesPtr = XEdgeType::GetPtr(_edgesOID);
   auto VerticesPtr = VertexType::GetPtr(_verticesOID);
 
   using namespace torch::indexing;
