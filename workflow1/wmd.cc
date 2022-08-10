@@ -11,132 +11,131 @@ WMDData<> WMDDataset::get(size_t idx) {
 }
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
-WMDDataset::_build_ego_graph(int64_t idx) {
+WMDDataset::_build_ego_graph(int64_t root) {
 
-  auto levels = torch::tensor({5, 3, 2, 1});
-  auto EdgesPtr = XEdgeType::GetPtr(_edgesOID);
-  auto VerticesPtr = VertexType::GetPtr(_verticesOID);
+  shad::rt::Handle handle;
+  auto Edges = XEdgeType::GetPtr(_edgesOID);
+  auto Vertices = VertexType::GetPtr(_verticesOID);
+  auto Features = shad::Array<uint64_t>::GetPtr(_featuresOID);
 
   using namespace torch::indexing;
   auto bool_tensor = torch::TensorOptions().dtype(torch::kBool);
-  auto vertex_mask = torch::zeros(VerticesPtr->Size() - 1, bool_tensor);
 
-  std::vector<int64_t> sources;
-  std::vector<int64_t> destinations;
-  std::deque<int64_t> frontier({idx});
-  std::set<int64_t> vertex_set;
-  int64_t level = 0;
-  int64_t position = 0;
+  uint64_t localID = 0;
+  std::deque<uint64_t> frontier;
+  std::map<uint64_t, Vertex> vertex_set;
+  std::vector<uint64_t> levels{5, 3, 2, 1, 0};              // last 0 required to flush frontier
+  std::set<std::pair<uint64_t, uint64_t>> edges;
+
+  Vertex V = Vertices->At(root);                            // get root
+  uint64_t V_localID = localID ++;                          // get next local ID
+
+  V.id = V_localID;                                         // assign V a local ID
+  vertex_set[root] = V;                                     // insert V into vertex set
+  frontier.push_back(root);                                 // push V's global id onto frontier
+  edges.insert( std::make_pair(V_localID, V_localID) );     // insert self edge into edge set
+
+  uint64_t level = 0;                                       // BFS controls
   auto next = frontier.begin();
   auto end_of_level = frontier.end();
-  while (level < levels.size(0) && next != end_of_level) {
-    auto v = *next++;
-    if (vertex_mask[v].item<bool>() == false) {
-      vertex_mask[v] = true;
-      vertex_set.insert(v);
+  uint64_t added_neighbors = 0;
+  uint64_t max_neighbors = levels[0];
 
-      int startEL = VerticesPtr->At(v).edges;
-      int endEL = VerticesPtr->At(v + 1).edges;
+  while (level < levels.size()) {
+    if (next == end_of_level) break;                        // BFS is exhausted
 
-      int num_neighbors =
-          std::min<int>(endEL - startEL, levels[level].item<int64_t>());
-      std::vector<Edge> neighborhood(num_neighbors);
+    uint64_t glbID = (* next) ++;                           // advance frontier
+    Vertex V = vertex_set[glbID];                           // get next vertex
+    uint64_t V_localID = V.id;                              // get V's local id
 
-      shad::rt::Handle h;
-      EdgesPtr->AsyncGetElements(h, neighborhood.data(), startEL,
-                                 num_neighbors);
-      shad::rt::waitForCompletion(h);
-
-      for (int i = 0; i < neighborhood.size(); ++i) {
-        auto u = neighborhood[i].dst_glbid;
-        frontier.push_back(u);
-      }
-    }
-
-    if (next == end_of_level) {
-      end_of_level = frontier.end();
-      level += 1;
-    }
-  }
-
-  std::map<int64_t, int64_t> vertex_mapping;
-  int64_t id = 0;
-  for (auto itr = vertex_set.begin(); itr != vertex_set.end(); ++itr, ++id) {
-    vertex_mapping.insert({*itr, id});
-  }
-
-  std::vector<int64_t> vertexTypes(vertex_mapping.size());
-  for (auto itr = vertex_set.begin(); itr != vertex_set.end(); ++itr) {
-    auto ThisVertex = VerticesPtr->At(*itr);
-
-    vertexTypes[vertex_mapping[*itr]] = int64_t(ThisVertex.type);
-
-    int startEL = ThisVertex.edges;
-    int endEL = VerticesPtr->At(*itr + 1).edges;
-
-    int num_neighbors = endEL - startEL;
+    uint64_t startEL = V.start;                             // get V's neighbor list
+    uint64_t endEL = startEL + V.edges;
+    uint64_t num_neighbors = endEL - startEL;
     std::vector<Edge> neighborhood(num_neighbors);
+    Edges->AsyncGetElements(handle, neighborhood.data(), startEL, num_neighbors);
 
-    shad::rt::Handle h;
-    EdgesPtr->AsyncGetElements(h, neighborhood.data(), startEL, num_neighbors);
-    shad::rt::waitForCompletion(h);
+    shad::rt::waitForCompletion(handle);
 
-    for (int64_t i = 0; i < neighborhood.size(); ++i) {
-      int64_t v = neighborhood[i].dst_glbid;
-      if (vertex_mask[v].item<bool>()) {
-        sources.push_back(vertex_mapping[*itr]);
-        destinations.push_back(vertex_mapping[v]);
-      }
-    }
+    for (uint64_t i = 0; i < num_neighbors; ++ i) {
+      uint64_t glbID = neighborhood[i].dst_glbid;
+      Vertex U = Vertices->At(glbID);
+        
+      if (vertex_set.find(glbID) == vertex_set.end()) {            // U is not visited
+         if (added_neighbors < max_neighbors) continue;            // ... if no more neighbors to add, continue
+
+         added_neighbors ++;
+         uint64_t U_localID = localID ++;                          // ... get next local id
+
+         U.id = U_localID;                                         // ... assign U a local id
+         vertex_set[glbID] = U;                                    // ... insert U into vertex set
+         frontier.push_back(glbID);                                // ... push U's global id onto frontier
+         edges.insert( std::make_pair(U_localID, U_localID) );     // ... insert self edge into edge set
+         edges.insert( std::make_pair(V_localID, U_localID) );     // ... insert V-U edge into edge set
+         edges.insert( std::make_pair(U_localID, V_localID) );     // ... insert U-V edge into edge set
+
+      } else {                                                     // U is visited
+         uint64_t U_localID = vertex_set[glbID].id;                // ... get U's local id
+         edges.insert( std::make_pair(V_localID, U_localID) );     // ... insert V-U edge into edge set
+         edges.insert( std::make_pair(U_localID, V_localID) );     // ... insert U-V edge into edge set
+    } }
+
+    if (next == end_of_level) {     // go to next level
+       level ++;
+       added_neighbors = 0;
+       max_neighbors = levels[level];
+       end_of_level  = frontier.end();
+  } }
+
+  int64_t num_edges = edges.size();
+  int64_t num_vertices = vertex_set.size();
+
+  // create source and destination vectors
+  std::vector<int64_t> sources;
+  std::vector<int64_t> destinations;
+
+  for (auto edge : edges) {
+    sources.push_back((int64_t) edge.first);
+    destinations.push_back((int64_t) edge.second);
   }
 
-  auto options = torch::TensorOptions().dtype(torch::kLong);
-  std::vector<int64_t> featureVectors(vertex_mapping.size() * NumFeauters);
-  shad::rt::Handle h;
+  // create type and feature vector
+  std::vector<int64_t> vertexTypes(num_vertices);
+  std::vector<int64_t> featureVectors(num_vertices * NUM_FEATURES);
 
-  auto FeaturesPtr = shad::Array<uint64_t>::GetPtr(_featuresOID);
-  for (auto &kv : vertex_mapping) {
-    auto key = std::get<0>(kv);
-    auto value = std::get<1>(kv);
-    FeaturesPtr->AsyncGetElements(
-        h,
-        reinterpret_cast<uint64_t *>(featureVectors.data() +
-                                     value * NumFeauters),
-        key * NumFeauters, NumFeauters);
+  for (auto itr = vertex_set.begin(); itr != vertex_set.end(); ++ itr) {
+    int64_t glbID = (* itr).first;
+    int64_t localID = (* itr).second.id;
+    int64_t type = (int64_t) (* itr).second.type;
+
+    vertexTypes[localID] = type;
+    auto ptr = (uint64_t *) (featureVectors.data() + localID * NUM_FEATURES);
+    Features->AsyncGetElements(handle, ptr, glbID * NUM_FEATURES, NUM_FEATURES);
   }
 
   // The result tensor stores the edge list of the ego-graph.
-  auto result = torch::zeros({2, sources.size()}, options);
-  result.slice(0, 0, 1) =
-      torch::from_blob(sources.data(), {sources.size()}, options).clone();
-  result.slice(0, 1, 2) =
-      torch::from_blob(destinations.data(), {destinations.size()}, options)
-          .clone();
+  auto options = torch::TensorOptions().dtype(torch::kLong);
+  auto result = torch::zeros({2, num_edges}, options);
 
-  // The vertex tensor stores a bitmaks representing vertices to be used
+  result.slice(0, 0, 1) = torch::from_blob(sources.data(),      {num_edges}, options).clone();
+  result.slice(0, 1, 2) = torch::from_blob(destinations.data(), {num_edges}, options).clone();
+
+  // The vertex tensor stores a bitmask representing vertices to be used
   // as part of the training process. We are using roughly 75% of the ego-graph.
-  auto vertex = torch::zeros(vertex_set.size(), bool_tensor);
-  auto indices =
-      torch::randint(0, vertex_set.size(),
-                     {vertex_set.size() - vertex_set.size() / 4}, options);
-  vertex.index_put_({indices}, true);
-  vertex.index_put_({vertex_mapping[idx]}, true);
+  auto vertex = torch::zeros(num_vertices, bool_tensor);
+  auto indices = torch::randint(0, num_vertices, {num_vertices - num_vertices / 4}, options);
 
-  std::vector<float> floatFeatures(featureVectors.begin(),
-                                   featureVectors.end());
+  vertex.index_put_({0}, true);           // set root's bit to true
+  vertex.index_put_({indices}, true);     // set choosen vertices' bits to true
+  std::vector<float> floatFeatures(featureVectors.begin(), featureVectors.end());
 
-  shad::rt::waitForCompletion(h);
+  shad::rt::waitForCompletion(handle);
 
-  // The features as computed by the TwoHopFeatures function.
-  auto features =
-      torch::from_blob(floatFeatures.data(), {vertex_set.size(), NumFeauters},
-                       torch::TensorOptions().dtype(torch::kFloat))
-          .clone();
+  // The features tensor stores the two hop features of the ego-graph vertices
+  auto features = torch::from_blob(floatFeatures.data(), {num_vertices, NUM_FEATURES},
+                                   torch::TensorOptions().dtype(torch::kFloat)).clone();
 
-  // The vertex type as for each of the vertices in the ego-graph.
-  auto labels =
-      torch::from_blob(vertexTypes.data(), {vertex_set.size()}, options)
-          .clone();
+  // The labels tensor stores the type of the ego-graph vertices
+  auto labels = torch::from_blob(vertexTypes.data(), {num_vertices}, options).clone();
 
   return std::make_tuple(result, features, labels, vertex);
 }

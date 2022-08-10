@@ -3,8 +3,6 @@
 #include "agile/workflow1/gnn.h"
 #include "agile/workflow1/wmd.h"
 
-#define NUM_FEATURES 22
-
 namespace agile::workflow1 {
 using Emb_t = shad::Array<uint64_t>;
 using EmbeddingType = shad::Array<uint64_t>;
@@ -12,26 +10,21 @@ using EmbeddingOID = shad::ObjectIdentifier<EmbeddingType>;
 
 struct Args_t {
   uint64_t edgesOID;
-  uint64_t verticesOID;
   uint64_t embeddingsOID;
 };
 
 // Aggregate neigbors histograms ... store into second half of the feature
 // vector
-void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
-                    Args_t &args) {
-  auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
-  auto Vertices = VertexType::GetPtr((VertexOID)args.verticesOID);
-  auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID)args.embeddingsOID);
+void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &args) {
+  uint64_t num_edges = vertex.edges;
+  if (num_edges == 0) return;
 
-  Vertex nextVertex = Vertices->At(ndx + 1);
-  uint64_t num_edges = nextVertex.edges - vertex.edges;
-  if (num_edges == 0)
-    return;
+  auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
+  auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID)args.embeddingsOID);
 
   Handle my_handle;
   std::vector<Edge> edges(num_edges);
-  Edges->AsyncGetElements(my_handle, edges.data(), vertex.edges, num_edges);
+  Edges->AsyncGetElements(my_handle, edges.data(), vertex.start, num_edges);
 
   waitForCompletion(my_handle);
   uint64_t num_bins = NUM_FEATURES / 2;
@@ -58,20 +51,16 @@ void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
 
 // Histogram edge and neigbor vertex types ... store in first half of feature
 // vector
-void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
-                    Args_t &args) {
-  auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
-  auto Vertices = VertexType::GetPtr((VertexOID)args.verticesOID);
-  auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID)args.embeddingsOID);
-
-  Vertex nextVertex = Vertices->At(ndx + 1);
-  uint64_t num_edges = nextVertex.edges - vertex.edges;
-  if (num_edges == 0)
-    return;
+void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &args) {
+  uint64_t num_edges = vertex.edges;
+  if (num_edges == 0) return;
 
   Handle my_handle;
+  auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
+  auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID)args.embeddingsOID);
+
   std::vector<Edge> edges(num_edges);
-  Edges->AsyncGetElements(my_handle, edges.data(), vertex.edges, num_edges);
+  Edges->AsyncGetElements(my_handle, edges.data(), vertex.start, num_edges);
 
   waitForCompletion(my_handle);
   uint64_t num_bins = NUM_FEATURES / 2;
@@ -95,7 +84,7 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 
   Embeddings->FillPtrs();
   graph["Embeddings"] = (uint64_t)(Embeddings->GetGlobalID());
-  Args_t args = {graph["XEdges"], graph["Vertices"], graph["Embeddings"]};
+  Args_t args = {graph["XEdges"], graph["Embeddings"]};
 
   Vertices->AsyncForEachInRange(handle, 0, num_vertices, OneHopFeatures, args);
   waitForCompletion(handle);

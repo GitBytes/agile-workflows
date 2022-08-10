@@ -7,6 +7,8 @@
 #include "agile/workflow1/graph.h"
 #include "torch/torch.h"
 
+#define NUM_FEATURES 30
+
 namespace agile::workflow1 {
 template <typename EdgeIndexType = torch::Tensor,
           typename FeaturesType = torch::Tensor,
@@ -67,7 +69,6 @@ private:
 
 public:
   using Data = WMDData<>;
-  static constexpr int NumFeauters = 22;
 
   WMDDataset()
       : _verticesOID(VertexOID::kNullID),

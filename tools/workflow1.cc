@@ -33,12 +33,12 @@ int main(int argc, char *argv[]) {
 
   CSR(graph, num_vertices, num_edges);
   printf("Time for graph construction = %lf\n", my_timer() - time1);
-  printf("Total number of vertices = %lu\n\n", num_vertices);
+  printf("Total number of vertices = %lu\n", num_vertices);
   printf("Total number of edges    = %lu\n", num_edges);
 
   time1 = my_timer();
 
-  // auto trainedModels = GNN(num_edges, num_vertices, graph, argv[2]);
+  auto trainedModels = GNN(num_edges, num_vertices, graph, argv[2]);
   printf("Time for workflow 1 = %lf\n", my_timer() - time1);
 
   return 0;
