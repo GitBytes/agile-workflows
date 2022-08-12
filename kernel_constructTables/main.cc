@@ -4,17 +4,17 @@ namespace shad {
   using namespace agile::kernel_constructTables;
 
 std::vector <std::string> split(std::string & line, char delim, uint64_t size = 0) {
-  uint64_t ndx = 0, start = 0;
+  uint64_t ndx = 0, start = 0, end = 0;
   std::vector <std::string> tokens(size);
 
-  for (uint64_t end = 0; end < line.length(); end ++) {
-
+  for ( ; end < line.length(); end ++)  {
     if ( (line[end] == delim) || (line[end] == '\n') ) {
        tokens[ndx] = line.substr(start, end - start);
        start = end + 1;
        ndx ++;
   } }
 
+  tokens[size - 1] = line.substr(start, end - start);     // flush last token
   return tokens;
 }
 
@@ -161,17 +161,39 @@ int main(int argc, char *argv[]) {
        Purchases->Size() + Sales->Size() + Authors->Size() + Includes->Size() + HasTopic->Size() + HasOrg->Size());
 
 /***** write out data structures for downstream kernels *****/
-  printf("{Persons:\n");
-  printf("{Forum Events:\n");
-  printf("{Forums:\n");
-  printf("{Publications:\n");
-  printf("{Topics:\n");
-  printf("{Purchases:\n");
-  printf("{Sales:\n");
-  printf("{Authors:\n");
-  printf("{Includes:\n");
-  printf("{Has Topic:\n");
-  printf("{Has Org:\n");
+  uint64_t null;
+  printf("Persons %lu\n", Persons->Size());
+  Persons->ForEachEntry(printHashmapEntry<PersonVertex>, null);
+
+  printf("ForumEvents %lu\n", ForumEvents->Size());
+  ForumEvents->ForEachEntry(printHashmapEntry<ForumEventVertex>, null);
+
+  printf("Forums %lu\n", Forums->Size());
+  Forums->ForEachEntry(printHashmapEntry<ForumVertex>, null);
+
+  printf("Publications %lu\n", Publications->Size());
+  Publications->ForEachEntry(printHashmapEntry<PublicationVertex>, null);
+
+  printf("Topics %lu\n", Topics->Size());
+  Topics->ForEachEntry(printHashmapEntry<TopicVertex>, null);
+
+  printf("Purchases %lu\n", Purchases->Size());
+  Purchases->ForEachEntry(printMultimapEntry<PurchaseEdge>, null);
+
+  printf("Sales %lu\n", Sales->Size());
+  Sales->ForEachEntry(printMultimapEntry<SaleEdge>, null);
+
+  printf("Authors %lu\n", Authors->Size());
+  Authors->ForEachEntry(printMultimapEntry<AuthorEdge>, null);
+
+  printf("Includes %lu\n", Includes->Size());
+  Includes->ForEachEntry(printMultimapEntry<IncludesEdge>, null);
+
+  printf("HasTopic %lu\n", HasTopic->Size());
+  HasTopic->ForEachEntry(printMultimapEntry<HasTopicEdge>, null);
+
+  printf("HasOrg %lu\n", HasOrg->Size());
+  HasOrg->ForEachEntry(printMultimapEntry<HasOrgEdge>, null);
 
   return 0;
 }

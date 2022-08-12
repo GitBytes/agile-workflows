@@ -54,6 +54,18 @@ enum class TYPES {
   NONE
 };
 
+template <typename VTYPE>
+void printHashmapEntry(const uint64_t & key, VTYPE & vertex, uint64_t & null) {
+  vertex.print(key);
+};
+
+
+template <typename VTYPE>
+void printMultimapEntry(const uint64_t & key, std::vector<VTYPE> & edges, uint64_t & null) {
+  for (auto edge : edges ) edge.print(key);
+};
+
+
 class PersonVertex {
   public:
     uint64_t id;
@@ -70,6 +82,7 @@ class PersonVertex {
     }
 
     uint64_t key() { return id; }
+    void print(uint64_t key) { printf("%lu %lu %lu\n", key, id, glbid); }
 };
 
 class ForumEventVertex {
@@ -94,6 +107,7 @@ class ForumEventVertex {
     }
 
     uint64_t key() { return id; }
+    void print(uint64_t key) { printf("%lu %lu %lu %lu %lu\n", key, id, forum, (uint64_t) date, glbid); }
 };
 
 class ForumVertex {
@@ -112,6 +126,7 @@ class ForumVertex {
     }
 
     uint64_t key() { return id; }
+    void print(uint64_t key) { printf("%lu %lu %lu\n", key, id, glbid); }
 };
 
 class PublicationVertex {
@@ -133,6 +148,7 @@ class PublicationVertex {
     }
 
     uint64_t key() { return id; }
+    void print(uint64_t key) { printf("%lu %lu %lu %lu\n", key, id, (uint64_t) date, glbid); }
 };
 
 class TopicVertex {
@@ -157,6 +173,7 @@ class TopicVertex {
     }
 
     uint64_t key() { return id; }
+    void print(uint64_t key) { printf("%lu %lu %lf %lf %lu\n", key, id, lat, lon, glbid); }
 };
 
 class PurchaseEdge {
@@ -186,9 +203,14 @@ class PurchaseEdge {
       dst_type = TYPES::PERSON;
     }
 
-    uint64_t key() { return buyer; }
-    uint64_t src() { return buyer; }
+    uint64_t key() { return buyer;  }
+    uint64_t src() { return buyer;  }
     uint64_t dst() { return seller; }
+
+    void print(uint64_t key) {
+      printf("%lu %lu %lu %lu %lu %lu %lu\n",
+             key, buyer, seller, product, (uint64_t) date, (uint64_t) src_type, (uint64_t) dst_type);
+    }
 };
 
 class SaleEdge {
@@ -220,7 +242,12 @@ class SaleEdge {
 
     uint64_t key() { return seller; }
     uint64_t src() { return seller; }
-    uint64_t dst() { return buyer; }
+    uint64_t dst() { return buyer;  }
+
+    void print(uint64_t key) {
+      printf("%lu %lu %lu %lu %lu %lu %lu\n",
+             key, seller, buyer, product, (uint64_t) date, (uint64_t) src_type, (uint64_t) dst_type);
+    }
 };
 
 class AuthorEdge {
@@ -252,7 +279,11 @@ class AuthorEdge {
 
     uint64_t key() { return author; }
     uint64_t src() { return author; }
-    uint64_t dst() { return item; }
+    uint64_t dst() { return item;   }
+
+    void print(uint64_t key) {
+      printf("%lu %lu %lu %lu %lu\n", key, author, item, (uint64_t) src_type, (uint64_t) dst_type);
+    }
 };
 
 class IncludesEdge {
@@ -279,6 +310,10 @@ class IncludesEdge {
     uint64_t key() { return forum; }
     uint64_t src() { return forum; }
     uint64_t dst() { return forum_event; }
+
+    void print(uint64_t key) {
+      printf("%lu %lu %lu %lu %lu\n", key, forum, forum_event, (uint64_t) src_type, (uint64_t) dst_type);
+    }
 };
 
 class HasTopicEdge {
@@ -313,9 +348,13 @@ class HasTopicEdge {
          dst_type = TYPES::TOPIC;
     } }
 
-    uint64_t key() { return item; }
-    uint64_t src() { return item; }
+    uint64_t key() { return item;  }
+    uint64_t src() { return item;  }
     uint64_t dst() { return topic; }
+
+    void print(uint64_t key) {
+      printf("%lu %lu %lu %lu %lu\n", key, item, topic, (uint64_t) src_type, (uint64_t) dst_type);
+    }
 };
 
 class HasOrgEdge {
@@ -340,9 +379,13 @@ class HasOrgEdge {
       dst_type     = TYPES::TOPIC;
     }
 
-    uint64_t key() { return publication; }
-    uint64_t src() { return publication; }
+    uint64_t key() { return publication;  }
+    uint64_t src() { return publication;  }
     uint64_t dst() { return organization; }
+
+    void print(uint64_t key) {
+      printf("%lu %lu %lu %lu %lu\n", key, publication, organization, (uint64_t) src_type, (uint64_t) dst_type);
+    }
 };
 
 
