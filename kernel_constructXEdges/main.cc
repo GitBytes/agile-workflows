@@ -227,18 +227,18 @@ int main(int argc, char *argv[]) {
   Vertices->FillPtrs();
   waitForCompletion(handle);
 
-  uint64_t XEdgesOID    = (uint64_t) (XEdges->GetGlobalID());
-  uint64_t verticesOID  = (uint64_t) (Vertices->GetGlobalID());
-  uint64_t globalIDSOID = (uint64_t) (GlobalIDS->GetGlobalID());
+  uint64_t XEdges_OID    = (uint64_t) (XEdges->GetGlobalID());
+  uint64_t vertices_OID  = (uint64_t) (Vertices->GetGlobalID());
+  uint64_t globalIDS_OID = (uint64_t) (GlobalIDS->GetGlobalID());
 
 // ***** copy vertices from GlobalIDS to Vertices *****/
-  GlobalIDS->AsyncForEachEntry(handle, moveVertex, verticesOID);
+  GlobalIDS->AsyncForEachEntry(handle, moveVertex, vertices_OID);
   waitForCompletion(handle);
 
-  exclusiveScanVertices<Vertex>(verticesOID);     // convert # edges to start location
+  exclusiveScanVertices<Vertex>(vertices_OID);     // convert # edges to start location
 
 // ***** move edges from Edges to XEdges *****/
-  Edges->AsyncForEachEntry(handle, moveEdges, globalIDSOID, verticesOID, XEdgesOID);
+  Edges->AsyncForEachEntry(handle, moveEdges, globalIDS_OID, vertices_OID, XEdges_OID);
   waitForCompletion(handle);
 
   printf("Time for CSR construction = %lf\n\n", my_timer() - time1);
@@ -246,14 +246,10 @@ int main(int argc, char *argv[]) {
   printf("Total number of vertices = %lu\n", num_vertices);
 
 // ***** write out data structures ***** //
-/*
-  printf("Global IDS\n");
-  GlobalIDS->PrintAllEntries();
-  printf("\nVertices\n");
-  Vertices->PrintAllElements();
-  printf("\nX Edges\n");
-  XEdges->PrintAllElements();
-*/
+
+// print Global IDS
+// print Vertices array
+// print XEdges array
 
   return 0;
 }

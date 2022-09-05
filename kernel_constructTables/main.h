@@ -2,9 +2,11 @@
 #define MAIN_H_
 
 #include <cstdint>
+#include <fstream>
 #include <limits>
 #include <string>
 #include <vector>
+#include <stdio.h>
 #include <sys/stat.h>
 
 #include "shad/data_structures/array.h"
@@ -39,6 +41,11 @@ struct RF_args_t {
   char filename [120];
 };
 
+struct Print_args_t {
+  uint64_t oid;
+  char filename [120];
+};
+
 enum class TYPES {
   PERSON,
   FORUMEVENT,
@@ -54,15 +61,45 @@ enum class TYPES {
   NONE
 };
 
-template <typename VTYPE>
-void printHashmapEntry(const uint64_t & key, VTYPE & vertex, uint64_t & null) {
-  vertex.print(key);
+template <typename KTYPE, typename VTYPE>
+void printHashmapEntry(const Print_args_t & args) {
+  std::ofstream outFile;
+  outFile.open(args.filename, std::ofstream::app);
+  using mapOID = shad::ObjectIdentifier<shad::Hashmap<KTYPE, VTYPE>>;
+  auto mapPtr  = shad::Hashmap<KTYPE, VTYPE>::GetPtr((mapOID) args.oid);
+
+  auto LmapPtr = mapPtr->GetLocalHashmap();
+  for (auto itr = LmapPtr->begin(); itr != LmapPtr->end(); ++ itr) {
+    uint64_t key = (* itr).first;
+    VTYPE value = (* itr).second;
+    value.print(outFile);
+  }
+
+  outFile.close();
+
+  if ((uint32_t) shad::rt::thisLocality() < shad::rt::numLocalities() - 1)
+     shad::rt::executeAt(shad::rt::thisLocality() + 1, printHashmapEntry<KTYPE, VTYPE>, args);
 };
 
 
-template <typename VTYPE>
-void printMultimapEntry(const uint64_t & key, std::vector<VTYPE> & edges, uint64_t & null) {
-  for (auto edge : edges ) edge.print(key);
+template <typename KTYPE, typename VTYPE>
+void printMultimapEntry(const Print_args_t & args) {
+  std::ofstream outFile;
+  outFile.open(args.filename, std::ofstream::app);
+  using mapOID = shad::ObjectIdentifier<shad::Multimap<KTYPE, VTYPE>>;
+  auto mapPtr  = shad::Multimap<KTYPE, VTYPE>::GetPtr((mapOID) args.oid);
+
+  auto LmapPtr = mapPtr->GetLocalMultimap();
+  for (auto itr = LmapPtr->begin(); itr != LmapPtr->end(); ++ itr) {
+    uint64_t key = (* itr).first;
+    VTYPE value = (* itr).second;
+    value.print(outFile);
+  }
+
+  outFile.close();
+
+  if ((uint32_t) shad::rt::thisLocality() < shad::rt::numLocalities() - 1)
+     shad::rt::executeAt(shad::rt::thisLocality() + 1, printMultimapEntry<KTYPE, VTYPE>, args);
 };
 
 
@@ -82,7 +119,10 @@ class PersonVertex {
     }
 
     uint64_t key() { return id; }
-    void print(uint64_t key) { printf("%lu %lu %lu\n", key, id, glbid); }
+
+    void print(std::ofstream & outFile) {
+      outFile << id << " " << id << " " << glbid << std::endl;
+    }
 };
 
 class ForumEventVertex {
@@ -107,7 +147,10 @@ class ForumEventVertex {
     }
 
     uint64_t key() { return id; }
-    void print(uint64_t key) { printf("%lu %lu %lu %lu %lu\n", key, id, forum, (uint64_t) date, glbid); }
+  
+    void print(std::ofstream & outFile) {
+      outFile << id << " " << id << " " << forum << " " << (uint64_t) date << " " << glbid << std::endl;
+    }
 };
 
 class ForumVertex {
@@ -126,7 +169,10 @@ class ForumVertex {
     }
 
     uint64_t key() { return id; }
-    void print(uint64_t key) { printf("%lu %lu %lu\n", key, id, glbid); }
+  
+    void print(std::ofstream & outFile) {
+      outFile << id << " " << id << " " << " " << glbid << std::endl;
+    }
 };
 
 class PublicationVertex {
@@ -148,7 +194,10 @@ class PublicationVertex {
     }
 
     uint64_t key() { return id; }
-    void print(uint64_t key) { printf("%lu %lu %lu %lu\n", key, id, (uint64_t) date, glbid); }
+  
+    void print(std::ofstream & outFile) {
+      outFile << id << " " << id << " " << " " << (uint64_t) date << " " << glbid << std::endl;
+    }
 };
 
 class TopicVertex {
@@ -173,7 +222,10 @@ class TopicVertex {
     }
 
     uint64_t key() { return id; }
-    void print(uint64_t key) { printf("%lu %lu %lf %lf %lu\n", key, id, lat, lon, glbid); }
+  
+    void print(std::ofstream & outFile) {
+      outFile << id << " " << id << " " << lat << " " << lon << " " << glbid << std::endl;
+    }
 };
 
 class PurchaseEdge {
@@ -207,9 +259,9 @@ class PurchaseEdge {
     uint64_t src() { return buyer;  }
     uint64_t dst() { return seller; }
 
-    void print(uint64_t key) {
-      printf("%lu %lu %lu %lu %lu %lu %lu\n",
-             key, buyer, seller, product, (uint64_t) date, (uint64_t) src_type, (uint64_t) dst_type);
+    void print(std::ofstream & outFile) {
+      outFile << buyer << " " << buyer << " " << seller << " " << product <<
+           " " << (uint64_t) date << (uint64_t) src_type << " " << (uint64_t) dst_type << std::endl;
     }
 };
 
@@ -244,9 +296,9 @@ class SaleEdge {
     uint64_t src() { return seller; }
     uint64_t dst() { return buyer;  }
 
-    void print(uint64_t key) {
-      printf("%lu %lu %lu %lu %lu %lu %lu\n",
-             key, seller, buyer, product, (uint64_t) date, (uint64_t) src_type, (uint64_t) dst_type);
+    void print(std::ofstream & outFile) {
+      outFile << seller << " " << seller << " " << buyer << " " << product <<
+           " " << (uint64_t) date << " " << (uint64_t) src_type << " " << (uint64_t) dst_type << std::endl;
     }
 };
 
@@ -281,8 +333,9 @@ class AuthorEdge {
     uint64_t src() { return author; }
     uint64_t dst() { return item;   }
 
-    void print(uint64_t key) {
-      printf("%lu %lu %lu %lu %lu\n", key, author, item, (uint64_t) src_type, (uint64_t) dst_type);
+    void print(std::ofstream & outFile) {
+      outFile << author << " " << author << " " << item <<
+           " " << (uint64_t) src_type << " " << (uint64_t) dst_type << std::endl;
     }
 };
 
@@ -311,8 +364,9 @@ class IncludesEdge {
     uint64_t src() { return forum; }
     uint64_t dst() { return forum_event; }
 
-    void print(uint64_t key) {
-      printf("%lu %lu %lu %lu %lu\n", key, forum, forum_event, (uint64_t) src_type, (uint64_t) dst_type);
+    void print(std::ofstream & outFile) {
+      outFile << forum << " " << forum << " " << forum_event <<
+           " " << (uint64_t) src_type << " " << (uint64_t) dst_type << std::endl;
     }
 };
 
@@ -352,8 +406,9 @@ class HasTopicEdge {
     uint64_t src() { return item;  }
     uint64_t dst() { return topic; }
 
-    void print(uint64_t key) {
-      printf("%lu %lu %lu %lu %lu\n", key, item, topic, (uint64_t) src_type, (uint64_t) dst_type);
+    void print(std::ofstream & outFile) {
+      outFile << item << " " << item << " " << topic << " " <<
+          (uint64_t) src_type << " " << (uint64_t) dst_type << std::endl;
     }
 };
 
@@ -383,8 +438,9 @@ class HasOrgEdge {
     uint64_t src() { return publication;  }
     uint64_t dst() { return organization; }
 
-    void print(uint64_t key) {
-      printf("%lu %lu %lu %lu %lu\n", key, publication, organization, (uint64_t) src_type, (uint64_t) dst_type);
+    void print(std::ofstream & outFile) {
+      outFile << publication << " " << publication << " " << organization <<
+           " " << (uint64_t) src_type << " " << (uint64_t) dst_type << std::endl;
     }
 };
 
