@@ -58,11 +58,11 @@ struct Stack<agile::workflow1::WMDData<>>
 } // namespace torch::data::transforms
 
 namespace agile::workflow1 {
-class WMDDataset : public torch::data::Dataset<WMDDataset, WMDData<>> {
+class WMDDataset  {
 public:
   using ArrayOID = typename shad::Array<uint64_t>::ObjectID;
 
-private:
+protected:
   VertexOID _verticesOID;
   XEdgeOID _edgesOID;
   ArrayOID _featuresOID;
@@ -101,6 +101,40 @@ public:
     return *this;
   }
 
+
+protected:
+  std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
+  _build_ego_graph(int64_t *rootB, int64_t *rootE);
+};
+
+class VertexClassificationWMDDataset
+  : public torch::data::Dataset<VertexClassificationWMDDataset, WMDData<>>,
+    public WMDDataset {
+public:
+  VertexClassificationWMDDataset()
+    : WMDDataset() {}
+
+  VertexClassificationWMDDataset(const VertexClassificationWMDDataset &O)
+    : WMDDataset(O) {}
+
+  VertexClassificationWMDDataset(VertexClassificationWMDDataset &&O)
+    : WMDDataset(O) {}
+
+  VertexClassificationWMDDataset &operator=(const VertexClassificationWMDDataset &O) {
+    WMDDataset::operator=(O);
+    return *this;
+  }
+
+  VertexClassificationWMDDataset(const VertexOID &VertexArrayID,
+                                 const XEdgeOID &EdgeArrayOID,
+                                 const ArrayOID &FeaturesArrayID)
+    :  WMDDataset(VertexArrayID, EdgeArrayOID, FeaturesArrayID) {}
+
+  WMDDataset &operator=(WMDDataset &&O) {
+    WMDDataset::operator=(O);
+    return *this;
+  }
+
   //! Returns the i-th data point from the dataset.
   //!
   //! The data point returned contains:
@@ -111,15 +145,61 @@ public:
   //!
   //! Each data point is constructed on the fly by querying the CSR
   //! representation that is built at the beginning of the workflow.
-  WMDData<> get(size_t idx) override;
+  WMDData<> get(size_t idx) override {
+    int64_t root = idx;
+    auto [t, f, l, m] = _build_ego_graph(&root, (&root) + 1);
+    return {t, f, l, m};
+  }
 
   torch::optional<size_t> size() const override {
     return VertexType::GetPtr(_verticesOID)->Size() - 1;
   }
+};
 
-private:
-  std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
-  _build_ego_graph(int64_t idx);
+class LinkPredictionWMDDataset
+  : public torch::data::Dataset<LinkPredictionWMDDataset, WMDData<>>,
+    public WMDDataset {
+  LinkPredictionWMDDataset()
+    : WMDDataset() {}
+
+  LinkPredictionWMDDataset(const LinkPredictionWMDDataset &O)
+    : WMDDataset(O) {}
+
+  LinkPredictionWMDDataset(LinkPredictionWMDDataset &&O)
+    : WMDDataset(O) {}
+
+  LinkPredictionWMDDataset &operator=(const LinkPredictionWMDDataset &O) {
+    WMDDataset::operator=(O);
+    return *this;
+  }
+
+  LinkPredictionWMDDataset(const VertexOID &VertexArrayID,
+                           const XEdgeOID &EdgeArrayOID,
+                           const ArrayOID &FeaturesArrayID)
+    :  WMDDataset(VertexArrayID, EdgeArrayOID, FeaturesArrayID) {}
+
+  WMDDataset &operator=(WMDDataset &&O) {
+    WMDDataset::operator=(O);
+    return *this;
+  }
+
+  //! Returns the i-th data point from the dataset.
+  //!
+  //! The data point returned contains:
+  //!  + a subgraph obtained by exploring the neighboorhoods of the (i,j) vertices;
+  //!  + the feature vector of each of the vertices in the subgraph;
+  //!  + a mask selecting which vertex to use in training;
+  //!
+  //! Each data point is constructed on the fly by querying the CSR
+  //! representation that is built at the beginning of the workflow.
+  WMDData<> get(size_t idx) override {
+    int64_t n = VertexType::GetPtr(_verticesOID)->Size() - 1;
+    int64_t i = idx / n;
+    int64_t j = idx % n;
+    int64_t root[2] = { i, j };
+    auto [t, f, l, m] = _build_ego_graph(root, root + 2);
+    return {t, f, l, m};
+  }
 };
 } // namespace agile::workflow1
 

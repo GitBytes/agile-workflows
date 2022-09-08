@@ -75,7 +75,7 @@ void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &
                             num_bins);
 }
 
-typename shad::Array<agile::workflow1::TrainingState<WMDDataset>>::ObjectID
+typename shad::Array<agile::workflow1::TrainingState<VertexClassificationWMDDataset>>::ObjectID
 GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
     std::string modelFileName) {
   Handle handle;
@@ -95,13 +95,14 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
   std::cout << "Embeddings created" << std::endl;
 
   size_t parallelThreads = shad::rt::numLocalities();
-  TrainingState<WMDDataset> initState;
-  auto TSs = shad::Array<TrainingState<WMDDataset>>::Create(parallelThreads,
-                                                            initState);
-  SetUpTrainingContext<WMDDataset> setup(
+  TrainingState<VertexClassificationWMDDataset> initState;
+  auto TSs = shad::Array<TrainingState<VertexClassificationWMDDataset>>::Create(parallelThreads,
+                                                                                initState);
+  auto reducerArrayOID = shad::Array<uint64_t>::Create(shad::rt::numLocalities(), 0ul)->GetGlobalID();
+  SetUpTrainingContext<VertexClassificationWMDDataset> setup(
       Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"],
-      Embeddings->GetGlobalID(), modelFileName);
-  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end() - 1,
+      Embeddings->GetGlobalID(), reducerArrayOID, modelFileName);
+  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
                  setup);
 
   std::cout << "Initialized Training State" << std::endl;
@@ -109,8 +110,8 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
   const size_t numEpochs = 200;
   for (size_t epoch = 0; epoch < numEpochs; ++epoch) {
     shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(),
-                   TSs->end() - 1,
-                   agile::workflow1::vcTrainLoop<TrainingState<WMDDataset>>);
+                   TSs->end(),
+                   agile::workflow1::vcTrainLoop<TrainingState<VertexClassificationWMDDataset>>);
   }
 
   std::cout << "Model Trained" << std::endl;

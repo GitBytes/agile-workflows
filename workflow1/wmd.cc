@@ -5,14 +5,9 @@
 #include "agile/workflow1/wmd.h"
 
 namespace agile::workflow1 {
-WMDData<> WMDDataset::get(size_t idx) {
-  auto [t, f, l, m] = _build_ego_graph(int64_t(idx));
-  return {t, f, l, m};
-}
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
-WMDDataset::_build_ego_graph(int64_t root) {
-
+WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
   shad::rt::Handle handle;
   auto Edges = XEdgeType::GetPtr(_edgesOID);
   auto Vertices = VertexType::GetPtr(_verticesOID);
@@ -27,13 +22,15 @@ WMDDataset::_build_ego_graph(int64_t root) {
   std::vector<uint64_t> levels{5, 3, 2, 1, 0};              // last 0 required to flush frontier
   std::set<std::pair<uint64_t, uint64_t>> edges;
 
-  Vertex V = Vertices->At(root);                            // get root
-  uint64_t V_localID = localID ++;                          // get next local ID
+  for (int64_t root = *rootB; rootB < rootE; root = *(++rootB)) {
+    Vertex V = Vertices->At(root);                            // get root
+    uint64_t V_localID = localID ++;                          // get next local ID
 
-  V.id = V_localID;                                         // assign V a local ID
-  vertex_set[root] = V;                                     // insert V into vertex set
-  frontier.push_back(root);                                 // push V's global id onto frontier
-  edges.insert( std::make_pair(V_localID, V_localID) );     // insert self edge into edge set
+    V.id = V_localID;                                         // assign V a local ID
+    vertex_set[root] = V;                                     // insert V into vertex set
+    frontier.push_back(root);                                 // push V's global id onto frontier
+    edges.insert( std::make_pair(V_localID, V_localID) );     // insert self edge into edge set
+  }
 
   uint64_t level = 0;                                       // BFS controls
   auto next = frontier.begin();
@@ -44,13 +41,14 @@ WMDDataset::_build_ego_graph(int64_t root) {
   while (level < levels.size()) {
     if (next == end_of_level) break;                        // BFS is exhausted
 
-    uint64_t glbID = (* next) ++;                           // advance frontier
+    uint64_t glbID = *(next++);                             // advance frontier
     Vertex V = vertex_set[glbID];                           // get next vertex
     uint64_t V_localID = V.id;                              // get V's local id
 
     uint64_t startEL = V.start;                             // get V's neighbor list
     uint64_t endEL = startEL + V.edges;
     uint64_t num_neighbors = endEL - startEL;
+
     std::vector<Edge> neighborhood(num_neighbors);
     Edges->AsyncGetElements(handle, neighborhood.data(), startEL, num_neighbors);
 
@@ -59,7 +57,7 @@ WMDDataset::_build_ego_graph(int64_t root) {
     for (uint64_t i = 0; i < num_neighbors; ++ i) {
       uint64_t glbID = neighborhood[i].dst_glbid;
       Vertex U = Vertices->At(glbID);
-        
+
       if (vertex_set.find(glbID) == vertex_set.end()) {            // U is not visited
          if (added_neighbors < max_neighbors) continue;            // ... if no more neighbors to add, continue
 
