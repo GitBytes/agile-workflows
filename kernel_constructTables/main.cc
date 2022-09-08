@@ -4,17 +4,17 @@ namespace shad {
   using namespace agile::kernel_constructTables;
 
 std::vector <std::string> split(std::string & line, char delim, uint64_t size = 0) {
-  uint64_t ndx = 0, start = 0;
+  uint64_t ndx = 0, start = 0, end = 0;
   std::vector <std::string> tokens(size);
 
-  for (uint64_t end = 0; end < line.length(); end ++) {
-
+  for ( ; end < line.length(); end ++)  {
     if ( (line[end] == delim) || (line[end] == '\n') ) {
        tokens[ndx] = line.substr(start, end - start);
        start = end + 1;
        ndx ++;
   } }
 
+  tokens[size - 1] = line.substr(start, end - start);     // flush last token
   return tokens;
 }
 
@@ -161,17 +161,90 @@ int main(int argc, char *argv[]) {
        Purchases->Size() + Sales->Size() + Authors->Size() + Includes->Size() + HasTopic->Size() + HasOrg->Size());
 
 /***** write out data structures for downstream kernels *****/
-  printf("{Persons:\n");
-  printf("{Forum Events:\n");
-  printf("{Forums:\n");
-  printf("{Publications:\n");
-  printf("{Topics:\n");
-  printf("{Purchases:\n");
-  printf("{Sales:\n");
-  printf("{Authors:\n");
-  printf("{Includes:\n");
-  printf("{Has Topic:\n");
-  printf("{Has Org:\n");
+  time1 = my_timer();
+  dataFile = argv[2];
+  std::ofstream outFile(dataFile);
+  if (! outFile.is_open()) { printf("Cannot open output file %s\n", dataFile.c_str()); exit(-1); }
+
+  outFile << "Persons " << Persons->Size() << std::endl;
+  outFile.close();
+
+  Print_args_t pargs;
+  pargs.oid = args.Persons_OID;
+  memcpy(pargs.filename, dataFile.c_str(), dataFile.size() + 1);
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, PersonVertex>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "ForumEvents " << ForumEvents->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.ForumEvents_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, ForumEventVertex>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Forums " << Forums->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Forums_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, ForumVertex>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Publications " << Publications->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Publications_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, PublicationVertex>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Topics " << Topics->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Topics_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, TopicVertex>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Sales " << Sales->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Sales_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, SaleEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Purchases " << Purchases->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Purchases_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, PurchaseEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Authors " << Authors->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Authors_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, AuthorEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Includes " << Includes->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Includes_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, IncludesEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "HasTopic " << HasTopic->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.HasTopic_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, HasTopicEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "HasOrg " << HasOrg->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.HasOrg_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, HasOrgEdge>, pargs);
+
+  printf("Time to dump tables = %lf\n", my_timer() - time1);
 
   return 0;
 }

@@ -8,19 +8,20 @@
 namespace agile::wk2_exact {
 
 std::vector <std::string> split(std::string & line, char delim, uint64_t size = 0) {
-  uint64_t ndx = 0, start = 0;
+  uint64_t ndx = 0, start = 0, end = 0;
   std::vector <std::string> tokens(size);
 
-  for (uint64_t end = 0; end < line.length(); end ++) {
-
+  for ( ; end < line.length(); end ++)  {
     if ( (line[end] == delim) || (line[end] == '\n') ) {
        tokens[ndx] = line.substr(start, end - start);
        start = end + 1;
        ndx ++;
   } }
 
+  tokens[size - 1] = line.substr(start, end - start);     // flush last token
   return tokens;
 }
+
 
 void readFile(Handle & handle, const RF_args_t & args) {
   std::string line;

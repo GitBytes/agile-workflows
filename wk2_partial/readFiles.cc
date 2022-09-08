@@ -6,20 +6,22 @@
 
 namespace agile::wk2_partial {
 
+
 std::vector <std::string> split(std::string & line, char delim, uint64_t size = 0) {
-  uint64_t ndx = 0, start = 0;
+  uint64_t ndx = 0, start = 0, end = 0;
   std::vector <std::string> tokens(size);
 
-  for (uint64_t end = 0; end < line.length(); end ++) {
-
+  for ( ; end < line.length(); end ++)  {
     if ( (line[end] == delim) || (line[end] == '\n') ) {
        tokens[ndx] = line.substr(start, end - start);
        start = end + 1;
        ndx ++;
   } }
 
+  tokens[size - 1] = line.substr(start, end - start);     // flush last token
   return tokens;
 }
+
 
 void readFile(std::string & filename, Graph_t & graph) {
   Handle handle;

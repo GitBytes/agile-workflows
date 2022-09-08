@@ -21,22 +21,22 @@ std::mutex queueMutex;
 std::condition_variable dataCV;
 shad::rt::Handle patternHandle;
 
-std::vector<std::string> split(std::string &line, char delim,
-                               uint64_t size = 0) {
-  uint64_t ndx = 0, start = 0;
-  std::vector<std::string> tokens(size);
 
-  for (uint64_t end = 0; end < line.length(); end++) {
+std::vector <std::string> split(std::string & line, char delim, uint64_t size = 0) {
+  uint64_t ndx = 0, start = 0, end = 0;
+  std::vector <std::string> tokens(size);
 
-    if ((line[end] == delim) || (line[end] == '\n')) {
-      tokens[ndx] = line.substr(start, end - start);
-      start = end + 1;
-      ndx++;
-    }
-  }
+  for ( ; end < line.length(); end ++)  {
+    if ( (line[end] == delim) || (line[end] == '\n') ) {
+       tokens[ndx] = line.substr(start, end - start);
+       start = end + 1;
+       ndx ++;
+  } }
 
+  tokens[size - 1] = line.substr(start, end - start);     // flush last token
   return tokens;
 }
+
 
 bool proximity(TopicVertex &A, TopicVertex &B) {
   double lon_miles = 0.91 * std::abs(A.lon - B.lon);
