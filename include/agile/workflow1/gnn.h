@@ -175,38 +175,37 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
       param.value.mutable_grad().data() / numRanks;
   }
 
-    TS.Adam->step();
-    TS.Adam->zero_grad();
+  TS.Adam->step();
+  TS.Adam->zero_grad();
 
-    for (auto &batch : *TS.TestDataLoader) {
-      test_size += batch.Features.size(0);
-      TS.Module.eval();
-      TS.Inputs[0] = batch.Features;
-      TS.Inputs[1] = batch.EdgeIndex;
+  for (auto &batch : *TS.TestDataLoader) {
+    test_size += batch.Features.size(0);
+    TS.Module.eval();
+    TS.Inputs[0] = batch.Features;
+    TS.Inputs[1] = batch.EdgeIndex;
 
-      auto groundTruth = batch.Labels;
-      auto output = TS.Module.forward(TS.Inputs).toTensor();
-      auto prediction = std::get<1>(output.max(1));
-      auto equal = prediction.eq(groundTruth);
-      test_correct += equal.index({batch.Mask}).sum().template item<int64_t>();
-    }
-
-    auto end = std::chrono::high_resolution_clock::now();
-
-    std::cout << shad::rt::thisLocality() << " Train Accuracy: "
-              << static_cast<float>(train_correct) / train_size
-              << ", Test Accuracy: "
-              << static_cast<float>(test_correct) / test_size
-              << " | Loss: " << total_loss << " | Time (s) : "
-              << std::chrono::duration_cast<std::chrono::duration<double>>(
-                     end - start)
-                     .count()
-              << std::endl;
+    auto groundTruth = batch.Labels;
+    auto output = TS.Module.forward(TS.Inputs).toTensor();
+    auto prediction = std::get<1>(output.max(1));
+    auto equal = prediction.eq(groundTruth);
+    test_correct += equal.index({batch.Mask}).sum().template item<int64_t>();
   }
 
-  typename shad::Array<agile::workflow1::TrainingState<VertexClassificationWMDDataset>>::ObjectID
-  GNN(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph,
-      std::string modelFileName);
+  auto end = std::chrono::high_resolution_clock::now();
+
+  std::cout << shad::rt::thisLocality() << " Train Accuracy: "
+            << static_cast<float>(train_correct) / train_size
+            << ", Test Accuracy: "
+            << static_cast<float>(test_correct) / test_size
+            << " | Loss: " << total_loss << " | Time (s) : "
+            << std::chrono::duration_cast<std::chrono::duration<double>>(
+                 end - start).count()
+            << std::endl;
+}
+
+typename shad::Array<agile::workflow1::TrainingState<VertexClassificationWMDDataset>>::ObjectID
+GNN(uint64_t & num_edges, uint64_t & num_vertices, Graph_t & graph,
+    std::string modelFileName);
 
 } // namespace agile::workflow1
 
