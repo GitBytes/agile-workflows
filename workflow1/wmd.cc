@@ -117,9 +117,5 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
       torch::from_blob(destinations.data(), {num_edges}, options).clone();
 
   return std::make_tuple(result, vertex_set);
-#if 0
-
-  return std::make_tuple(result, features, labels, vertex);
-#endif
 }
 } // namespace agile::workflow1
