@@ -1,8 +1,14 @@
 #include <cstddef>
 #include <cstdint>
+#include <random>
 #include <torch/csrc/autograd/generated/variable_factories.h>
 
+#include "agile/workflow1/graph.h"
+#include "agile/workflow1/utils.h"
 #include "agile/workflow1/wmd.h"
+
+#include "shad/core/algorithm.h"
+#include "shad/runtime/runtime.h"
 
 namespace agile::workflow1 {
 
@@ -117,5 +123,130 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
       torch::from_blob(destinations.data(), {num_edges}, options).clone();
 
   return std::make_tuple(result, vertex_set);
+}
+
+struct EndPointsEdgeCompare {
+  bool operator()(const Edge *e1, const Edge *e2) const {
+    return (e1->src_glbid == e2->src_glbid && e1->dst_glbid == e2->dst_glbid) ||
+           (e1->src_glbid == e2->dst_glbid && e1->dst_glbid == e2->src_glbid);
+  }
+};
+
+auto GenerateFalseEdges(
+    size_t numEdges,
+    typename shad::Set<Edge, EndPointsEdgeCompare>::SharedPtr Edges,
+    size_t numVertices) {
+  auto result = XEdgeType::Create(numEdges, Edge());
+
+  auto EdgesOID = Edges->GetGlobalID();
+  shad::generate(
+      shad::distributed_parallel_tag{}, result->begin(), result->end(), [=]() {
+        auto Edges = shad::Set<Edge, EndPointsEdgeCompare>::GetPtr(EdgesOID);
+
+        std::random_device rd;
+        std::default_random_engine G(rd());
+        std::uniform_int_distribution<uint64_t> dist(0,
+                                                     numVertices * numVertices);
+
+        Edge e;
+        do {
+          // throw a dart in the matrix
+          uint64_t idx = dist(G);
+          e.src_glbid = idx / numVertices;
+          e.dst_glbid = idx % numVertices;
+          if (e.src_glbid > e.dst_glbid)
+            std::swap(e.src_glbid, e.dst_glbid);
+        } while (Edges->Find(e));
+        // found a missing edge
+        return e;
+      });
+  return result;
+}
+
+void GenerateLinkPredictionDataSet(Graph_t &graph, float train,
+                                   float validation) {
+  auto Vertices = VertexType::GetPtr((VertexOID)graph["Vertices"]);
+  auto allEdges = XEdgeType::GetPtr((XEdgeOID)graph["XEdges"]);
+
+  // Get lower triangular part
+  shad::rt::Handle h = shad::rt::impl::createHandle();
+  using EdgeSetType = shad::Set<Edge, EndPointsEdgeCompare>;
+  auto EdgeSet = EdgeSetType::Create(allEdges->Size() / 2);
+  auto EdgeSetOID = EdgeSet->GetGlobalID();
+
+  allEdges->AsyncForEach(
+      h,
+      [](shad::rt::Handle &h, size_t i, Edge &e,
+         EdgeSetType::ObjectID &EdgeSetOID) {
+        if (e.src_glbid < e.dst_glbid) {
+          auto set = EdgeSetType::GetPtr(EdgeSetOID);
+          set->AsyncInsert(h, e);
+        }
+      },
+      EdgeSetOID);
+  shad::rt::waitForCompletion(h);
+
+  auto Edges = XEdgeType::Create(EdgeSet->Size(), Edge());
+  copy(shad::distributed_parallel_tag{}, EdgeSet->begin(), EdgeSet->end(),
+       Edges->begin());
+
+  size_t trueTrainEdgesNum = std::floor(Edges->Size() * train);
+  size_t trueValidationEdgesNum = std::floor(Edges->Size() * validation);
+  size_t trueTestEdgesNum =
+      Edges->Size() - trueTrainEdgesNum - trueValidationEdgesNum;
+
+  size_t falseEdgesTotal =
+      std::min((Vertices->Size() - 1) * (Vertices->Size() - 1), Edges->Size());
+  size_t falseTrainEdgesNum = std::floor(falseEdgesTotal * train);
+  size_t falseValidationEdgesNum = std::floor(falseEdgesTotal * validation);
+  size_t falseTestEdgesNum =
+      falseEdgesTotal - falseTestEdgesNum - falseValidationEdgesNum;
+
+  auto trainingSet =
+      XEdgeType::Create(trueTrainEdgesNum + falseTrainEdgesNum, Edge());
+  auto validationSet = XEdgeType::Create(
+      trueValidationEdgesNum + falseValidationEdgesNum, Edge());
+  auto testSet =
+      XEdgeType::Create(trueTestEdgesNum + falseTestEdgesNum, Edge());
+
+  // TODO: We need a random shuffle to scramble the order of edges before
+  //       assigning it to one of train, validation, and test.
+  auto begin = Edges->begin();
+  auto end = begin + trueTrainEdgesNum;
+  auto falseTrainItrB =
+      copy(shad::distributed_parallel_tag{}, begin, end, trainingSet->begin());
+
+  begin = end;
+  end += trueValidationEdgesNum;
+  auto falseValItrB = copy(shad::distributed_parallel_tag{}, begin, end,
+                           validationSet->begin());
+
+  begin = end;
+  end += trueTestEdgesNum;
+  auto falseTestItrB =
+      copy(shad::distributed_parallel_tag{}, begin, end, testSet->begin());
+
+  // Generate False Edges
+  auto falseEdgeArray =
+      GenerateFalseEdges(falseEdgesTotal, EdgeSet, Vertices->Size() - 1);
+  begin = falseEdgeArray->begin();
+  end = begin + falseTrainEdgesNum;
+  copy(shad::distributed_parallel_tag{}, begin, end, falseTrainItrB);
+
+  begin = end;
+  end += falseValidationEdgesNum;
+  copy(shad::distributed_parallel_tag{}, begin, end, falseValItrB);
+
+  begin = end;
+  end += falseTestEdgesNum;
+  copy(shad::distributed_parallel_tag{}, begin, end, falseValItrB);
+
+  // Create Observed Graph
+  Graph_t observedGraph;
+
+  // Freeing up temporaries
+  EdgeSetType::Destroy(EdgeSetOID);
+  XEdgeType::Destroy(Edges->GetGlobalID());
+  // return std::make_tuple(observedGraph, trainingSet, validationSet, testSet);
 }
 } // namespace agile::workflow1
