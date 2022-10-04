@@ -1,8 +1,20 @@
 * AGILE Workflows
 ** Installation Instructions on a Docker Cluster
 
+*** Alternative to Docker Desktop
+
+    #+BEGIN_SRC: bash
+    brew install hyperkit
+    brew install minikube
+    brew install docker
+    brew install docker-compose
+    minikube start --driver=hyperkit --container-runtime=docker --mount --mount-string --mount-string $(pwd):/agile-workflows -n 2
+    eval $(minikube docker-env)
+    echo "`minikube ip` docker.local" | sudo tee -a /etc/hosts > /dev/null
+    #+END_SRC
+
 *** Create the docker development cluster
-   
+
     #+BEGIN_SRC: bash
     docker compose -f docker/docker-compose.yml build
     docker compose -f docker/docker-compose.yml up -d --scale node=2
@@ -13,11 +25,13 @@
 
     #+BEGIN_SRC: bash
     ssh -p 2022 -i docker/ssh/id_rsa.mpi agile@localhost
-    conan create conan/gmt user/stable
-    conan create conan/shad user/stable
+    cd agile-workflows
+    source scripts/docker_setup.sh
     conan install --install-folder build . --build missing
     conan build --build-folder build .
     #+END_SRC
+
+*** Run Jobs on the Docker Cluster
 
 ** Installation Instructions on the Puma Cluster
 
@@ -31,7 +45,7 @@
    #+END_SRC
 *** Build the agile-workflow package
     The conan install command is only needed the first time or after updating dependencies.
-   
+
     #+BEGIN_SRC: bash
     conan install --install-folder build . --build missing
     conan build --build-folder build .

@@ -6,7 +6,7 @@ services:
       - "2022:22"
     volumes:
       - home_volume:/home/agile/
-      - ../:/home/agile/agile-workflows 
+      - /agile-workflows:/home/agile/agile-workflows 
     links:
       - node
 
@@ -14,7 +14,7 @@ services:
     image: agile_node
     volumes:
       - home_volume:/home/agile/
-      - ../:/home/agile/agile-workflows 
+      - /agile-workflows:/home/agile/agile-workflows 
 
 volumes:
   home_volume: {}

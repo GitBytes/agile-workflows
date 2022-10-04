@@ -12,7 +12,7 @@
 #include "agile/workflow1/graphTypes.h"
 
 #define UINT   shad::data_types::UINT
-#define DOUBLE shad::data_types::DOUBLE
+// #define DOUBLE shad::data_types::DOUBLE
 #define USDATE shad::data_types::USDATE
 #define ENCODE shad::data_types::encode
 
