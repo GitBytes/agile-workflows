@@ -1,6 +1,6 @@
-#include "agile/workflow1/main.h"
-#include "agile/workflow1/graph.h"
 #include "agile/workflow1/gnn.h"
+#include "agile/workflow1/graph.h"
+#include "agile/workflow1/main.h"
 #include "agile/workflow1/wmd.h"
 
 namespace agile::workflow1 {
@@ -15,9 +15,11 @@ struct Args_t {
 
 // Aggregate neigbors histograms ... store into second half of the feature
 // vector
-void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &args) {
+void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
+                    Args_t &args) {
   uint64_t num_edges = vertex.edges;
-  if (num_edges == 0) return;
+  if (num_edges == 0)
+    return;
 
   auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
   auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID)args.embeddingsOID);
@@ -51,9 +53,11 @@ void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &
 
 // Histogram edge and neigbor vertex types ... store in first half of feature
 // vector
-void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &args) {
+void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
+                    Args_t &args) {
   uint64_t num_edges = vertex.edges;
-  if (num_edges == 0) return;
+  if (num_edges == 0)
+    return;
 
   Handle my_handle;
   auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
@@ -75,7 +79,8 @@ void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &
                             num_bins);
 }
 
-typename shad::Array<agile::workflow1::TrainingState<WMDDataset>>::ObjectID
+typename shad::Array<
+    agile::workflow1::TrainingState<VertexClassificationWMDDataset>>::ObjectID
 GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
     std::string modelFileName) {
   Handle handle;
@@ -95,22 +100,40 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
   std::cout << "Embeddings created" << std::endl;
 
   size_t parallelThreads = shad::rt::numLocalities();
-  TrainingState<WMDDataset> initState;
-  auto TSs = shad::Array<TrainingState<WMDDataset>>::Create(parallelThreads,
-                                                            initState);
-  SetUpTrainingContext<WMDDataset> setup(
+  TrainingState<VertexClassificationWMDDataset> initState;
+  auto TSs = shad::Array<TrainingState<VertexClassificationWMDDataset>>::Create(
+      parallelThreads, initState);
+  auto reducerArrayOID =
+      shad::Array<uint64_t>::Create(shad::rt::numLocalities(), 0ul)
+          ->GetGlobalID();
+  SetUpTrainingContext<VertexClassificationWMDDataset> setup(
       Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"],
-      Embeddings->GetGlobalID(), modelFileName);
-  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end() - 1,
+      Embeddings->GetGlobalID(), reducerArrayOID, modelFileName);
+  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
                  setup);
 
   std::cout << "Initialized Training State" << std::endl;
 
   const size_t numEpochs = 200;
   for (size_t epoch = 0; epoch < numEpochs; ++epoch) {
-    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(),
-                   TSs->end() - 1,
-                   agile::workflow1::vcTrainLoop<TrainingState<WMDDataset>>);
+    auto start = std::chrono::high_resolution_clock::now();
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+                   agile::workflow1::vcTrainLoop<
+                       TrainingState<VertexClassificationWMDDataset>>);
+
+    vcReduceGradients<TrainingState<VertexClassificationWMDDataset>>(
+        TSs->begin(), TSs->end());
+
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+                   agile::workflow1::vcBackPropAndEvaluationLoop<
+                       TrainingState<VertexClassificationWMDDataset>>);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::cout << shad::rt::thisLocality() << " Time (s) : "
+              << std::chrono::duration_cast<std::chrono::duration<double>>(
+                     end - start)
+                     .count()
+              << std::endl;
   }
 
   std::cout << "Model Trained" << std::endl;
