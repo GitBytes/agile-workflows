@@ -26,6 +26,7 @@
     #+BEGIN_SRC: bash
     ssh -p 2022 -i docker/ssh/id_rsa.mpi agile@localhost
     cd agile-workflows
+    source scripts/docker_modules.sh
     source scripts/docker_setup.sh
     conan install --install-folder build . --build missing
     conan build --build-folder build .

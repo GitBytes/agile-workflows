@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update -y && \
     apt-get upgrade -y && \
     apt-get install -y openssh-server sudo build-essential libmpich-dev git \
-    wget cmake python3-pip 
+    wget cmake python3-pip
 
 RUN mkdir /var/run/sshd
 RUN echo 'root:agile' | chpasswd
