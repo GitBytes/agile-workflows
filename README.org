@@ -32,8 +32,6 @@
     conan build --build-folder build .
     #+END_SRC
 
-*** Run Jobs on the Docker Cluster
-
 ** Installation Instructions on the Puma Cluster
 
 *** Load the modules and prepare for the build
@@ -51,6 +49,68 @@
     conan install --install-folder build . --build missing
     conan build --build-folder build .
     #+END_SRC
+
+** Run the AGILE workflows
+
+Download the AGILE WMD Dataset:
+#+BEGIN_SRC: bash
+git clone git@socks.lbl.gov:iarpa-agile-gfi/pnnl/wmd-dataset.git
+#+END_SRC
+
+
+*** Workflow 1
+
+#+BEGIN_SRC: bash
+cd agile-workflows
+./build/bin/do-workflow1 ../wmd-dataset/data.001.csv pytorch-models/workflow1-GNN.pt
+#+END_SRC
+
+To scale the workflow on a machine with MPI, you can execute the program by running:
+#+BEGIN_SRC: bash
+cd agile-workflows
+mpiexec -n 4 --npernode 2 --bind-to socket ./build/bin/do-workflow1 ../wmd-dataset/data.001.csv pytorch-models/workflow1-GNN.pt
+#+END_SRC
+
+*** Workflow 2
+
+**** Exact Matching
+
+#+BEGIN_SRC: bash
+cd agile-workflows
+./build/bin/do-wk2_exact ../wmd-dataset/data.001.csv
+#+END_SRC
+
+To scale the workflow on a machine with MPI, you can execute the program by running:
+#+BEGIN_SRC: bash
+cd agile-workflows
+mpiexec -n 4 --npernode 2 --bind-to socket ./build/bin/do-wk2_exact ../wmd-dataset/data.001.csv 
+#+END_SRC
+
+**** Approximate Matching
+
+#+BEGIN_SRC: bash
+cd agile-workflows
+./build/bin/do-wk2_approx ../wmd-dataset/pattern1.csv ../wmd-dataset/data.001.csv <number of matches>
+#+END_SRC
+
+To scale the workflow on a machine with MPI, you can execute the program by running:
+#+BEGIN_SRC: bash
+cd agile-workflows
+mpiexec -n 4 --npernode 2 --bind-to socket ./build/bin/do-wk2_approx ../wmd-dataset/pattern1.csv ../wmd-dataset/data.001.csv <number of matches>
+#+END_SRC
+
+
+**** Partial Matching
+#+BEGIN_SRC: bash
+cd agile-workflows
+./build/bin/do-wk2_partial ../wmd-dataset/data.001.csv
+#+END_SRC
+
+To scale the workflow on a machine with MPI, you can execute the program by running:
+#+BEGIN_SRC: bash
+cd agile-workflows
+mpiexec -n 4 --npernode 2 --bind-to socket ./build/bin/do-wk2_partial ../wmd-dataset/data.001.csv
+#+END_SRC
 
 ** Pre-Copyright Notice
 
