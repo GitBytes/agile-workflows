@@ -10,7 +10,7 @@ if [ ! -f ~/.conan/settings.yml ]; then
     conan config init
 fi
 conan profile new default --detect &> /dev/null
-conan profile update settings.compiler.libcxx=libstdc++11 default
+conan profile update settings.compiler.libcxx=libstdc++ default
 conan profile update env.CC=$(which gcc) default
 conan profile update env.CXX=$(which g++) default
 
