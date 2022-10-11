@@ -32,6 +32,32 @@ using AllEdge     = std::tuple<uint64_t, std::string>;
 using AllEdgeType = shad::Multimap<uint64_t, AllEdge>;
 using AllEdgeOID  = shad::ObjectIdentifier<AllEdgeType>;
 
+struct RF_args_t {
+  uint64_t Persons_OID;
+  uint64_t ForumEvents_OID;
+  uint64_t Forums_OID;
+  uint64_t Publications_OID;
+  uint64_t Topics_OID;
+  uint64_t Purchases_OID;
+  uint64_t Sales_OID;
+  uint64_t Authors_OID;
+  uint64_t Includes_OID;
+  uint64_t HasTopic_OID;
+  uint64_t HasOrg_OID;
+  uint64_t SubPattern1_OID;
+  uint64_t SubPattern2_OID;
+  uint64_t SubPattern12_OID;
+  uint64_t SubPattern3_OID;
+  uint64_t SubPattern4_OID;
+  uint64_t SubPattern5_OID;
+  uint64_t SubPattern6_OID;
+  uint64_t SubPattern7_OID;
+  uint64_t SubPattern13_OID;
+  uint64_t SubPattern14_OID;
+  char filename [120];
+};
+
+
 uint64_t String_to_Uint(std::string &);
 double String_to_Double(std::string &);
 double String_to_Date(std::string &);
@@ -45,7 +71,7 @@ using Handle = shad::rt::Handle;
 using Graph_t = std::map<std::string, uint64_t>;
 void readFile(std::string & filename, Graph_t & graph);
 TYPES insertToGraph(std::string &, Graph_t &);
-
+TYPES insertToGraphBuffered(Handle & handle,std::string &, Graph_t &);
 // void CSR(uint64_t &, uint64_t &, Graph_t & graph);
 void WMD_pattern(Graph_t & graph);
 } // namespace agile::wk2_partial
