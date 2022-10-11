@@ -1,3 +1,47 @@
+//===------------------------------------------------------------*- C++ -*-===//
+//
+//                            The AGILE Workflows
+//
+//===----------------------------------------------------------------------===//
+// ** Pre-Copyright Notice
+//
+// This computer software was prepared by Battelle Memorial Institute,
+// hereinafter the Contractor, under Contract No. DE-AC05-76RL01830 with the
+// Department of Energy (DOE). All rights in the computer software are reserved
+// by DOE on behalf of the United States Government and the Contractor as
+// provided in the Contract. You are authorized to use this computer software
+// for Governmental purposes but it is not to be released or distributed to the
+// public. NEITHER THE GOVERNMENT NOR THE CONTRACTOR MAKES ANY WARRANTY, EXPRESS
+// OR IMPLIED, OR ASSUMES ANY LIABILITY FOR THE USE OF THIS SOFTWARE. This
+// notice including this sentence must appear on any copies of this computer
+// software.
+//
+// ** Disclaimer Notice
+//
+// This material was prepared as an account of work sponsored by an agency of
+// the United States Government. Neither the United States Government nor the
+// United States Department of Energy, nor Battelle, nor any of their employees,
+// nor any jurisdiction or organization that has cooperated in the development
+// of these materials, makes any warranty, express or implied, or assumes any
+// legal liability or responsibility for the accuracy, completeness, or
+// usefulness or any information, apparatus, product, software, or process
+// disclosed, or represents that its use would not infringe privately owned
+// rights. Reference herein to any specific commercial product, process, or
+// service by trade name, trademark, manufacturer, or otherwise does not
+// necessarily constitute or imply its endorsement, recommendation, or favoring
+// by the United States Government or any agency thereof, or Battelle Memorial
+// Institute. The views and opinions of authors expressed herein do not
+// necessarily state or reflect those of the United States Government or any
+// agency thereof.
+//
+//                    PACIFIC NORTHWEST NATIONAL LABORATORY
+//                                 operated by
+//                                   BATTELLE
+//                                   for the
+//                      UNITED STATES DEPARTMENT OF ENERGY
+//                       under Contract DE-AC05-76RL01830
+//===----------------------------------------------------------------------===//
+
 #include "main.h"
 
 namespace shad {
@@ -161,39 +205,90 @@ int main(int argc, char *argv[]) {
        Purchases->Size() + Sales->Size() + Authors->Size() + Includes->Size() + HasTopic->Size() + HasOrg->Size());
 
 /***** write out data structures for downstream kernels *****/
-  uint64_t null;
-  printf("Persons %lu\n", Persons->Size());
-  Persons->ForEachEntry(printHashmapEntry<PersonVertex>, null);
+  time1 = my_timer();
+  dataFile = argv[2];
+  std::ofstream outFile(dataFile);
+  if (! outFile.is_open()) { printf("Cannot open output file %s\n", dataFile.c_str()); exit(-1); }
 
-  printf("ForumEvents %lu\n", ForumEvents->Size());
-  ForumEvents->ForEachEntry(printHashmapEntry<ForumEventVertex>, null);
+  outFile << "Persons " << Persons->Size() << std::endl;
+  outFile.close();
 
-  printf("Forums %lu\n", Forums->Size());
-  Forums->ForEachEntry(printHashmapEntry<ForumVertex>, null);
+  Print_args_t pargs;
+  pargs.oid = args.Persons_OID;
+  memcpy(pargs.filename, dataFile.c_str(), dataFile.size() + 1);
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, PersonVertex>, pargs);
 
-  printf("Publications %lu\n", Publications->Size());
-  Publications->ForEachEntry(printHashmapEntry<PublicationVertex>, null);
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "ForumEvents " << ForumEvents->Size() << std::endl;
+  outFile.close();
 
-  printf("Topics %lu\n", Topics->Size());
-  Topics->ForEachEntry(printHashmapEntry<TopicVertex>, null);
+  pargs.oid = args.ForumEvents_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, ForumEventVertex>, pargs);
 
-  printf("Purchases %lu\n", Purchases->Size());
-  Purchases->ForEachEntry(printMultimapEntry<PurchaseEdge>, null);
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Forums " << Forums->Size() << std::endl;
+  outFile.close();
 
-  printf("Sales %lu\n", Sales->Size());
-  Sales->ForEachEntry(printMultimapEntry<SaleEdge>, null);
+  pargs.oid = args.Forums_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, ForumVertex>, pargs);
 
-  printf("Authors %lu\n", Authors->Size());
-  Authors->ForEachEntry(printMultimapEntry<AuthorEdge>, null);
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Publications " << Publications->Size() << std::endl;
+  outFile.close();
 
-  printf("Includes %lu\n", Includes->Size());
-  Includes->ForEachEntry(printMultimapEntry<IncludesEdge>, null);
+  pargs.oid = args.Publications_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, PublicationVertex>, pargs);
 
-  printf("HasTopic %lu\n", HasTopic->Size());
-  HasTopic->ForEachEntry(printMultimapEntry<HasTopicEdge>, null);
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Topics " << Topics->Size() << std::endl;
+  outFile.close();
 
-  printf("HasOrg %lu\n", HasOrg->Size());
-  HasOrg->ForEachEntry(printMultimapEntry<HasOrgEdge>, null);
+  pargs.oid = args.Topics_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printHashmapEntry<uint64_t, TopicVertex>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Sales " << Sales->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Sales_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, SaleEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Purchases " << Purchases->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Purchases_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, PurchaseEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Authors " << Authors->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Authors_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, AuthorEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "Includes " << Includes->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.Includes_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, IncludesEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "HasTopic " << HasTopic->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.HasTopic_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, HasTopicEdge>, pargs);
+
+  outFile.open(dataFile, std::ofstream::app); 
+  outFile << "HasOrg " << HasOrg->Size() << std::endl;
+  outFile.close();
+
+  pargs.oid = args.HasOrg_OID;
+  shad::rt::executeAt(shad::rt::Locality(0), printMultimapEntry<uint64_t, HasOrgEdge>, pargs);
+
+  printf("Time to dump tables = %lf\n", my_timer() - time1);
 
   return 0;
 }

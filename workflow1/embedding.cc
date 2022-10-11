@@ -1,6 +1,50 @@
-#include "agile/workflow1/main.h"
-#include "agile/workflow1/graph.h"
+//===------------------------------------------------------------*- C++ -*-===//
+//
+//                            The AGILE Workflows
+//
+//===----------------------------------------------------------------------===//
+// ** Pre-Copyright Notice
+//
+// This computer software was prepared by Battelle Memorial Institute,
+// hereinafter the Contractor, under Contract No. DE-AC05-76RL01830 with the
+// Department of Energy (DOE). All rights in the computer software are reserved
+// by DOE on behalf of the United States Government and the Contractor as
+// provided in the Contract. You are authorized to use this computer software
+// for Governmental purposes but it is not to be released or distributed to the
+// public. NEITHER THE GOVERNMENT NOR THE CONTRACTOR MAKES ANY WARRANTY, EXPRESS
+// OR IMPLIED, OR ASSUMES ANY LIABILITY FOR THE USE OF THIS SOFTWARE. This
+// notice including this sentence must appear on any copies of this computer
+// software.
+//
+// ** Disclaimer Notice
+//
+// This material was prepared as an account of work sponsored by an agency of
+// the United States Government. Neither the United States Government nor the
+// United States Department of Energy, nor Battelle, nor any of their employees,
+// nor any jurisdiction or organization that has cooperated in the development
+// of these materials, makes any warranty, express or implied, or assumes any
+// legal liability or responsibility for the accuracy, completeness, or
+// usefulness or any information, apparatus, product, software, or process
+// disclosed, or represents that its use would not infringe privately owned
+// rights. Reference herein to any specific commercial product, process, or
+// service by trade name, trademark, manufacturer, or otherwise does not
+// necessarily constitute or imply its endorsement, recommendation, or favoring
+// by the United States Government or any agency thereof, or Battelle Memorial
+// Institute. The views and opinions of authors expressed herein do not
+// necessarily state or reflect those of the United States Government or any
+// agency thereof.
+//
+//                    PACIFIC NORTHWEST NATIONAL LABORATORY
+//                                 operated by
+//                                   BATTELLE
+//                                   for the
+//                      UNITED STATES DEPARTMENT OF ENERGY
+//                       under Contract DE-AC05-76RL01830
+//===----------------------------------------------------------------------===//
+
 #include "agile/workflow1/gnn.h"
+#include "agile/workflow1/graph.h"
+#include "agile/workflow1/main.h"
 #include "agile/workflow1/wmd.h"
 
 namespace agile::workflow1 {
@@ -15,9 +59,11 @@ struct Args_t {
 
 // Aggregate neigbors histograms ... store into second half of the feature
 // vector
-void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &args) {
+void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
+                    Args_t &args) {
   uint64_t num_edges = vertex.edges;
-  if (num_edges == 0) return;
+  if (num_edges == 0)
+    return;
 
   auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
   auto Embeddings = EmbeddingType::GetPtr((EmbeddingOID)args.embeddingsOID);
@@ -51,9 +97,11 @@ void TwoHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &
 
 // Histogram edge and neigbor vertex types ... store in first half of feature
 // vector
-void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &args) {
+void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
+                    Args_t &args) {
   uint64_t num_edges = vertex.edges;
-  if (num_edges == 0) return;
+  if (num_edges == 0)
+    return;
 
   Handle my_handle;
   auto Edges = XEdgeType::GetPtr((XEdgeOID)args.edgesOID);
@@ -75,7 +123,8 @@ void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex, Args_t &
                             num_bins);
 }
 
-typename shad::Array<agile::workflow1::TrainingState<WMDDataset>>::ObjectID
+typename shad::Array<
+    agile::workflow1::TrainingState<VertexClassificationWMDDataset>>::ObjectID
 GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
     std::string modelFileName) {
   Handle handle;
@@ -95,22 +144,40 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
   std::cout << "Embeddings created" << std::endl;
 
   size_t parallelThreads = shad::rt::numLocalities();
-  TrainingState<WMDDataset> initState;
-  auto TSs = shad::Array<TrainingState<WMDDataset>>::Create(parallelThreads,
-                                                            initState);
-  SetUpTrainingContext<WMDDataset> setup(
+  TrainingState<VertexClassificationWMDDataset> initState;
+  auto TSs = shad::Array<TrainingState<VertexClassificationWMDDataset>>::Create(
+      parallelThreads, initState);
+  auto reducerArrayOID =
+      shad::Array<uint64_t>::Create(shad::rt::numLocalities(), 0ul)
+          ->GetGlobalID();
+  SetUpTrainingContext<VertexClassificationWMDDataset> setup(
       Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"],
-      Embeddings->GetGlobalID(), modelFileName);
-  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end() - 1,
+      Embeddings->GetGlobalID(), reducerArrayOID, modelFileName);
+  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
                  setup);
 
   std::cout << "Initialized Training State" << std::endl;
 
   const size_t numEpochs = 200;
   for (size_t epoch = 0; epoch < numEpochs; ++epoch) {
-    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(),
-                   TSs->end() - 1,
-                   agile::workflow1::vcTrainLoop<TrainingState<WMDDataset>>);
+    auto start = std::chrono::high_resolution_clock::now();
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+                   agile::workflow1::vcTrainLoop<
+                       TrainingState<VertexClassificationWMDDataset>>);
+
+    vcReduceGradients<TrainingState<VertexClassificationWMDDataset>>(
+        TSs->begin(), TSs->end());
+
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+                   agile::workflow1::vcBackPropAndEvaluationLoop<
+                       TrainingState<VertexClassificationWMDDataset>>);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::cout << shad::rt::thisLocality() << " Time (s) : "
+              << std::chrono::duration_cast<std::chrono::duration<double>>(
+                     end - start)
+                     .count()
+              << std::endl;
   }
 
   std::cout << "Model Trained" << std::endl;

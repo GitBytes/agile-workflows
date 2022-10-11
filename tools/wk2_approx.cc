@@ -1,3 +1,47 @@
+//===------------------------------------------------------------*- C++ -*-===//
+//
+//                            The AGILE Workflows
+//
+//===----------------------------------------------------------------------===//
+// ** Pre-Copyright Notice
+//
+// This computer software was prepared by Battelle Memorial Institute,
+// hereinafter the Contractor, under Contract No. DE-AC05-76RL01830 with the
+// Department of Energy (DOE). All rights in the computer software are reserved
+// by DOE on behalf of the United States Government and the Contractor as
+// provided in the Contract. You are authorized to use this computer software
+// for Governmental purposes but it is not to be released or distributed to the
+// public. NEITHER THE GOVERNMENT NOR THE CONTRACTOR MAKES ANY WARRANTY, EXPRESS
+// OR IMPLIED, OR ASSUMES ANY LIABILITY FOR THE USE OF THIS SOFTWARE. This
+// notice including this sentence must appear on any copies of this computer
+// software.
+//
+// ** Disclaimer Notice
+//
+// This material was prepared as an account of work sponsored by an agency of
+// the United States Government. Neither the United States Government nor the
+// United States Department of Energy, nor Battelle, nor any of their employees,
+// nor any jurisdiction or organization that has cooperated in the development
+// of these materials, makes any warranty, express or implied, or assumes any
+// legal liability or responsibility for the accuracy, completeness, or
+// usefulness or any information, apparatus, product, software, or process
+// disclosed, or represents that its use would not infringe privately owned
+// rights. Reference herein to any specific commercial product, process, or
+// service by trade name, trademark, manufacturer, or otherwise does not
+// necessarily constitute or imply its endorsement, recommendation, or favoring
+// by the United States Government or any agency thereof, or Battelle Memorial
+// Institute. The views and opinions of authors expressed herein do not
+// necessarily state or reflect those of the United States Government or any
+// agency thereof.
+//
+//                    PACIFIC NORTHWEST NATIONAL LABORATORY
+//                                 operated by
+//                                   BATTELLE
+//                                   for the
+//                      UNITED STATES DEPARTMENT OF ENERGY
+//                       under Contract DE-AC05-76RL01830
+//===----------------------------------------------------------------------===//
+
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -10,12 +54,11 @@ namespace shad {
   using Weight = std::pair<uint64_t, double>;
   
 int main(int argc, char *argv[]) {
+  double time1;
   Handle handle;
   std::string patternFile = argv[1];
   std::string dataFile    = argv[2];
   uint64_t Top_K = std::stod(argv[3]);
-
-  double time1 = my_timer();
 
 // CONSTRUCT PATTERN GRAPH
   Graph_t A;
@@ -59,7 +102,7 @@ int main(int argc, char *argv[]) {
   args.HasOrg_OID = A["HasOrg"];
   memcpy(args.filename, patternFile.c_str(), patternFile.size() + 1);
 
-  printf("Reading pattern file %s\n",  patternFile.c_str());    // read file, create tables, assign locale ids
+  printf("Reading pattern file %s\n",  patternFile.c_str());    // read file, create tables
   shad::rt::asyncExecuteOnAll(handle, readFile, args);
   shad::rt::waitForCompletion(handle);
 
@@ -81,8 +124,10 @@ int main(int argc, char *argv[]) {
   uint64_t A_num_edges = 
      Purchases->Size() + Sales->Size() + Authors->Size() + Includes->Size() + HasTopic->Size() + HasOrg->Size();
 
-  printf("Time to read Pattern File = %lf\n", my_timer() - time1);
   printf("Pattern Graph has %lu vertices and %lu edges\n\n", A_num_vertices, A_num_edges);
+
+/********** Kernel 1 - Graph Construction **********/
+
   time1 = my_timer();
 
 // CONSTRUCT DATA GRAPH
@@ -126,7 +171,7 @@ int main(int argc, char *argv[]) {
   args.HasOrg_OID = B["HasOrg"];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
 
-  printf("Reading data file %s\n",  dataFile.c_str());    // read file, create tables, assign locale ids
+  printf("Reading data file %s\n",  dataFile.c_str());    // read file, create tables
   shad::rt::asyncExecuteOnAll(handle, readFile, args);
   shad::rt::waitForCompletion(handle);
   
@@ -148,8 +193,11 @@ int main(int argc, char *argv[]) {
   uint64_t B_num_edges = 
      Purchases->Size() + Sales->Size() + Authors->Size() + Includes->Size() + HasTopic->Size() + HasOrg->Size();
 
-  printf("Time to read Data File = %lf\n", my_timer() - time1);
+  printf("Time for Kernel 1 - Graph Construction = %lf\n", my_timer() - time1);
   printf("Data Graph has %lu vertices and %lu edges\n\n", B_num_vertices, B_num_edges);
+
+/********** Kernel 4a - BiPartite Graph Construction **********/
+
   time1 = my_timer();
 
 // CONSTRUCT BIPARTITE VERTICES WITH EDGES
@@ -158,12 +206,14 @@ int main(int argc, char *argv[]) {
   uint64_t LHS_OID = (uint64_t) (LHS->GetGlobalID());
   uint64_t RHS_OID = (uint64_t) (RHS->GetGlobalID());
   createBipartite(A, B, LHS_OID, RHS_OID);
-  printf("Time to construct bipartite graph = %lf\n", my_timer() - time1);
+  printf("Time for Kernel 4a - BiPartite Graph Construction = %lf\n", my_timer() - time1);
   
+/********** Kernel 4b - Approximate Match **********/
+
   time1 = my_timer();
 
   for (uint64_t i = 0; i < Top_K; ++ i) ApproxMatching(LHS_OID, RHS_OID);
-  printf("Time to Match = %lf\n", my_timer() - time1);
+  printf("Time for Kernel 4b - Approximate Match = %lf\n", my_timer() - time1);
   return 0;
 
 }

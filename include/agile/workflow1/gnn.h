@@ -1,3 +1,47 @@
+//===------------------------------------------------------------*- C++ -*-===//
+//
+//                            The AGILE Workflows
+//
+//===----------------------------------------------------------------------===//
+// ** Pre-Copyright Notice
+//
+// This computer software was prepared by Battelle Memorial Institute,
+// hereinafter the Contractor, under Contract No. DE-AC05-76RL01830 with the
+// Department of Energy (DOE). All rights in the computer software are reserved
+// by DOE on behalf of the United States Government and the Contractor as
+// provided in the Contract. You are authorized to use this computer software
+// for Governmental purposes but it is not to be released or distributed to the
+// public. NEITHER THE GOVERNMENT NOR THE CONTRACTOR MAKES ANY WARRANTY, EXPRESS
+// OR IMPLIED, OR ASSUMES ANY LIABILITY FOR THE USE OF THIS SOFTWARE. This
+// notice including this sentence must appear on any copies of this computer
+// software.
+//
+// ** Disclaimer Notice
+//
+// This material was prepared as an account of work sponsored by an agency of
+// the United States Government. Neither the United States Government nor the
+// United States Department of Energy, nor Battelle, nor any of their employees,
+// nor any jurisdiction or organization that has cooperated in the development
+// of these materials, makes any warranty, express or implied, or assumes any
+// legal liability or responsibility for the accuracy, completeness, or
+// usefulness or any information, apparatus, product, software, or process
+// disclosed, or represents that its use would not infringe privately owned
+// rights. Reference herein to any specific commercial product, process, or
+// service by trade name, trademark, manufacturer, or otherwise does not
+// necessarily constitute or imply its endorsement, recommendation, or favoring
+// by the United States Government or any agency thereof, or Battelle Memorial
+// Institute. The views and opinions of authors expressed herein do not
+// necessarily state or reflect those of the United States Government or any
+// agency thereof.
+//
+//                    PACIFIC NORTHWEST NATIONAL LABORATORY
+//                                 operated by
+//                                   BATTELLE
+//                                   for the
+//                      UNITED STATES DEPARTMENT OF ENERGY
+//                       under Contract DE-AC05-76RL01830
+//===----------------------------------------------------------------------===//
+
 #ifndef AGILE_WORKFLOW1_GNN_H
 #define AGILE_WORKFLOW1_GNN_H
 
@@ -5,20 +49,21 @@
 #include <memory>
 #include <vector>
 
-#include "agile/workflow1/main.h"
 #include "agile/workflow1/graph.h"
+#include "agile/workflow1/main.h"
 #include "agile/workflow1/wmd.h"
 
+#include "shad/core/algorithm.h"
 #include "shad/data_structures/array.h"
+#include "shad/extensions/collectives/mpi_reduce.h"
 #include "torch/script.h"
 #include "torch/torch.h"
-
-#include "mpi.h" // TODO: removed dependency
 
 namespace agile::workflow1 {
 
 template <typename Dataset> struct TrainingState {
 public:
+  using ArrayOID = typename shad::Array<uint64_t>::ObjectID;
   using sampler_type = torch::data::samplers::DistributedRandomSampler;
   using dataset_type = torch::data::datasets::MapDataset<
       Dataset, torch::data::transforms::Stack<typename Dataset::Data>>;
@@ -38,6 +83,7 @@ public:
   std::shared_ptr<data_loader_type> TestDataLoader{nullptr};
   std::shared_ptr<torch::optim::Adam> Adam{nullptr};
   std::vector<torch::jit::IValue> Inputs;
+  ArrayOID ReducerLocalPtrOID{ArrayOID::kNullID};
 };
 
 template <typename Dataset> class SetUpTrainingContext {
@@ -51,14 +97,16 @@ template <typename Dataset> class SetUpTrainingContext {
   VertexOID _verticesOID;
   XEdgeOID _edgesOID;
   ArrayOID _featuresOID;
+  ArrayOID _reducerArrayOID;
 
 public:
   SetUpTrainingContext(const VertexOID &VertexArrayID,
                        const XEdgeOID &EdgeArrayOID,
                        const ArrayOID &FeaturesArrayID,
+                       const ArrayOID &ReducerArrayOID,
                        std::string modelFileName)
       : _verticesOID(VertexArrayID), _edgesOID(EdgeArrayOID),
-        _featuresOID(FeaturesArrayID) {
+        _featuresOID(FeaturesArrayID), _reducerArrayOID(ReducerArrayOID) {
     if (modelFileName.size() > 256)
       throw "Filename too long";
 
@@ -102,27 +150,24 @@ public:
 
     // Set inputs
     TS.Inputs.resize(2);
+
+    TS.ReducerLocalPtrOID = _reducerArrayOID;
   }
 };
 
-template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
-  auto start = std::chrono::high_resolution_clock::now();
-  size_t train_correct = 0;
-  size_t test_correct = 0;
-  size_t train_size = 0;
-  size_t test_size = 0;
-  double total_loss = 0.0;
-  int64_t numRanks = shad::rt::numLocalities();
+struct InplaceFunctor {
+  void *operator()() {
+    auto ptr = shad::Array<uint64_t>::GetPtr(oid_);
+    uint64_t address = ptr->At(static_cast<uint32_t>(shad::rt::thisLocality()));
+    return reinterpret_cast<void *>(address);
+  }
 
-  std::map<at::ScalarType, MPI_Datatype> torchToMPITypes = {
-      {at::kByte, MPI_UNSIGNED_CHAR},
-      {at::kChar, MPI_CHAR},
-      {at::kDouble, MPI_DOUBLE},
-      {at::kFloat, MPI_FLOAT},
-      {at::kInt, MPI_INT},
-      {at::kLong, MPI_LONG},
-      {at::kShort, MPI_SHORT},
-  };
+  shad::Array<uint64_t>::ObjectID oid_;
+};
+
+template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
+  size_t train_correct = 0;
+  size_t train_size = 0;
 
   for (auto &batch : *TS.TrainDataLoader) {
     TS.Inputs[0] = batch.Features;
@@ -135,7 +180,6 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
 
     auto loss = torch::nn::functional::nll_loss(
         output.index({batch.Mask}), groundTruth.index({batch.Mask}));
-    total_loss += loss.template item<double>();
 
     loss.backward();
     TS.Module.eval();
@@ -143,16 +187,67 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
     auto equal = prediction.eq(groundTruth);
     train_correct += equal.index({batch.Mask}).sum().template item<int64_t>();
   }
+  std::cout << shad::rt::thisLocality() << " Train Accuracy: "
+            << static_cast<float>(train_correct) / train_size << std::endl;
+}
 
-  for (const auto &param : TS.Module.named_parameters()) {
-    MPI_Allreduce(MPI_IN_PLACE, param.value.mutable_grad().data_ptr(),
-                  param.value.mutable_grad().numel(),
-                  torchToMPITypes.at(param.value.mutable_grad().scalar_type()),
-                  MPI_SUM, MPI_COMM_WORLD);
-    param.value.mutable_grad().data() =
-        param.value.mutable_grad().data() / numRanks;
+template <typename TrainingState, typename TrainingStateItr>
+void vcReduceGradients(TrainingStateItr B, TrainingStateItr E) {
+  auto start = std::chrono::high_resolution_clock::now();
+  int64_t numRanks = shad::rt::numLocalities();
+
+  std::map<at::ScalarType, MPI_Datatype> torchToMPITypes = {
+      {at::kByte, MPI_UNSIGNED_CHAR},
+      {at::kChar, MPI_CHAR},
+      {at::kDouble, MPI_DOUBLE},
+      {at::kFloat, MPI_FLOAT},
+      {at::kInt, MPI_INT},
+      {at::kLong, MPI_LONG},
+      {at::kShort, MPI_SHORT},
+  };
+
+  InplaceFunctor F{(*B).get().ReducerLocalPtrOID};
+  for (int i = 0; i < (*B).get().Module.parameters().size(); ++i) {
+    shad::for_each(
+        shad::distributed_parallel_tag{}, B, E, [=](TrainingState &TS) {
+          auto itr = TS.Module.parameters().begin();
+          for (int j = 0; j < i; ++j)
+            ++itr;
+          auto localPtrs = shad::Array<uint64_t>::GetPtr(TS.ReducerLocalPtrOID);
+          localPtrs->InsertAt(
+              static_cast<uint32_t>(shad::rt::thisLocality()),
+              reinterpret_cast<uint64_t>((*itr).mutable_grad().data_ptr()));
+        });
+
+    auto itr2 = (*B).get().Module.parameters().begin();
+    for (int j = 0; j < i; ++j)
+      ++itr2;
+    auto reducer = shad::MPIReducer<InplaceFunctor, InplaceFunctor>::Create(
+        torchToMPITypes.at((*itr2).mutable_grad().scalar_type()), F, F);
+
+    reducer->AllReduce(MPI_SUM, (*itr2).mutable_grad().numel());
+
+    shad::for_each(shad::distributed_parallel_tag{}, B, E,
+                   [=](TrainingState &TS){
+                     auto itr = TS.Module.parameters().begin();
+                     for (int j = 0; j < i; ++j)
+                       ++itr;
+                     (*itr).mutable_grad().data() =
+                       (*itr).mutable_grad().data() / numRanks;
+                   });
   }
+  auto end = std::chrono::high_resolution_clock::now();
+  std::cout << shad::rt::thisLocality() << " Reduction Time (s) : "
+            << std::chrono::duration_cast<std::chrono::duration<double>>(end -
+                                                                         start)
+                   .count()
+            << std::endl;
+}
 
+template <typename TrainingState>
+void vcBackPropAndEvaluationLoop(TrainingState &TS) {
+  size_t test_correct = 0;
+  size_t test_size = 0;
   TS.Adam->step();
   TS.Adam->zero_grad();
 
@@ -169,21 +264,15 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
     test_correct += equal.index({batch.Mask}).sum().template item<int64_t>();
   }
 
-  auto end = std::chrono::high_resolution_clock::now();
-
-  std::cout << shad::rt::thisLocality() << " Train Accuracy: "
-            << static_cast<float>(train_correct) / train_size
-            << ", Test Accuracy: "
-            << static_cast<float>(test_correct) / test_size
-            << " | Loss: " << total_loss << " | Time (s) : "
-            << std::chrono::duration_cast<std::chrono::duration<double>>(end -
-                                                                         start)
-                   .count()
+  std::cout << shad::rt::thisLocality()
+            << "Test Accuracy: " << static_cast<float>(test_correct) / test_size
             << std::endl;
 }
 
-typename shad::Array<agile::workflow1::TrainingState<WMDDataset>>::ObjectID
-GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph, std::string modelFileName);
+typename shad::Array<
+    agile::workflow1::TrainingState<VertexClassificationWMDDataset>>::ObjectID
+GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
+    std::string modelFileName);
 
 } // namespace agile::workflow1
 
