@@ -45,6 +45,7 @@
 #ifndef AGILE_WORKFLOW1_WMD_H
 #define AGILE_WORKFLOW1_WMD_H
 
+#include <chrono>
 #include <cstdint>
 
 #include "agile/workflow1/graph.h"
@@ -194,6 +195,7 @@ public:
     auto options = torch::TensorOptions().dtype(torch::kLong);
 
     auto [graph, vertex_set] = _build_ego_graph(&root, (&root) + 1);
+
     int64_t num_vertices = vertex_set.size();
 
     // create type and feature vector
@@ -217,11 +219,12 @@ public:
     // as part of the training process. We are using roughly 75% of the
     // ego-graph.
     auto vertex = torch::zeros(num_vertices, bool_tensor);
-    auto indices = torch::randint(0, num_vertices,
-                                  {num_vertices - num_vertices / 4}, options);
+    // auto indices = torch::randint(0, num_vertices,
+    //                               {num_vertices - num_vertices / 4},
+    //                               options);
 
-    vertex.index_put_({0}, true);       // set root's bit to true
-    vertex.index_put_({indices}, true); // set choosen vertices' bits to true
+    vertex.index_put_({0}, true); // set root's bit to true
+    // vertex.index_put_({indices}, true); // set choosen vertices' bits to true
     std::vector<float> floatFeatures(featureVectors.begin(),
                                      featureVectors.end());
 
