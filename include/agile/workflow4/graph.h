@@ -104,12 +104,14 @@ class TopicVertex {
     double   lat;
     double   lon;
     uint64_t glbid;
+    TYPES    type;
 
     TopicVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
       lat   = shad::data_types::kNullValue<double>;
       lon   = shad::data_types::kNullValue<double>;
       glbid = shad::data_types::kNullValue<uint64_t>;
+      type  = TYPES::NONE;
     }
 
     TopicVertex (std::vector <std::string> & tokens) {
@@ -117,6 +119,7 @@ class TopicVertex {
       lat   = ENCODE<double,   std::string, DOUBLE>(tokens[5]);
       lon   = ENCODE<double,   std::string, DOUBLE>(tokens[6]);
       glbid = shad::data_types::kNullValue<uint64_t>;
+      type  = TYPES::TOPIC;
     }
 
     uint64_t key() { return id; }
@@ -143,8 +146,8 @@ class PurchaseEdge {
     }
 
     PurchaseEdge (std::vector <std::string> & tokens) {
-      buyer    = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
-      seller   = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
+      buyer    = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
+      seller   = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
       product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
       date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
       amount   = ENCODE<time_t,   std::string, USDATE>(tokens[7]);

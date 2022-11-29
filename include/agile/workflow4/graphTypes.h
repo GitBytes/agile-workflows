@@ -51,6 +51,10 @@ enum class TYPES {
   PERSON,
   SERVER,
   TOPIC,
+  PURCHASE,
+  USE,
+  SALE,
+  SEND,
   NONE
 };
 

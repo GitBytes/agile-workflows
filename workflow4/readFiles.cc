@@ -142,4 +142,70 @@ void readFile(Handle & handle, const RF_args_t & args) {
   file.close();
 }
 
+void readFileCoffee(Handle & handle, const RF_args_t & args) {
+  std::string line;
+  struct stat stats;
+  std::string filename = args.filename;
+  uint64_t this_locale = (uint32_t) shad::rt::thisLocality();
+  uint64_t num_locales = (uint64_t) shad::rt::numLocalities();
+
+  std::ifstream file(filename);
+  if (! file.is_open()) { printf("Locale %lu cannot open file %s\n", this_locale, filename.c_str()); exit(-1); }
+
+  stat(filename.c_str(), & stats);
+
+  uint64_t num_bytes = stats.st_size / num_locales;                      // file size / number of locales
+  uint64_t start = this_locale * num_bytes;
+  uint64_t end = start + num_bytes;
+
+  file.seekg(start);
+  if (start != 0) { getline(file, line); start += line.size() + 1; }     // discard partial line
+  if (this_locale == num_locales - 1) end = stats.st_size;               // last locale processes to end of file
+
+  auto Persons      = PersonVertexType::GetPtr( (PersonVertexOID) args.Persons_OID);
+  auto Topics       = TopicVertexType::GetPtr( (TopicVertexOID) args.Topics_OID);
+  auto Purchases    = PurchaseEdgeType::GetPtr( (PurchaseEdgeOID) args.Purchases_OID);
+  auto Sales        = SaleEdgeType::GetPtr( (SaleEdgeOID) args.Sales_OID);
+
+  while (start < end) {
+    getline(file, line);
+    start += line.size() + 1;
+    if (line[0] == '#') continue;                                // skip comments
+    std::vector <std::string> tokens = split(line, ',', 8);     // delimiter and # tokens set for wmd data file
+
+    if (tokens[0] == "Sale") {
+         SaleEdge sale(tokens);
+         Sales->BufferedAsyncInsert(handle, sale.key(), sale);
+
+         PurchaseEdge purchase(tokens);
+         std::swap(purchase.buyer, purchase.seller);
+         Purchases->BufferedAsyncInsert(handle, purchase.key(), purchase);
+
+         GlobalIDS->BufferedAsyncInsert(handle, sale.seller, Vertex(0,1,sale.src_type));
+         GlobalIDS->BufferedAsyncInsert(handle, sale.buyer,  Vertex(0,0,sale.dst_type));
+         GlobalIDS->BufferedAsyncInsert(handle, purchase.buyer, Vertex(0,1,purchase.src_type));
+         GlobalIDS->BufferedAsyncInsert(handle, purchase.seller,  Vertex(0,0,purchase.dst_type));
+         // Topic Vertex
+         TopicVertex topic(tokens);
+         GlobalIDS->BufferedAsyncInsert(handle, topic.id, Vertex(0,0, topic.type));
+    } else if (tokens[0] == "Purchase") {
+         PurchaseEdge purchase(tokens);
+         Purchases->BufferedAsyncInsert(handle, purchase.key(), purchase);
+
+         SaleEdge sale(tokens);
+         std::swap(sale.seller, sale.buyer);
+         Sales->BufferedAsyncInsert(handle, sale.key(), sale);
+
+         GlobalIDS->BufferedAsyncInsert(handle, sale.seller, Vertex(0,1,sale.src_type));
+         GlobalIDS->BufferedAsyncInsert(handle, sale.buyer,  Vertex(0,0,sale.dst_type));
+         GlobalIDS->BufferedAsyncInsert(handle, purchase.buyer, Vertex(0,1,purchase.src_type));
+         GlobalIDS->BufferedAsyncInsert(handle, purchase.seller,  Vertex(0,0,purchase.dst_type));
+         // Topic Vertex
+         TopicVertex topic(tokens);
+         GlobalIDS->BufferedAsyncInsert(handle, topic.id, Vertex(0,0, topic.type));
+  } }
+
+  file.close();
+}
+
 } // namespace agile::workflow4
