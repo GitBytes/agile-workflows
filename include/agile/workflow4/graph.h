@@ -300,6 +300,9 @@ class SendsEdge {
     uint64_t dst() { return dst_device; }
 };
 
+using GlobalIDType = shad::Hashmap<uint64_t, Vertex, shad::MemCmp<uint64_t>, globalIdInserter<Vertex> >;
+using GlobalIDOID  = shad::ObjectIdentifier<GlobalIDType>;
+
 using PersonVertexType = shad::Hashmap<uint64_t, PersonVertex>;
 using PersonVertexOID  = shad::ObjectIdentifier<PersonVertexType>;
 

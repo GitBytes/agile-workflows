@@ -166,7 +166,7 @@ void readFileCoffee(Handle & handle, const RF_args_t & args) {
   auto Topics       = TopicVertexType::GetPtr( (TopicVertexOID) args.Topics_OID);
   auto Purchases    = PurchaseEdgeType::GetPtr( (PurchaseEdgeOID) args.Purchases_OID);
   auto Sales        = SaleEdgeType::GetPtr( (SaleEdgeOID) args.Sales_OID);
-
+  auto GlobalIDS    = GlobalIDType::GetPtr ((GlobalIDOID) args.GlobalIDS_OID);
   while (start < end) {
     getline(file, line);
     start += line.size() + 1;
@@ -187,7 +187,8 @@ void readFileCoffee(Handle & handle, const RF_args_t & args) {
          GlobalIDS->BufferedAsyncInsert(handle, purchase.seller,  Vertex(0,0,purchase.dst_type));
          // Topic Vertex
          TopicVertex topic(tokens);
-         GlobalIDS->BufferedAsyncInsert(handle, topic.id, Vertex(0,0, topic.type));
+     //     GlobalIDS->BufferedAsyncInsert(handle, topic.id, Vertex(0,0, topic.type));
+         Topics->BufferedAsyncInsert(handle, topic.key(), topic);
     } else if (tokens[0] == "Purchase") {
          PurchaseEdge purchase(tokens);
          Purchases->BufferedAsyncInsert(handle, purchase.key(), purchase);
@@ -202,8 +203,94 @@ void readFileCoffee(Handle & handle, const RF_args_t & args) {
          GlobalIDS->BufferedAsyncInsert(handle, purchase.seller,  Vertex(0,0,purchase.dst_type));
          // Topic Vertex
          TopicVertex topic(tokens);
-         GlobalIDS->BufferedAsyncInsert(handle, topic.id, Vertex(0,0, topic.type));
+     //     GlobalIDS->BufferedAsyncInsert(handle, topic.id, Vertex(0,0, topic.type));
+         Topics->BufferedAsyncInsert(handle, topic.key(), topic);
   } }
+
+  file.close();
+}
+
+void readFileSocial(Handle & handle, const RF_args_t & args) {
+  std::string line;
+  struct stat stats;
+  std::string filename = args.filename;
+  uint64_t this_locale = (uint32_t) shad::rt::thisLocality();
+  uint64_t num_locales = (uint64_t) shad::rt::numLocalities();
+
+  std::ifstream file(filename);
+  if (! file.is_open()) { printf("Locale %lu cannot open file %s\n", this_locale, filename.c_str()); exit(-1); }
+
+  stat(filename.c_str(), & stats);
+
+  uint64_t num_bytes = stats.st_size / num_locales;                      // file size / number of locales
+  uint64_t start = this_locale * num_bytes;
+  uint64_t end = start + num_bytes;
+
+  file.seekg(start);
+  if (start != 0) { getline(file, line); start += line.size() + 1; }     // discard partial line
+  if (this_locale == num_locales - 1) end = stats.st_size;               // last locale processes to end of file
+
+  auto GlobalIDS    = GlobalIDType::GetPtr ((GlobalIDOID) args.GlobalIDS_OID);
+  auto Friends      = FriendOfEdgeType::GetPtr ((FriendOfEdgeOID) args.Friends_OID);
+
+  while (start < end) {
+    getline(file, line);
+    start += line.size() + 1;
+    if (line[0] == '#') continue;                                // skip comments
+    std::vector <std::string> tokens = split(line, ',', 2);     // delimiter and # tokens set for wmd data file
+
+    // Person Vertices
+    uint64_t person1_key = ENCODE<uint64_t, std::string, UINT>(token[0]);
+    GlobalIDS->BufferedAsyncInsert(handle, person1_key, Vertex(0, 0, TYPES::PERSON));
+    uint64_t person2_key = ENCODE<uint64_t, std::string, UINT>(token[1]);
+    GlobalIDS->BufferedAsyncInsert(handle, person2_key, Vertex(0, 0, TYPES::PERSON));
+
+    FriendOfEdge friends(tokens);
+    Friends->BufferedAsyncInsert(handle, friends.key(), friends);
+  }
+
+  file.close();
+}
+
+void readFileCyber(Handle & handle, const RF_args_t & args) {
+  std::string line;
+  struct stat stats;
+  std::string filename = args.filename;
+  uint64_t this_locale = (uint32_t) shad::rt::thisLocality();
+  uint64_t num_locales = (uint64_t) shad::rt::numLocalities();
+
+  std::ifstream file(filename);
+  if (! file.is_open()) { printf("Locale %lu cannot open file %s\n", this_locale, filename.c_str()); exit(-1); }
+
+  stat(filename.c_str(), & stats);
+
+  uint64_t num_bytes = stats.st_size / num_locales;                      // file size / number of locales
+  uint64_t start = this_locale * num_bytes;
+  uint64_t end = start + num_bytes;
+
+  file.seekg(start);
+  if (start != 0) { getline(file, line); start += line.size() + 1; }     // discard partial line
+  if (this_locale == num_locales - 1) end = stats.st_size;               // last locale processes to end of file
+
+  auto ServerVertices = ServerVertexType::GetPtr( (ServerVertexOID) args.ServerVertices_OID);
+  auto Topics         = TopicVertexType::GetPtr( (TopicVertexOID) args.Topics_OID);
+  auto GlobalIDS      = GlobalIDType::GetPtr ((GlobalIDOID) args.GlobalIDS_OID);
+  auto Sends          = SendsEdgeType::GetPtr( (SendsEdgeOID) args.Sends_OID);
+
+  while (start < end) {
+    getline(file, line);
+    start += line.size() + 1;
+    if (line[0] == '#') continue;                                // skip comments
+    std::vector <std::string> tokens = split(line, ',', 11);     // delimiter and # tokens set for wmd data file
+
+    SendsEdge record(tokens);
+    Sends->BufferedAsyncInsert(handle, record.key(), record);
+    // Server Vertices
+    GlobalIDS->BufferedAsyncInsert(handle, record.src_device, Vertex(0,1,record.src_type));
+    GlobalIDS->BufferedAsyncInsert(handle, record.dst_device,  Vertex(0,0,record.dst_type));
+    
+    // Protocol -> Topics Vertex?
+  }
 
   file.close();
 }
