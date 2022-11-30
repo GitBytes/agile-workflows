@@ -72,6 +72,12 @@ class PersonVertex {
       glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
+    PersonVertex(std::string id_)
+    {
+      id    = ENCODE<uint64_t, std::string, UINT>(id_);
+      glbid = shad::data_types::kNullValue<uint64_t>;
+    }
+
     PersonVertex (std::vector <std::string> & tokens) {
       id    = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
       glbid = shad::data_types::kNullValue<uint64_t>;
@@ -87,6 +93,12 @@ class ServerVertex {
 
     ServerVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
+      glbid = shad::data_types::kNullValue<uint64_t>;
+    }
+
+    ServerVertex(std::string id_)
+    {
+      id    = ENCODE<uint64_t, std::string, UINT>(id_);
       glbid = shad::data_types::kNullValue<uint64_t>;
     }
 

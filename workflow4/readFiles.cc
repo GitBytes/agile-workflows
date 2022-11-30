@@ -181,13 +181,13 @@ void readFileCoffee(Handle & handle, const RF_args_t & args) {
          std::swap(purchase.buyer, purchase.seller);
          Purchases->BufferedAsyncInsert(handle, purchase.key(), purchase);
 
-         GlobalIDS->BufferedAsyncInsert(handle, sale.seller, Vertex(0,1,sale.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, sale.buyer,  Vertex(0,0,sale.dst_type));
-         GlobalIDS->BufferedAsyncInsert(handle, purchase.buyer, Vertex(0,1,purchase.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, purchase.seller,  Vertex(0,0,purchase.dst_type));
+         PersonVertex seller(tokens[1]);
+         PersonVertex buyer(tokens[2]);
+         Persons->BufferedAsyncInsert(handle, seller.key(), seller);
+         Persons->BufferedAsyncInsert(handle, buyer.key(), buyer);
+
          // Topic Vertex
          TopicVertex topic(tokens);
-     //     GlobalIDS->BufferedAsyncInsert(handle, topic.id, Vertex(0,0, topic.type));
          Topics->BufferedAsyncInsert(handle, topic.key(), topic);
     } else if (tokens[0] == "Purchase") {
          PurchaseEdge purchase(tokens);
@@ -197,13 +197,13 @@ void readFileCoffee(Handle & handle, const RF_args_t & args) {
          std::swap(sale.seller, sale.buyer);
          Sales->BufferedAsyncInsert(handle, sale.key(), sale);
 
-         GlobalIDS->BufferedAsyncInsert(handle, sale.seller, Vertex(0,1,sale.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, sale.buyer,  Vertex(0,0,sale.dst_type));
-         GlobalIDS->BufferedAsyncInsert(handle, purchase.buyer, Vertex(0,1,purchase.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, purchase.seller,  Vertex(0,0,purchase.dst_type));
+         PersonVertex buyer(tokens[1]);
+         PersonVertex seller(tokens[2]);
+         Persons->BufferedAsyncInsert(handle, seller.key(), seller);
+         Persons->BufferedAsyncInsert(handle, buyer.key(), buyer);
+
          // Topic Vertex
          TopicVertex topic(tokens);
-     //     GlobalIDS->BufferedAsyncInsert(handle, topic.id, Vertex(0,0, topic.type));
          Topics->BufferedAsyncInsert(handle, topic.key(), topic);
   } }
 
@@ -232,6 +232,7 @@ void readFileSocial(Handle & handle, const RF_args_t & args) {
 
   auto GlobalIDS    = GlobalIDType::GetPtr ((GlobalIDOID) args.GlobalIDS_OID);
   auto Friends      = FriendOfEdgeType::GetPtr ((FriendOfEdgeOID) args.Friends_OID);
+  auto Persons      = PersonVertexType::GetPtr( (PersonVertexOID) args.Persons_OID);
 
   while (start < end) {
     getline(file, line);
@@ -240,10 +241,10 @@ void readFileSocial(Handle & handle, const RF_args_t & args) {
     std::vector <std::string> tokens = split(line, ',', 2);     // delimiter and # tokens set for wmd data file
 
     // Person Vertices
-    uint64_t person1_key = ENCODE<uint64_t, std::string, UINT>(tokens[0]);
-    GlobalIDS->BufferedAsyncInsert(handle, person1_key, Vertex(0, 0, TYPES::PERSON));
-    uint64_t person2_key = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
-    GlobalIDS->BufferedAsyncInsert(handle, person2_key, Vertex(0, 0, TYPES::PERSON));
+    PersonVertex person1(tokens[0]);
+    PersonVertex person2(tokens[1]);
+    Persons->BufferedAsyncInsert(handle, person1.key(), person1);
+    Persons->BufferedAsyncInsert(handle, person2.key(), person2);
 
     FriendOfEdge friends(tokens);
     Friends->BufferedAsyncInsert(handle, friends.key(), friends);
@@ -272,7 +273,7 @@ void readFileCyber(Handle & handle, const RF_args_t & args) {
   if (start != 0) { getline(file, line); start += line.size() + 1; }     // discard partial line
   if (this_locale == num_locales - 1) end = stats.st_size;               // last locale processes to end of file
 
-  auto ServerVertices = ServerVertexType::GetPtr( (ServerVertexOID) args.ServerVertices_OID);
+  auto Servers = ServerVertexType::GetPtr( (ServerVertexOID) args.Servers_OID);
   auto Topics         = TopicVertexType::GetPtr( (TopicVertexOID) args.Topics_OID);
   auto GlobalIDS      = GlobalIDType::GetPtr ((GlobalIDOID) args.GlobalIDS_OID);
   auto Sends          = SendsEdgeType::GetPtr( (SendsEdgeOID) args.Sends_OID);
@@ -286,9 +287,10 @@ void readFileCyber(Handle & handle, const RF_args_t & args) {
     SendsEdge record(tokens);
     Sends->BufferedAsyncInsert(handle, record.key(), record);
     // Server Vertices
-    GlobalIDS->BufferedAsyncInsert(handle, record.src_device, Vertex(0,1,record.src_type));
-    GlobalIDS->BufferedAsyncInsert(handle, record.dst_device,  Vertex(0,0,record.dst_type));
-    
+    ServerVertex server1(tokens[0]);
+    ServerVertex server2(tokens[1]);
+    Servers->BufferedAsyncInsert(handle, server1.key(), server1);
+    Servers->BufferedAsyncInsert(handle, server2.key(), server2);
     // Protocol -> Topics Vertex?
   }
 
@@ -315,8 +317,8 @@ void readFileUses(Handle & handle, const RF_args_t & args) {
   if (start != 0) { getline(file, line); start += line.size() + 1; }     // discard partial line
   if (this_locale == num_locales - 1) end = stats.st_size;               // last locale processes to end of file
 
-//   auto ServerVertices = ServerVertexType::GetPtr( (ServerVertexOID) args.ServerVertices_OID);
-//   auto Topics         = TopicVertexType::GetPtr( (TopicVertexOID) args.Topics_OID);
+  auto Servers = ServerVertexType::GetPtr( (ServerVertexOID) args.Servers_OID);
+  auto Persons      = PersonVertexType::GetPtr( (PersonVertexOID) args.Persons_OID);
   auto GlobalIDS      = GlobalIDType::GetPtr ((GlobalIDOID) args.GlobalIDS_OID);
   auto Uses          = UsesEdgeType::GetPtr( (UsesEdgeOID) args.Sends_OID);
 
@@ -327,11 +329,11 @@ void readFileUses(Handle & handle, const RF_args_t & args) {
     std::vector <std::string> tokens = split(line, ',', 2);     // delimiter and # tokens set for wmd data file
 
     // Person Vertices
-    uint64_t person = ENCODE<uint64_t, std::string, UINT>(tokens[0]);
-    GlobalIDS->BufferedAsyncInsert(handle, person, Vertex(0, 0, TYPES::PERSON));
-    uint64_t server = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
-    GlobalIDS->BufferedAsyncInsert(handle, server, Vertex(0, 0, TYPES::SERVER));
-
+    PersonVertex person(tokens[0]);
+    ServerVertex server(tokens[1]);
+    Persons->BufferedAsyncInsert(handle, person.key(), person);
+    Servers->BufferedAsyncInsert(handle, server.key(), server);
+    
     UsesEdge record(tokens);
     Sends->BufferedAsyncInsert(handle, record.key(), record);
   }
@@ -378,10 +380,11 @@ void readFileCommercial(Handle & handle, const RF_args_t & args) {
          std::swap(purchase.buyer, purchase.seller);
          Purchases->BufferedAsyncInsert(handle, purchase.key(), purchase);
 
-         GlobalIDS->BufferedAsyncInsert(handle, sale.seller, Vertex(0,1,sale.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, sale.buyer,  Vertex(0,0,sale.dst_type));
-         GlobalIDS->BufferedAsyncInsert(handle, purchase.buyer, Vertex(0,1,purchase.src_type));
-         GlobalIDS->BufferedAsyncInsert(handle, purchase.seller,  Vertex(0,0,purchase.dst_type));
+         PersonVertex seller(tokens[1]);
+         PersonVertex buyer(tokens[2]);
+         Persons->BufferedAsyncInsert(handle, seller.key(), seller);
+         Persons->BufferedAsyncInsert(handle, buyer.key(), buyer);
+
          // Topic Vertex - product
          TopicVertex topic(tokens);
          Topics->BufferedAsyncInsert(handle, topic.key(), topic);
