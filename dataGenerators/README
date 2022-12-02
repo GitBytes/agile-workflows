@@ -1,0 +1,35 @@
+1) data.csv is the baseline input data set for Workflows 1 and 2  with  approximately 10M vertices and 48M
+   edges. data.stats gives the statistics for the standard data set. The data set includes one instance of
+   the WMD pattern (see file patternRecords).
+
+2) data.10.csv is a reduced data set approximately 1/10-th the size of the standard data sets. It includes
+   the records of the pattern in the standard data set. data.10.stats gives the statistics for the reduced
+   data sets.
+
+3) data.200.csv is an expanded data set approximately twice the size of the standard data sets. It includes
+   the records of the pattern in the standard data set. data.200.stats gives the statistics for the reduced
+   data sets.
+
+4) To compute the statistics for a data set, type
+
+          python stats.py <data file> <output stats file>
+
+   For example, data.stats was created by typing
+
+          python stats.py data.csv data.stats
+
+5) To generate a reduced data set from a data set, type
+
+          python reduceData.py <data file> <reduced file> <reduction ratio>
+
+   where <reduction ratio> is a real number (0.0, 1.0]. For example, data.10.csv was created by typing
+
+          python reduceData.py data.csv data.10.csv .1
+
+6) To generate an expanded data set from a data set, type
+
+          python expandData.py <data file> <expanded file> <expansion> <seed>
+
+   where <expansion> is a real number greater than 1.0. For example, data.200.csv was created by typing
+
+          python expandData.py data.csv data.200.csv 2.0 0

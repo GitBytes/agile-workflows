@@ -83,11 +83,14 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
         std::make_pair(V_localID, V_localID)); // insert self edge into edge set
   }
 
-  uint64_t level = 0; // BFS controls
+  uint64_t level = 1; // level 0 was just consumed in the previous block
   auto next = frontier.begin();
   auto end_of_level = frontier.end();
   uint64_t added_neighbors = 0;
-  uint64_t max_neighbors = levels[0];
+  uint64_t max_neighbors = levels[level - 1];
+
+  std::random_device rd;
+  std::mt19937 g(rd());
 
   while (level < levels.size()) {
     if (next == end_of_level)
@@ -101,46 +104,57 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
     uint64_t endEL = startEL + V.edges;
     uint64_t num_neighbors = endEL - startEL;
 
-    std::vector<Edge> neighborhood(num_neighbors);
-    Edges->AsyncGetElements(handle, neighborhood.data(), startEL,
-                            num_neighbors);
+    std::vector<Edge> neighborhood;
+    if (level < (levels.size() - 1) ||
+        vertex_set.find(glbID) != vertex_set.end()) {
+      neighborhood.resize(num_neighbors);
+      Edges->AsyncGetElements(handle, neighborhood.data(), startEL,
+                              num_neighbors);
 
-    shad::rt::waitForCompletion(handle);
+      shad::rt::waitForCompletion(handle);
 
-    for (uint64_t i = 0; i < num_neighbors; ++i) {
-      uint64_t glbID = neighborhood[i].dst_glbid;
-      Vertex U = Vertices->At(glbID);
+      std::shuffle(neighborhood.begin(), neighborhood.end(), g);
+    }
 
-      if (vertex_set.find(glbID) == vertex_set.end()) { // U is not visited
-        if (added_neighbors < max_neighbors)
+    added_neighbors = 0;
+    for (uint64_t i = 0; i < neighborhood.size(); ++i) {
+      uint64_t uGlbID = neighborhood[i].dst_glbid;
+      Vertex U = Vertices->At(uGlbID);
+
+      if (level <
+              (levels.size() -
+               1) && // The last level is just a fake to cover a corner case.
+          vertex_set.find(uGlbID) == vertex_set.end()) { // U is not visited
+        if (added_neighbors >= max_neighbors)
           continue; // ... if no more neighbors to add, continue
 
-        added_neighbors++;
         uint64_t U_localID = localID++; // ... get next local id
 
-        U.id = U_localID;          // ... assign U a local id
-        vertex_set[glbID] = U;     // ... insert U into vertex set
-        frontier.push_back(glbID); // ... push U's global id onto frontier
+        U.id = U_localID;           // ... assign U a local id
+        vertex_set[uGlbID] = U;     // ... insert U into vertex set
+        frontier.push_back(uGlbID); // ... push U's global id onto frontier
         edges.insert(std::make_pair(
             U_localID, U_localID)); // ... insert self edge into edge set
         edges.insert(std::make_pair(
             V_localID, U_localID)); // ... insert V-U edge into edge set
         edges.insert(std::make_pair(
             U_localID, V_localID)); // ... insert U-V edge into edge set
-
-      } else {                                     // U is visited
-        uint64_t U_localID = vertex_set[glbID].id; // ... get U's local id
-        edges.insert(std::make_pair(
-            V_localID, U_localID)); // ... insert V-U edge into edge set
-        edges.insert(std::make_pair(
-            U_localID, V_localID)); // ... insert U-V edge into edge set
+      } else {                      // U is visited
+        if (level < (levels.size() - 1) ||
+            vertex_set.find(uGlbID) != vertex_set.end()) {
+          uint64_t U_localID = vertex_set[uGlbID].id; // ... get U's local id
+          edges.insert(std::make_pair(
+              V_localID, U_localID)); // ... insert V-U edge into edge set
+          edges.insert(std::make_pair(
+              U_localID, V_localID)); // ... insert U-V edge into edge set
+        }
       }
+      added_neighbors++;
     }
 
     if (next == end_of_level) { // go to next level
       level++;
-      added_neighbors = 0;
-      max_neighbors = levels[level];
+      max_neighbors = levels[level - 1];
       end_of_level = frontier.end();
     }
   }
@@ -152,7 +166,7 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
   std::vector<int64_t> sources;
   std::vector<int64_t> destinations;
 
-  for (auto edge : edges) {
+  for (auto &edge : edges) {
     sources.push_back((int64_t)edge.first);
     destinations.push_back((int64_t)edge.second);
   }

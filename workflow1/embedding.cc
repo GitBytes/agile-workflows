@@ -150,27 +150,66 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
   auto reducerArrayOID =
       shad::Array<uint64_t>::Create(shad::rt::numLocalities(), 0ul)
           ->GetGlobalID();
+  auto localSamplesProcessedOID =
+      shad::Array<uint64_t>::Create(shad::rt::numLocalities(), 0ul)
+          ->GetGlobalID();
+  auto localSamplesCorrectOID =
+      shad::Array<uint64_t>::Create(shad::rt::numLocalities(), 0ul)
+          ->GetGlobalID();
   SetUpTrainingContext<VertexClassificationWMDDataset> setup(
       Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"],
-      Embeddings->GetGlobalID(), reducerArrayOID, modelFileName);
+      Embeddings->GetGlobalID(), reducerArrayOID, localSamplesProcessedOID,
+      localSamplesCorrectOID, modelFileName);
   shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
                  setup);
 
   std::cout << "Initialized Training State" << std::endl;
 
   const size_t numEpochs = 200;
+  auto localSamplesProcessedPtr =
+      shad::Array<uint64_t>::GetPtr(localSamplesProcessedOID);
+  auto localSamplesCorrectPtr =
+      shad::Array<uint64_t>::GetPtr(localSamplesCorrectOID);
   for (size_t epoch = 0; epoch < numEpochs; ++epoch) {
+    std::cout << "-- Epoch " << epoch + 1
+              << " ------------------------------------------------------------"
+                 "--------"
+              << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
     shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
                    agile::workflow1::vcTrainLoop<
                        TrainingState<VertexClassificationWMDDataset>>);
 
-    vcReduceGradients<TrainingState<VertexClassificationWMDDataset>>(
-        TSs->begin(), TSs->end());
+    auto train_size = shad::reduce(shad::distributed_parallel_tag{},
+                                   localSamplesProcessedPtr->begin(),
+                                   localSamplesProcessedPtr->end());
+
+    auto train_correct = shad::reduce(shad::distributed_parallel_tag{},
+                                      localSamplesCorrectPtr->begin(),
+                                      localSamplesCorrectPtr->end());
+
+    std::cout << "Train Accuracy: " << train_correct << "/" << train_size
+              << " = " << static_cast<float>(train_correct) / train_size
+              << std::endl;
+    if (shad::rt::numLocalities() > 1) {
+      vcReduceGradients<TrainingState<VertexClassificationWMDDataset>>(
+          TSs->begin(), TSs->end());
+    }
 
     shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
                    agile::workflow1::vcBackPropAndEvaluationLoop<
                        TrainingState<VertexClassificationWMDDataset>>);
+    auto test_size = shad::reduce(shad::distributed_parallel_tag{},
+                                  localSamplesProcessedPtr->begin(),
+                                  localSamplesProcessedPtr->end());
+
+    auto test_correct = shad::reduce(shad::distributed_parallel_tag{},
+                                     localSamplesCorrectPtr->begin(),
+                                     localSamplesCorrectPtr->end());
+
+    std::cout << "Test Accuracy: " << test_correct << "/" << test_size << " = "
+              << static_cast<float>(test_correct) / test_size << std::endl;
+
     auto end = std::chrono::high_resolution_clock::now();
 
     std::cout << shad::rt::thisLocality() << " Time (s) : "

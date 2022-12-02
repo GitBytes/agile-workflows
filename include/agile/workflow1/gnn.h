@@ -84,13 +84,15 @@ public:
   std::shared_ptr<torch::optim::Adam> Adam{nullptr};
   std::vector<torch::jit::IValue> Inputs;
   ArrayOID ReducerLocalPtrOID{ArrayOID::kNullID};
+  ArrayOID LocalSamplesProcessedOID{ArrayOID::kNullID};
+  ArrayOID LocalSamplesCorrectOID{ArrayOID::kNullID};
 };
 
 template <typename Dataset> class SetUpTrainingContext {
   using ArrayOID = typename shad::Array<uint64_t>::ObjectID;
 
-  const int64_t trainingSetSize = 500;
-  const int64_t testSetSize = 500;
+  const int64_t trainingSetSize = 1000;
+  const int64_t testSetSize = 1000;
   const size_t batchSize = 100;
 
   char modelFileName_[256];
@@ -98,15 +100,21 @@ template <typename Dataset> class SetUpTrainingContext {
   XEdgeOID _edgesOID;
   ArrayOID _featuresOID;
   ArrayOID _reducerArrayOID;
+  ArrayOID _localSamplesProcessedOID;
+  ArrayOID _localSamplesCorrectOID;
 
 public:
   SetUpTrainingContext(const VertexOID &VertexArrayID,
                        const XEdgeOID &EdgeArrayOID,
                        const ArrayOID &FeaturesArrayID,
                        const ArrayOID &ReducerArrayOID,
+                       const ArrayOID &LocalSamplesProcessedOID,
+                       const ArrayOID &LocalSamplesCorrectOID,
                        std::string modelFileName)
       : _verticesOID(VertexArrayID), _edgesOID(EdgeArrayOID),
-        _featuresOID(FeaturesArrayID), _reducerArrayOID(ReducerArrayOID) {
+        _featuresOID(FeaturesArrayID), _reducerArrayOID(ReducerArrayOID),
+        _localSamplesProcessedOID(LocalSamplesProcessedOID),
+        _localSamplesCorrectOID(LocalSamplesCorrectOID) {
     if (modelFileName.size() > 256)
       throw "Filename too long";
 
@@ -144,7 +152,7 @@ public:
     }
 
     const double learningRate = 0.01;
-    const int numEpochs = 200;
+    const int numEpochs = 100;
     TS.Adam = std::make_unique<torch::optim::Adam>(
         parameters, torch::optim::AdamOptions(learningRate).weight_decay(5e-4));
 
@@ -152,6 +160,8 @@ public:
     TS.Inputs.resize(2);
 
     TS.ReducerLocalPtrOID = _reducerArrayOID;
+    TS.LocalSamplesProcessedOID = _localSamplesProcessedOID;
+    TS.LocalSamplesCorrectOID = _localSamplesCorrectOID;
   }
 };
 
@@ -172,7 +182,7 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
   for (auto &batch : *TS.TrainDataLoader) {
     TS.Inputs[0] = batch.Features;
     TS.Inputs[1] = batch.EdgeIndex;
-    train_size += batch.Features.size(0);
+    train_size += torch::sum(batch.Mask).template item<int64_t>();
     auto groundTruth = batch.Labels;
 
     TS.Module.train();
@@ -187,8 +197,14 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
     auto equal = prediction.eq(groundTruth);
     train_correct += equal.index({batch.Mask}).sum().template item<int64_t>();
   }
-  std::cout << shad::rt::thisLocality() << " Train Accuracy: "
-            << static_cast<float>(train_correct) / train_size << std::endl;
+  auto localSamplesProcessedPtr =
+      shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
+  auto localSamplesCorrectPtr =
+      shad::Array<uint64_t>::GetPtr(TS.LocalSamplesCorrectOID);
+  localSamplesProcessedPtr->InsertAt(
+      static_cast<uint32_t>(shad::rt::thisLocality()), train_size);
+  localSamplesCorrectPtr->InsertAt(
+      static_cast<uint32_t>(shad::rt::thisLocality()), train_correct);
 }
 
 template <typename TrainingState, typename TrainingStateItr>
@@ -196,7 +212,7 @@ void vcReduceGradients(TrainingStateItr B, TrainingStateItr E) {
   auto start = std::chrono::high_resolution_clock::now();
   int64_t numRanks = shad::rt::numLocalities();
 
-  std::map<at::ScalarType, MPI_Datatype> torchToMPITypes = {
+  static const std::map<at::ScalarType, MPI_Datatype> torchToMPITypes = {
       {at::kByte, MPI_UNSIGNED_CHAR},
       {at::kChar, MPI_CHAR},
       {at::kDouble, MPI_DOUBLE},
@@ -228,12 +244,12 @@ void vcReduceGradients(TrainingStateItr B, TrainingStateItr E) {
     reducer->AllReduce(MPI_SUM, (*itr2).mutable_grad().numel());
 
     shad::for_each(shad::distributed_parallel_tag{}, B, E,
-                   [=](TrainingState &TS){
+                   [=](TrainingState &TS) {
                      auto itr = TS.Module.parameters().begin();
                      for (int j = 0; j < i; ++j)
                        ++itr;
                      (*itr).mutable_grad().data() =
-                       (*itr).mutable_grad().data() / numRanks;
+                         (*itr).mutable_grad().data() / numRanks;
                    });
   }
   auto end = std::chrono::high_resolution_clock::now();
@@ -252,7 +268,7 @@ void vcBackPropAndEvaluationLoop(TrainingState &TS) {
   TS.Adam->zero_grad();
 
   for (auto &batch : *TS.TestDataLoader) {
-    test_size += batch.Features.size(0);
+    test_size += torch::sum(batch.Mask).template item<int64_t>();
     TS.Module.eval();
     TS.Inputs[0] = batch.Features;
     TS.Inputs[1] = batch.EdgeIndex;
@@ -264,9 +280,14 @@ void vcBackPropAndEvaluationLoop(TrainingState &TS) {
     test_correct += equal.index({batch.Mask}).sum().template item<int64_t>();
   }
 
-  std::cout << shad::rt::thisLocality()
-            << "Test Accuracy: " << static_cast<float>(test_correct) / test_size
-            << std::endl;
+  auto localSamplesProcessedPtr =
+      shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
+  auto localSamplesCorrectPtr =
+      shad::Array<uint64_t>::GetPtr(TS.LocalSamplesCorrectOID);
+  localSamplesProcessedPtr->InsertAt(
+      static_cast<uint32_t>(shad::rt::thisLocality()), test_size);
+  localSamplesCorrectPtr->InsertAt(
+      static_cast<uint32_t>(shad::rt::thisLocality()), test_correct);
 }
 
 typename shad::Array<
