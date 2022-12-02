@@ -305,15 +305,15 @@ class SendsEdge {
       dst_bytes   = ENCODE<uint64_t, std::string, UINT>(tokens[10]);
       src_type = TYPES::SERVER;
       dst_type = TYPES::SERVER;
-    } }
+    }
 
     uint64_t key() { return src_device; }
     uint64_t src() { return src_device; }
     uint64_t dst() { return dst_device; }
 };
 
-using GlobalIDType = shad::Hashmap<uint64_t, Vertex, shad::MemCmp<uint64_t>, globalIdInserter<Vertex> >;
-using GlobalIDOID  = shad::ObjectIdentifier<GlobalIDType>;
+// using GlobalIDType = shad::Hashmap<uint64_t, Vertex, shad::MemCmp<uint64_t>, globalIdInserter<Vertex> >;
+// using GlobalIDOID  = shad::ObjectIdentifier<GlobalIDType>;
 
 using PersonVertexType = shad::Hashmap<uint64_t, PersonVertex>;
 using PersonVertexOID  = shad::ObjectIdentifier<PersonVertexType>;
