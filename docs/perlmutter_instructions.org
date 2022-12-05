@@ -1,7 +1,6 @@
 * AGILE Workflows
 ** Installation Instructions on Perlmutter
 
-
 *** Load the modules and prepare for the build
    #+BEGIN_SRC: bash
    source scripts/perlmutter_modules.sh
@@ -59,7 +58,6 @@ srun -N num_nodes -n num_nodes*2 -c 64 --cpu-bind=cores ./build/bin/do-wk2_exact
 cd agile-workflows
 srun -N num_nodes -n num_nodes*2 -c 64 --cpu-bind=cores ./build/bin/do-wk2_approx ../wmd-dataset/pattern1.csv ../wmd-dataset/data.001.csv <number of matches>
 #+END_SRC
-
 
 **** Partial Matching
 
