@@ -143,25 +143,29 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 
   std::cout << "Embeddings created" << std::endl;
 
-  size_t parallelThreads = shad::rt::numLocalities();
+  size_t parallelThreads = shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
   TrainingState<VertexClassificationWMDDataset> initState;
   auto TSs = shad::Array<TrainingState<VertexClassificationWMDDataset>>::Create(
       parallelThreads, initState);
   auto reducerArrayOID =
-      shad::Array<uint64_t>::Create(shad::rt::numLocalities(), 0ul)
+      shad::Array<uint64_t>::Create(parallelThreads, 0ul)
           ->GetGlobalID();
   auto localSamplesProcessedOID =
-      shad::Array<uint64_t>::Create(shad::rt::numLocalities(), 0ul)
+      shad::Array<uint64_t>::Create(parallelThreads, 0ul)
           ->GetGlobalID();
   auto localSamplesCorrectOID =
-      shad::Array<uint64_t>::Create(shad::rt::numLocalities(), 0ul)
+      shad::Array<uint64_t>::Create(parallelThreads, 0ul)
           ->GetGlobalID();
   SetUpTrainingContext<VertexClassificationWMDDataset> setup(
       Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"],
       Embeddings->GetGlobalID(), reducerArrayOID, localSamplesProcessedOID,
       localSamplesCorrectOID, modelFileName);
-  shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
-                 setup);
+  // shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+  //                setup);
+  TSs->ForEach([](size_t tid, TrainingState<VertexClassificationWMDDataset> & TS,
+                  SetUpTrainingContext<VertexClassificationWMDDataset> &setup) {
+    setup(tid, TS);
+  }, setup);
 
   std::cout << "Initialized Training State" << std::endl;
 

@@ -86,14 +86,15 @@ public:
   ArrayOID ReducerLocalPtrOID{ArrayOID::kNullID};
   ArrayOID LocalSamplesProcessedOID{ArrayOID::kNullID};
   ArrayOID LocalSamplesCorrectOID{ArrayOID::kNullID};
+  size_t TID{0};
 };
 
 template <typename Dataset> class SetUpTrainingContext {
   using ArrayOID = typename shad::Array<uint64_t>::ObjectID;
 
-  const int64_t trainingSetSize = 1000;
-  const int64_t testSetSize = 1000;
-  const size_t batchSize = 100;
+  const int64_t trainingSetSize = 10000;
+  const int64_t testSetSize = 10000;
+  const size_t batchSize = 10;
 
   char modelFileName_[256];
   VertexOID _verticesOID;
@@ -121,7 +122,9 @@ public:
     std::strcpy(modelFileName_, modelFileName.c_str());
   }
 
-  void operator()(TrainingState<Dataset> &TS) {
+  void operator()(size_t tid, TrainingState<Dataset> &TS) {
+    // TID
+    TS.TID = tid;
     // Load Module
     TS.Module = torch::jit::load(modelFileName_);
     // Load Dataset
@@ -132,18 +135,25 @@ public:
     using namespace torch::indexing;
     auto options = torch::TensorOptions().dtype(torch::kBool);
 
+    // Number threads
+    size_t total_ranks = shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
+
+
     // Create DataLoader
     uint32_t thisLocality = static_cast<uint32_t>(shad::rt::thisLocality());
     auto train_sampler = torch::data::samplers::DistributedRandomSampler(
-        trainingSetSize, shad::rt::numLocalities(), thisLocality, false);
+        trainingSetSize, total_ranks, tid, false);
     auto test_sampler = torch::data::samplers::DistributedRandomSampler(
-        testSetSize, shad::rt::numLocalities(), thisLocality, false);
+        testSetSize, total_ranks, tid, false);
     auto stackedDataSet = TS.DataSet.map(
         torch::data::transforms::Stack<typename Dataset::Data>());
+
+    torch::data::DataLoaderOptions DLOptions(batchSize);
+
     TS.TrainDataLoader =
-        torch::data::make_data_loader(stackedDataSet, train_sampler, batchSize);
+        torch::data::make_data_loader(stackedDataSet, train_sampler, DLOptions);
     TS.TestDataLoader =
-        torch::data::make_data_loader(stackedDataSet, test_sampler, batchSize);
+        torch::data::make_data_loader(stackedDataSet, test_sampler, DLOptions);
 
     // Create Optimizer
     std::vector<at::Tensor> parameters;
@@ -158,7 +168,6 @@ public:
 
     // Set inputs
     TS.Inputs.resize(2);
-
     TS.ReducerLocalPtrOID = _reducerArrayOID;
     TS.LocalSamplesProcessedOID = _localSamplesProcessedOID;
     TS.LocalSamplesCorrectOID = _localSamplesCorrectOID;
@@ -201,10 +210,8 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
       shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
   auto localSamplesCorrectPtr =
       shad::Array<uint64_t>::GetPtr(TS.LocalSamplesCorrectOID);
-  localSamplesProcessedPtr->InsertAt(
-      static_cast<uint32_t>(shad::rt::thisLocality()), train_size);
-  localSamplesCorrectPtr->InsertAt(
-      static_cast<uint32_t>(shad::rt::thisLocality()), train_correct);
+  localSamplesProcessedPtr->InsertAt(TS.TID, train_size);
+  localSamplesCorrectPtr->InsertAt(TS.TID, train_correct);
 }
 
 template <typename TrainingState, typename TrainingStateItr>
@@ -284,10 +291,8 @@ void vcBackPropAndEvaluationLoop(TrainingState &TS) {
       shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
   auto localSamplesCorrectPtr =
       shad::Array<uint64_t>::GetPtr(TS.LocalSamplesCorrectOID);
-  localSamplesProcessedPtr->InsertAt(
-      static_cast<uint32_t>(shad::rt::thisLocality()), test_size);
-  localSamplesCorrectPtr->InsertAt(
-      static_cast<uint32_t>(shad::rt::thisLocality()), test_correct);
+  localSamplesProcessedPtr->InsertAt(TS.TID , test_size);
+  localSamplesCorrectPtr->InsertAt(TS.TID, test_correct);
 }
 
 typename shad::Array<
