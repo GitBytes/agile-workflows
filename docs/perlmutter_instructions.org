@@ -1,0 +1,67 @@
+* AGILE Workflows
+** Installation Instructions on Perlmutter
+
+*** Load the modules and prepare for the build
+   #+BEGIN_SRC: bash
+   source scripts/perlmutter_modules.sh
+   #+END_SRC
+*** First time setup and dependency installation
+   #+BEGIN_SRC: bash
+   source scripts/perlmutter_setup.sh
+   #+END_SRC
+*** Build the agile-workflow package
+    The conan install command is only needed the first time or after updating dependencies.
+
+    #+BEGIN_SRC: bash
+    conan install --install-folder build . --build missing
+    conan build --build-folder build .
+    #+END_SRC
+
+** Get the datasets
+
+Download the AGILE WMD Dataset:
+#+BEGIN_SRC: bash
+git clone git@socks.lbl.gov:iarpa-agile-gfi/pnnl/wmd-dataset.git
+#+END_SRC
+
+** Run the AGILE workflows
+Recipe to run SHAD programs on Perlmutter:
+#+BEGIN_SRC: bash
+srun -N num_nodes -n num_nodes*2 -c 64 --cpu-bind=cores path-to-your-bin --gmt_num_workers 30 --gmt_num_helpers 1
+#+END_SRC
+where num_nodes is the number of nodes in the current allocation and path-to-your-bin is the path to the SHAD executable.
+Recipe to submit and run:
+#+BEGIN_SRC: bash
+salloc -A your_account -C cpu -q regular --time=something_reasonable --nodes num_nodes srun -N num_nodes -n num_nodes*2 -c 64 --cpu-bind=cores path-to-your-bin --gmt_num_workers 30 --gmt_num_helpers 1
+#+END_SRC
+where your_account is your account on Perlmutter, and format for time is H:MM:SS
+
+*** Workflow 1
+
+#+BEGIN_SRC: bash
+cd agile-workflows
+srun -N num_nodes -n num_nodes*2 -c 64 --cpu-bind=cores ./build/bin/do-workflow1 ../wmd-dataset/data.001.csv pytorch-models/workflow1-GNN.pt
+#+END_SRC
+
+*** Workflow 2
+
+**** Exact Matching
+
+#+BEGIN_SRC: bash
+cd agile-workflows
+srun -N num_nodes -n num_nodes*2 -c 64 --cpu-bind=cores ./build/bin/do-wk2_exact ../wmd-dataset/data.001.csv 
+#+END_SRC
+
+**** Approximate Matching
+
+#+BEGIN_SRC: bash
+cd agile-workflows
+srun -N num_nodes -n num_nodes*2 -c 64 --cpu-bind=cores ./build/bin/do-wk2_approx ../wmd-dataset/pattern1.csv ../wmd-dataset/data.001.csv <number of matches>
+#+END_SRC
+
+**** Partial Matching
+
+#+BEGIN_SRC: bash
+cd agile-workflows
+srun -N num_nodes -n num_nodes*2 -c 64 --cpu-bind=cores ./build/bin/do-wk2_partial ../wmd-dataset/data.001.csv
+#+END_SRC

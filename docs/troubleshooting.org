@@ -1,0 +1,41 @@
+* Common issues and possible solutions
+
+** General hints:
+Follow the provided instructions and scripts for your target machine, if available.
+Make sure you have loaded the necessary modules (and env setup, if applicable) when starting a new session.
+
+** Build with Conan
+
+*** General hint:
+If none of the solutions below apply, and you see issues when building, try to remove the .conan folder in your home, and install again following the instructions.
+
+*** Version mismatch
+If for some reason a version mismatch failure occurs (and you do have the proper modules loaded), you can update manually the conan profile.
+Disabling the checks is not recommended, although possible.
+
+*** Missing library
+If conan reports an error regarding a missing library (e.g. gmt), that means that such library has not been built properly.
+Review the output associated to that build phase.
+
+
+** Running the apps
+
+*** "Error ENOMEM doing mmap()" and "failed to mmap stacks"
+Most times these relate to the way the applications are launched, and, in particular, the process binding.
+Make sure you are binding processes to nodes or sockets, and NOT to cores. This information is printed out by GMT as "nodes".
+GMT "nodes" correspond to mpi ranks, not to physical nodes.
+To fix this, follow the instructions for the target machine if available, or adjust the process binding depending on the system configuration.
+
+*** Recipe for setting GMT's number of workers and helpers
+num_helpers=1
+nuw_workers = "num_cores" - 2
+
+where "num_cores" is the number of physical cores per locale. 
+If you bind to node, it is the total number of cores.
+If you bind to socket, it is the number of cores per socket. The latter is typically total_number_of_cores/num_sockets
+
+*** Loading problems
+Make sure that your LD_LIBRARY_PATH variable includes all the required paths.
+
+
+
