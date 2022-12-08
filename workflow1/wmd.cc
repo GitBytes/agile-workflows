@@ -105,15 +105,17 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
     uint64_t num_neighbors = endEL - startEL;
 
     std::vector<Edge> neighborhood;
-    if (level < (levels.size() - 1) ||
-        vertex_set.find(glbID) != vertex_set.end()) {
-      neighborhood.resize(num_neighbors);
-      Edges->AsyncGetElements(handle, neighborhood.data(), startEL,
-                              num_neighbors);
+    if (num_neighbors != 0 && (level < (levels.size() - 1) ||
+                               vertex_set.find(glbID) != vertex_set.end())) {
+      neighborhood.resize(levels[level]);
+
+      std::uniform_int_distribution<int> D(0, num_neighbors - 1);
+      for (int i = 0; i < levels[level]; ++i) {
+        size_t v = D(g);
+        Edges->AsyncAt(handle, startEL + v, &neighborhood[i]);
+      }
 
       shad::rt::waitForCompletion(handle);
-
-      std::shuffle(neighborhood.begin(), neighborhood.end(), g);
     }
 
     added_neighbors = 0;
