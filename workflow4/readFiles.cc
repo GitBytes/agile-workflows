@@ -170,6 +170,10 @@ void readFileSocial(Handle & handle, const RF_args_t & args) {
 
     FriendOfEdge friends(tokens);
     Friends->BufferedAsyncInsert(handle, friends.key(), friends);
+
+    FriendOfEdge friends2(tokens);
+    std::swap(friends2.person1, friends2.person2);
+    Friends->BufferedAsyncInsert(handle, friends2.key(), friends2);
   }
 
   file.close();
