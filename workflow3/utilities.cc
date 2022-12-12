@@ -42,24 +42,64 @@
 //                       under Contract DE-AC05-76RL01830
 //===----------------------------------------------------------------------===//
 
-#ifndef GRAPHTYPES_H_
-#define GRAPHTYPES_H_
+#include "agile/workflow3/main.h"
+#include "agile/workflow3/graph.h"
 
-namespace agile::workflow4 {
+namespace agile::workflow3 {
 
-enum class TYPES {
-  PERSON,
-  SERVER,
-  TOPIC,
-  SALE,
-  PURCHASE,
-  USES,
-  SENDS,
-  NONE
-};
+uint64_t CHAR_TO_EL(char x) {
+  uint64_t result;
+  switch (x) {
+    case 'A': result =  0; break;
+    case 'C': result =  1; break;
+    case 'G': result =  2; break;
+    case 'T': result =  3; break;
+    case '*': result = 42; break;
+    default : result = ULLONG_MAX; break;
+  }
 
-constexpr uint64_t NUMTYPES = (uint64_t) TYPES::NONE;
+  return result;
+}
 
-} // namespace agile::workflow4
+char EL_TO_CHAR(uint64_t x) {
+  uint64_t result;
+  switch (x) {
+    case  0: result = 'A'; break;
+    case  1: result = 'C'; break;
+    case  2: result = 'G'; break;
+    case  3: result = 'T'; break;
+    case 42: result = '*'; break;
+    default: result = '*'; break;
+  }
 
-#endif // GRAPHTYPES_H
+  return result;
+}
+
+void int_fetch_add(Handle & handle, uint64_t pos, int64_t & elem, int64_t & incr) {
+  __sync_fetch_and_add(& elem, incr);
+}
+
+bool MN_comp(MacroNode & A, MacroNode & B) {
+  if (A.isPrefix != B.isPrefix) {                     // A and B are not both prefixes or suffixes
+     return A.isPrefix;                               // ... prefixes stored before suffixes
+  } else {                                            // A and B are both prefixes or suffixes
+     return (A.count.second > B.count.second) ||      // ... store in coverage - count order
+            ((A.count.second == B.count.second) && (A.count.first > B.count.first));
+} }
+
+std::string kmer_string(uint64_t kmer, uint64_t length) {
+  std::string str;
+  str.resize(length);
+
+  if (kmer == ULLONG_MAX) {
+     for (uint64_t i = 0; i < length; ++ i) str[i] = '*';
+  } else {
+     for (uint64_t i = 0; i < length; ++ i) {
+       str[length - i - 1] = EL_TO_CHAR(kmer & 3);
+       kmer = kmer >> 2;
+  }  }
+
+  return str;
+}
+
+} // namespace agile::workflow3
