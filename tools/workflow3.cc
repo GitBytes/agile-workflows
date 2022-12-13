@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
     if (count < min_count) {args.min_index = i; min_count = count;}
   }
 
-  shad::rt::asyncExecuteOnAll(handle, RemoveKmers, args);          // move kmers that appear > min_index to KVMap
+  shad::rt::asyncExecuteOnAll(handle, RemoveKmers, args);      // move kmers that appear > min_index to KVMap
   rt::waitForCompletion(handle);
   KVMap->WaitForBufferedInsert();
 
@@ -139,6 +139,7 @@ int main(int argc, char *argv[]) {
   // std::vector<std::pair<kmer_t,MacroNode>> global_MN_map(global_num_nodes); // new map for storing all the macro_nodes
   // generate_compacted_pakgraph(MN_map, global_MN_map);
   // traverse_pakgraph(global_MN_map, list_of_begin_kmers, partial_contig_list);
+  //
 
   return 0;
 }

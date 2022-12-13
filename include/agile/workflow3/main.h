@@ -60,6 +60,9 @@
 #define LARGE  50000000
 
 #define UINT_BITS 64
+#define SIZE_BP 2          // bits per base pair
+#define SIZE_BPV 256       // size of base pair vector in 64 bit words
+#define BP_PER_WORD 32     // number of base pairs per word = 64 / 2
 
 namespace agile::workflow3 {
 
