@@ -45,164 +45,132 @@
 #include "agile/wk2_partial/graph.h"
 #include "agile/wk2_partial/main.h"
 
+
+
 namespace shad
 {
   using namespace agile::wk2_partial;
   
+  std::set<std::pair<uint64_t, uint64_t>> SubPattern8; //a forumevent with jihad topic - key:forumevent id, value: forumid  
+  std::mutex SP8_mutex;
 
-// We are looking for a person with
-  // SP3 - 2 jihad forumeventss at a nyc forum
-  // SP12 - attended a forumevent which is in a forum from SP12
-  // SP5 - 1 purchase from a person with publication S5
-  // SP6- 3 purchases (bath bomb, pressure cooker, ammo from distributor
-  void PatternCheckForPerson(shad::rt::Handle & handle, const uint64_t &person, std::pair<uint64_t, time_t>& value, RF_args_t & args)
-  {
-      time_t SP12_date = shad::data_types::kNullValue<time_t>;  
-      //check if person fulfills SP6
-      if(value.first == 15){ // person purchased bath bomb, pressure cooker, ammunition from distributor, electronics 
-        
-        //check if person attended an event from a SP12 forum 
-        using SP12type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>; 
-        auto SubPattern12 = SP12type::GetPtr((shad::ObjectIdentifier<SP12type>)args.SubPattern12_OID);
-        auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.Authors_OID);
-        
-        //make sure there are entries in SP12 
-        if(!SubPattern12->Size())
-          return; //person cannot fulfill the pattern if SP12 is empty
-        
-        AuthorEdgeType::LookupResult events;             // get person's events
-        Authors->Lookup(person, & events);
-        
-        for (auto & EV : events.value) {   
-          if (EV.dst_type != TYPES::FORUMEVENT) continue;
-          
-          //get the forum of FE 
-          auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID)args.ForumEvents_OID);
-          ForumEventVertex FEV;
-          ForumEvents->Lookup(EV.item, &FEV);
-          std::pair<uint64_t, time_t> sp12_entry(shad::data_types::kNullValue<uint64_t>,shad::data_types::kNullValue<time_t>);
-          SubPattern12->Lookup(FEV.forum, &sp12_entry);
-          if( sp12_entry.first == shad::data_types::kNullValue<uint64_t> || sp12_entry.first < 3 )
-          {//no match in SP12 table 
-            continue;
-          }
-          else {
-            //This person attended a FE in a Forum that is in SP12, we want to record the earliest attendance to such forum event
-            if(SP12_date){
-              std::min(SP12_date, sp12_entry.second);
-            }
-            else{
-              SP12_date = sp12_entry.second;
-            }
-          }
+  void InsertSP8(shad::rt::Handle & handle, const std::pair<uint64_t, uint64_t>& input){
+    SubPattern8.insert(input);
+  }
+
+  void F9(shad::rt::Handle & handle, const uint64_t& forumID, std::pair<bool, uint64_t>& value, const uint64_t& personID){
+    if(value.first && value.second >1){
+      std::cout<<"FOUND THE PATTERN FOR PERSON:"<<personID<<std::endl;
+    }
+  }
+
+  //Function called for a person on Authors multimap (key:person, value: vec<AuthorEdge>) - a person who satisfies SP12, SP5, SP6
+  void F8(shad::rt::Handle & handle, const uint64_t& personID, std::vector<AuthorEdge>& value, RF_args_t & args){
+    
+    std::sort(value.begin(), value.end(), [](AuthorEdge a, AuthorEdge b) {
+      return a.item < b.item;
+    });
+
+
+    auto first1 = SubPattern8.begin();
+    auto last1 = SubPattern8.end();
+    auto first2 = value.begin();
+    auto last2 = value.end();
+
+    auto intersect = std::vector<std::pair<uint64_t, uint64_t>>(); 
+
+    while(first1 != last1 && first2 != last2) {
+      if ((*first1).first < (*first2).item) {
+        ++first1;
+      }
+      else {
+        if (!((*first2).item < (*first1).first)) {
+          intersect.push_back(*first1++);
         }
+        ++first2;
+      }
+    }
 
-        if(!SP12_date){
-          //std::cout<<"no SP12 match for person "<<person<<std::endl;
-          return; //we couldn't find a SP12 match for the person 
-        }
-        else{
-          //here we know this person satisfies SP6 and SP12, next we check if date requirement btw SP6 and SP12 is satisfied 
-          if( SP12_date < value.second){
-            //std::cout<<"no SP6-SP12 date match for person "<<person<<std::endl;
-            return; //date requirement didn't work 
-          }
-        }
+    //sort by forum id 
+    std::sort(intersect.begin(), intersect.end(), [](std::pair<uint64_t, uint64_t> a, std::pair<uint64_t, uint64_t> b) {
+      return a.second < b.second;
+    });
 
-        //std::cout<<"this person satisfies sp12 and sp6 :"<<person<<std::endl;
-        
-        //next we check SP5 matches 
-        //this person must purchase an electronic from a person who published in SP5 
-        bool SP5match = false; 
-        using SP5type = shad::Hashmap<uint64_t, std::pair<bool, bool>>; 
-        auto SubPattern5 = SP5type::GetPtr((shad::ObjectIdentifier<SP5type>)args.SubPattern5_OID);
-
-        if(!SubPattern5->Size()){
-          //std::cout<<"no SP5 match for person "<<person<<std::endl;
-          return; //no entries in SP5 table, we can't have a pattern
-        }
-
-        //get all people who This person purchased an electronic from
-        auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.Purchases_OID);
-        PurchaseEdgeType::LookupResult purchases;         // get person's purchases
-        Purchases->Lookup(person, & purchases);
-
-        for (auto & PO : purchases.value) { 
-          if(SP5match)
-            break;
-          if(PO.product == 11650 ){ 
-            auto electronic_seller = PO.seller;
-            //get publications of this seller 
-            AuthorEdgeType::LookupResult pubs;             // get person's events
-            Authors->Lookup(electronic_seller, &pubs);
-
-            for (auto & EV : pubs.value) {   
-              if (EV.dst_type != TYPES::PUBLICATION) continue;
-
-              std::pair<bool, bool> sp5value(false,false);
-              SubPattern5->Lookup(EV.item, &sp5value);
-
-              if(sp5value.first && sp5value.second){
-                //we found a match in SP5 
-                SP5match = true;
-                break;
-              }
-            }
-          }
-        }
-
-        if(!SP5match){
-          std::cout<<"no SP5 matches for person "<<person<<std::endl;
-          return; //no match for SP5 subpattern
-        }
-
-        std::cout<<"This person satisfies sp12 and sp7 and sp5 :"<<person<<std::endl;
-        
-        //Next we check for SP3 
-        //we ned to see if this person attended 2 jihad events in a SP3 forum 
-
-        using SP3type = shad::Hashmap<uint64_t, std::pair<bool, uint64_t>>;
+    uint64_t curForum = -1;
+    
+    for(auto f : intersect){
+      if(curForum == f.second){
+        //at least two in the same forum
+        //check if forum is in SP3 
+        using SP3type = shad::Hashmap<uint64_t, std::pair<bool, uint64_t>>; 
         auto SubPattern3 = SP3type::GetPtr((shad::ObjectIdentifier<SP3type>)args.SubPattern3_OID);
-
-
-
-        //all the events person attended
-        std::vector<AuthorEdge> evs = events.value;
-        auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID)args.ForumEvents_OID);
-      
-        for(auto eventEdge : evs){
-          if( eventEdge.dst_type != TYPES::FORUMEVENT) continue;
-
-          //each forumevent person attended
-          //get forum to see if forum satisfies in SP3 and FE is Jihad 
-          ForumEventVertex FEV;
-          ForumEvents->Lookup(eventEdge.item, &FEV);
-
-          //if(FEV.topic != 44311) continue; //not jihad
-
-          std::pair<bool, uint64_t> SP3Obj;
-          SubPattern3->Lookup(FEV.forum, &SP3Obj); 
-
-          if(SP3Obj.first && SP3Obj.second >=2){
-            std::cout<<"PERSON ("<<person<<")SATISFIES THE PATTERN! "<<std::endl;
-          }
-        }
-
-
-            //for each forum F in sp3
-          //if forum is valid
-          //get all jihad FEs of F from SP4 
-          //check if 2 FEs also in authorevent list  
-          /**/
-          //each forumevent this person attended 
-          //if it's jihad, 
-          //check if forum of FE in SP3, 
-          //if so check if any other FE in SP4 in events 
+        SubPattern3->AsyncApply(handle, f.second, F9, personID); 
       }
       else{
-        //person doesn't fulfill the pattern
-        //std::cout<<"no SP6 match for person "<<person<<std::endl;
+        curForum = f.second;
       }
+    }
+  }
+
+  //Function called for a publication in SubPattern5 table (key:publication, value: pair<bool,bool>) - a publication published by a person who sold electronics to an SP6 & SP12 person
+  void F7(shad::rt::Handle & handle, const uint64_t& publicationID, std::pair<bool,bool>& value,const uint64_t& personID, RF_args_t & args){
+    if(value.first && value.second){
+      std::cout<<"This person satisfies SP6, SP12, SP5 :"<<personID<<std::endl;
+      auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.Authors_OID);
+      Authors->AsyncApply(handle, personID, F8, args);
+    }
+  }
+
+  //Function called for a person on Authors multimap (key:person, value:vec<AuthorEdge>) - a person who sold electronics to an SP6 & SP12 person
+  void F6(shad::rt::Handle & handle, const uint64_t& sellerID, std::vector<AuthorEdge>& value,const uint64_t& personID, RF_args_t & args){
+    for (auto & EV : value) {   
+      if (EV.dst_type != TYPES::PUBLICATION) continue;
+      using SP5type = shad::Hashmap<uint64_t, std::pair<bool, bool>>; 
+      auto SubPattern5 = SP5type::GetPtr((shad::ObjectIdentifier<SP5type>)args.SubPattern5_OID);
+      SubPattern5->AsyncApply(handle, EV.item, F7, personID, args);
+    }
+  }
+
+  //Function called for a person on Purchases multimap (key: person, value: vec<PurchaseEdge>) - a person who stisfies SP6 and SP12
+  void F5(shad::rt::Handle & handle, const uint64_t& personID, std::vector<PurchaseEdge>& value, RF_args_t & args){
+    for (auto & Prchs : value){
+      if(Prchs.product == 11650 ){ 
+        auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.Authors_OID);
+        Authors->AsyncApply(handle, Prchs.seller, F6, personID, args);
+      }
+    }
+  }
+
+  //Function called for a forum in SubPattern12 table(key: forum, value: pair<score, date>) -  a forum where an SP6 person attended a forumevent at 
+  void F4(shad::rt::Handle & handle, const uint64_t& forumID, std::pair<uint64_t, time_t>& value, const uint64_t& personID, time_t& SP6date, RF_args_t& args){
+    if(value.first == 3 && value.second < SP6date){
+      auto Purchases  = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.Purchases_OID);
+      Purchases->AsyncApply(handle, personID, F5, args);
+    }
+  }
+
+  //Function called for a forumevent on ForumEvents table (key eventID, value:ForumEventVertex) - an event SP6 person attended 
+  void F3(shad::rt::Handle & handle, const uint64_t& eventID, ForumEventVertex& value, const uint64_t& personID, time_t& SP6date, RF_args_t& args){
+    using SP12type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>; 
+    auto SubPattern12 = SP12type::GetPtr((shad::ObjectIdentifier<SP12type>)args.SubPattern12_OID);
+    SubPattern12->AsyncApply(handle, value.forum, F4, personID, SP6date, args);
+  } 
+
+  //Function called for a person on Authors multipmap (key:person, value:vec<AuthorEdge>)- a person who satisfies SP6
+  void F2(shad::rt::Handle & handle, const uint64_t& personID, std::vector<AuthorEdge>& value, time_t& SP6date, RF_args_t & args){
+    for (auto & EV : value) {   
+      if (EV.dst_type != TYPES::FORUMEVENT) continue;
+      auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID)args.ForumEvents_OID);
+      ForumEvents->AsyncApply(handle, EV.item, F3, personID, SP6date, args);
+    }
+  }
+
+  //Function called for each SubPattern6 entry (key:person, value:pair<score, date>)
+  void F1(shad::rt::Handle & handle, const uint64_t& personID,std::pair<uint64_t, time_t>& value, RF_args_t & args){
+    if(value.first == 15){ // Person Satisfies SP6
+      auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.Authors_OID);
+      Authors->AsyncApply(handle, personID, F2, value.second, args);
+    }
   }
 
   // check if a pattern is formed for each person vertex in the graph
@@ -214,8 +182,7 @@ namespace shad
     //std::cout<<"PatternCheck called after a SubPattern"<<incoming<<" match"<<std::endl;
     if(SubPattern6->Size()){
       shad::rt::Handle foreachHandle;
-      std::cout<<SubPattern6->Size()<<std::endl;
-      SubPattern6->AsyncForEachEntry(foreachHandle, PatternCheckForPerson, args);
+      SubPattern6->AsyncForEachEntry(foreachHandle, F1, args);
       waitForCompletion(foreachHandle);
     }
     else{
@@ -342,7 +309,6 @@ namespace shad
 
         ForumEventVertex FEV;
         ForumEvents->Lookup(key, &FEV);
-        std::cout<<"SubPattern2 match for FE "<<key<<" date "<<FEV.date<<" "<<ctime(&FEV.date)<<std::endl;
         std::pair<uint64_t, time_t> sp12tmp(2, FEV.date);
         InsertSP12 inserter(args);
         // shad::rt::Handle nextHandle;
@@ -536,40 +502,22 @@ namespace shad
     return tokens;
   }
 
-  bool proximity(TopicVertex &A, TopicVertex &B){
-    double lon_miles = 0.91 * std::abs(A.lon - B.lon);
-    double lat_miles = 1.15 * std::abs(A.lat - B.lat);
-    double distance = std::sqrt(lon_miles * lon_miles + lat_miles * lat_miles);
-    return distance <= 30.0;
-  }
 
-  bool check_proximity(uint64_t A, uint64_t B, Graph_t &graph){
-    auto Topics = TopicVertexType::GetPtr((TopicVertexOID)graph["Topics"]);
-    TopicVertex A_tpc, B_tpc; 
-    Topics->Lookup(A, &A_tpc);
-    Topics->Lookup(B, &B_tpc);
-
-    double lon_miles = 0.91 * std::abs(A_tpc.lon - B_tpc.lon);
-    double lat_miles = 1.15 * std::abs(A_tpc.lat - B_tpc.lat);
-    double distance = std::sqrt(lon_miles * lon_miles + lat_miles * lat_miles);
-    return distance <= 30.0;
-  }
-
-
-  void printsp1(const uint64_t & feKey, uint64_t & val){
-    std::cout<<"SP1 "<<feKey<<" "<<val<<std::endl;
-  }
-
-  void printsp12(const uint64_t & feKey, std::pair<uint64_t, time_t> & val){
-    std::cout<<"SP12 "<<feKey<<" "<<val.first<<" "<<ctime(&val.second)<<std::endl;
-  }
-
-    void printsp6(const uint64_t & feKey, std::pair<uint64_t, time_t> & val){
-    std::cout<<"SP6 "<<feKey<<" "<<val.first<<" "<<ctime(&val.second)<<std::endl;
-  }
 
   int main(int argc, char *argv[])
   {
+
+
+
+    // std::set<std::pair<uint64_t,uint64_t>> sette;
+
+    // sette.insert(std::pair(3,2));
+    // for (std::set<std::pair<uint64_t, uint64_t>>::iterator iter=sette.begin(); iter!=sette.end(); ++iter)
+    //         std::cout << (*iter).first <<" "<<(*iter).second<<std::endl;
+    
+    // return 0;
+
+
     double time1 = my_timer();
 
     Graph_t graph;
@@ -594,18 +542,17 @@ namespace shad
     // SubPattern1  : A FORUMEVENT with Prospect Park, Outdoors
     // SubPattern2  : A FORUMEVENT with Bomb, Explosion, Williamsburg
     // SubPattern3  : A FORUM that has NYC topic and 2 FEs with Jihad topic
-    // SubPattern4  : A FORUM that has Jihad Forumevents (key forum, value: list of FEs with jihad)
     // SubPattern5  : A publication with Electrical Engineering as topic and organization close to NYC
     // SubPattern6  : A person who purchased bath bomb, pressure cooker, electronics, ammunition from distributor
     // SubPattern7  : A person who is an ammunition distributer (multiple buyers)
-
+    // SubPattern8  : set of forumevents with jihad topic (set of pair<forumeventID, forumID>)
+    
     // Level2
     // SubPattern12 : A FORUM that has forumevents that satisfy both SP1 and SP2
     auto SubPattern1 = shad::Hashmap<uint64_t, uint64_t>::Create(TINY);
     auto SubPattern2 = shad::Hashmap<uint64_t, uint64_t>::Create(TINY);
     auto SubPattern12 = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>::Create(TINY);
     auto SubPattern3 = shad::Hashmap<uint64_t, std::pair<bool, uint64_t>>::Create(TINY);
-    auto SubPattern4 = shad::Multimap<uint64_t, uint64_t>::Create(SMALL);
     auto SubPattern5 = shad::Hashmap<uint64_t, std::pair<bool, bool>>::Create(SMALL);
     auto SubPattern6 = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>::Create(SMALL);
     auto SubPattern7 = shad::Hashmap<uint64_t, std::pair<int64_t, time_t>>::Create(SMALL);
@@ -627,7 +574,6 @@ namespace shad
     graph["SubPattern2"] = (uint64_t)(SubPattern2->GetGlobalID());
     graph["SubPattern12"] = (uint64_t)(SubPattern12->GetGlobalID());
     graph["SubPattern3"] = (uint64_t)(SubPattern3->GetGlobalID());
-    graph["SubPattern4"] = (uint64_t)(SubPattern4->GetGlobalID());
     graph["SubPattern5"] = (uint64_t)(SubPattern5->GetGlobalID());
     graph["SubPattern6"] = (uint64_t)(SubPattern6->GetGlobalID());
     graph["SubPattern7"] = (uint64_t)(SubPattern7->GetGlobalID());
@@ -648,7 +594,6 @@ namespace shad
     args.SubPattern2_OID = graph["SubPattern2"];
     args.SubPattern12_OID = graph["SubPattern12"];
     args.SubPattern3_OID = graph["SubPattern3"];
-    args.SubPattern4_OID = graph["SubPattern4"];
     args.SubPattern5_OID = graph["SubPattern5"];
     args.SubPattern6_OID = graph["SubPattern6"];
     args.SubPattern7_OID = graph["SubPattern7"];
@@ -671,9 +616,9 @@ namespace shad
       if (dataLine[0] == '#')
         continue; // skip comments
       counter++;
-      if(! (counter % 10000)){
-        std::cout<<counter<<" "<<rest<<std::endl;
-      }
+      // if(! (counter % 10000)){
+      //   std::cout<<counter<<" "<<rest<<std::endl;
+      // }
       std::vector<std::string> tokens = split(dataLine, ',', 10);
       
       if (tokens[0] == "HasTopic")
@@ -706,9 +651,9 @@ namespace shad
           //get forumevent's forum 
           ForumEventVertex FEV;
           ForumEvents->Lookup(record.key(), &FEV);
-
           InsertSP3 inserter(args, FEV.forum, record.topic);
           SubPattern3->AsyncInsert(matchHandle, inserter, FEV.forum, std::pair<bool, uint64_t> (0,0));
+          shad::rt::asyncExecuteOnAll(matchHandle, InsertSP8, std::pair<uint64_t,uint64_t>(record.key(), FEV.forum));
         }
         //PUBLICATION with Electrical Engineering topic
         else if( (tokens[5] != "") && (tokens[6] == "43035"))
@@ -725,11 +670,26 @@ namespace shad
       else if(tokens[0] == "HasOrg"){
         HasOrgEdge record(tokens);
         //PUBLICATION close to NYC
-        if( tokens[5] != "" && (check_proximity(60, record.organization, graph)))
+
+        //PUBLICATION close to NYC
+        auto CheckProx = [](shad::rt::Handle &matchHandle, const uint64_t &org,
+                            TopicVertex &value, RF_args_t& rfargs, uint64_t& rec_key) {
+         
+          double lon_miles = 0.91 * std::abs(-73.94 - value.lon);
+          double lat_miles = 1.15 * std::abs(40.67 - value.lat);
+          double distance = std::sqrt(lon_miles * lon_miles + lat_miles * lat_miles);
+          if (distance <= 30.0) {
+            InsertSP5 inserter (rfargs);
+            using SP5type = shad::Hashmap<uint64_t, std::pair<bool, bool>>;
+            auto SubPattern5 = SP5type::GetPtr((shad::ObjectIdentifier<SP5type>)rfargs.SubPattern5_OID);
+            SubPattern5->AsyncInsert(matchHandle, inserter, rec_key, std::pair<bool, bool>(true, false));
+          }
+        };
+        if( tokens[5] != "")
         {
           HasOrg->AsyncInsert(matchHandle, record.key(), record);
-          InsertSP5 inserter (args);
-          SubPattern5->AsyncInsert(matchHandle, inserter, record.key(), std::pair<bool, bool>(true, false));
+          auto t = record.key();
+          Topics->AsyncApply(matchHandle, record.organization, CheckProx, args, t);
         }
         else{//Rest of the records doesn't matter for the pattern check
           HasOrg->BufferedAsyncInsert(bufferhandle, record.key(), record);
@@ -814,11 +774,11 @@ namespace shad
     printf("Number of SP1 matches = %lu\n", SubPattern1->Size());
     printf("Number of SP2 matches = %lu\n", SubPattern2->Size());
     printf("Number of SP3 matches = %lu\n", SubPattern3->Size());
-    printf("Number of SP4 matches = %lu\n", SubPattern4->Size());
     printf("Number of SP5 matches = %lu\n", SubPattern5->Size());
     printf("Number of SP12 matches = %lu\n", SubPattern12->Size());
     printf("Number of SP6 matches = %lu\n", SubPattern6->Size());
     printf("Number of SP7 matches = %lu\n", SubPattern7->Size());
+    printf("Number of Jihad Events = %lu\n", SubPattern8.size());
     printf("\n");
     printf("Total number of edges    = %lu\n", num_edges);
     printf("Total number of vertices = %lu\n\n", num_vertices);
