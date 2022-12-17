@@ -738,6 +738,7 @@ namespace shad
     // one last check after finishing all handles
     PatternCheck(0,args);
     printf("After final patterncheck %lf\n", my_timer() - time1);
+    waitForCompletion(bufferhandle);
     Persons->WaitForBufferedInsert();
     ForumEvents->WaitForBufferedInsert();
     Forums->WaitForBufferedInsert();
@@ -750,7 +751,7 @@ namespace shad
     Includes->WaitForBufferedInsert();
     HasTopic->WaitForBufferedInsert();
     HasOrg->WaitForBufferedInsert();
-    waitForCompletion(bufferhandle);
+   
     printf("handle waits returned\n");
 
     printf("Time for graph construction = %lf\n", my_timer() - time1);
