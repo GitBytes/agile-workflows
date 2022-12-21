@@ -92,10 +92,6 @@ public:
 template <typename Dataset> class SetUpTrainingContext {
   using ArrayOID = typename shad::Array<uint64_t>::ObjectID;
 
-  const int64_t trainingSetSize = 10000;
-  const int64_t testSetSize = 10000;
-  const size_t batchSize = 10;
-
   char modelFileName_[256];
   VertexOID _verticesOID;
   XEdgeOID _edgesOID;
@@ -130,19 +126,23 @@ public:
     // Load Dataset
     TS.DataSet = Dataset(_verticesOID, _edgesOID, _featuresOID);
 
+    // Number threads
+    size_t total_ranks =
+        shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
+    const int64_t trainingSetSize = TS.DataSet.size().value() / int64_t(4);
+    const int64_t testSetSize = trainingSetSize / 2;
+    const size_t batchSize = std::min<size_t>(128, trainingSetSize / total_ranks);
+
     size_t numVertices = TS.DataSet.size().value();
     // Partition in Training/Test Set
     using namespace torch::indexing;
     auto options = torch::TensorOptions().dtype(torch::kBool);
 
-    // Number threads
-    size_t total_ranks = shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
-
-
     // Create DataLoader
     uint32_t thisLocality = static_cast<uint32_t>(shad::rt::thisLocality());
     auto train_sampler = torch::data::samplers::DistributedRandomSampler(
         trainingSetSize, total_ranks, tid, false);
+    train_sampler.reset();
     auto test_sampler = torch::data::samplers::DistributedRandomSampler(
         testSetSize, total_ranks, tid, false);
     auto stackedDataSet = TS.DataSet.map(
@@ -162,7 +162,6 @@ public:
     }
 
     const double learningRate = 0.01;
-    const int numEpochs = 100;
     TS.Adam = std::make_unique<torch::optim::Adam>(
         parameters, torch::optim::AdamOptions(learningRate).weight_decay(5e-4));
 
@@ -206,6 +205,7 @@ template <typename TrainingState> void vcTrainLoop(TrainingState &TS) {
     auto equal = prediction.eq(groundTruth);
     train_correct += equal.index({batch.Mask}).sum().template item<int64_t>();
   }
+
   auto localSamplesProcessedPtr =
       shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
   auto localSamplesCorrectPtr =
@@ -229,8 +229,10 @@ void vcReduceGradients(TrainingStateItr B, TrainingStateItr E) {
       {at::kShort, MPI_SHORT},
   };
 
-  InplaceFunctor F{(*B).get().ReducerLocalPtrOID};
-  for (int i = 0; i < (*B).get().Module.parameters().size(); ++i) {
+  const auto & trainState = (*B).get();
+
+  InplaceFunctor F{trainState.ReducerLocalPtrOID};
+  for (int i = 0; i < trainState.Module.parameters().size(); ++i) {
     shad::for_each(
         shad::distributed_parallel_tag{}, B, E, [=](TrainingState &TS) {
           auto itr = TS.Module.parameters().begin();
@@ -242,7 +244,7 @@ void vcReduceGradients(TrainingStateItr B, TrainingStateItr E) {
               reinterpret_cast<uint64_t>((*itr).mutable_grad().data_ptr()));
         });
 
-    auto itr2 = (*B).get().Module.parameters().begin();
+    auto itr2 = trainState.Module.parameters().begin();
     for (int j = 0; j < i; ++j)
       ++itr2;
     auto reducer = shad::MPIReducer<InplaceFunctor, InplaceFunctor>::Create(
@@ -253,6 +255,9 @@ void vcReduceGradients(TrainingStateItr B, TrainingStateItr E) {
     shad::for_each(shad::distributed_parallel_tag{}, B, E,
                    [=](TrainingState &TS) {
                      auto itr = TS.Module.parameters().begin();
+                     // This loop is here because this iterator does not implement operator+
+                     // and capturing it from outside this lambda would be incorrect
+                     // in distributed settings.
                      for (int j = 0; j < i; ++j)
                        ++itr;
                      (*itr).mutable_grad().data() =

@@ -169,7 +169,7 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 
   std::cout << "Initialized Training State" << std::endl;
 
-  const size_t numEpochs = 200;
+  const size_t numEpochs = 10;
   auto localSamplesProcessedPtr =
       shad::Array<uint64_t>::GetPtr(localSamplesProcessedOID);
   auto localSamplesCorrectPtr =
