@@ -42,24 +42,58 @@
 //                       under Contract DE-AC05-76RL01830
 //===----------------------------------------------------------------------===//
 
-#ifndef GRAPHTYPES_H_
-#define GRAPHTYPES_H_
+#ifndef MAIN_H_
+#define MAIN_H_
 
-namespace agile::workflow4 {
+#include <string>
+#include <math.h>
+#include <limits.h>
 
-enum class TYPES {
-  PERSON,
-  SERVER,
-  TOPIC,
-  SALE,
-  PURCHASE,
-  USES,
-  SENDS,
-  NONE
+#include "shad/data_structures/array.h"
+#include "shad/data_structures/hashmap.h"
+#include "shad/data_structures/multimap.h"
+#include "shad/extensions/data_types/data_types.h"
+
+#define TINY   5000
+#define SMALL  500000
+#define MEDIUM 5000000
+#define LARGE  50000000
+
+#define UINT_BITS 64
+#define SIZE_BP 2          // bits per base pair
+#define SIZE_BPV 256       // size of base pair vector in 64 bit words
+#define BP_PER_WORD 32     // number of base pairs per word = 64 / 2
+
+namespace agile::workflow3 {
+
+using Handle      = shad::rt::Handle;
+using IntArray    = shad::Array<int64_t>;
+using IntArrayOID = shad::ObjectIdentifier<IntArray>;
+
+struct Args_t {
+  uint64_t KMap_OID;
+  uint64_t KVMap_OID;
+  uint64_t MNMap_OID;
+  uint64_t WireMap_OID;
+  uint64_t bucketCounts_OID;
+  uint64_t kmer_length;
+  uint64_t coverage;
+  uint64_t min_index;
+  uint64_t min_counts;
+  uint64_t node_threshold;
+  char filename [120];
 };
 
-constexpr uint64_t NUMTYPES = (uint64_t) TYPES::NONE;
+uint64_t CHAR_TO_EL(char x);
+char EL_TO_CHAR(uint64_t x);
+std::string kmer_string(uint64_t, uint64_t);
+void int_fetch_add(Handle &, uint64_t, int64_t &, int64_t &);
 
-} // namespace agile::workflow4
+void readFASTA(Handle &, const Args_t &);
+void BucketCounts(Handle &, const Args_t &);
+void RemoveKmers(Handle &, const Args_t &);
+void ConstructMacroNodes(Handle &, const uint64_t & key, uint64_t & value, Args_t &);
 
-#endif // GRAPHTYPES_H
+} // namespace agile::workflow3
+
+#endif  // MAIN_H

@@ -361,6 +361,8 @@ void createBipartite(Graph_t & A, Graph_t & B, uint64_t & LHS_OID, uint64_t & RH
   auto B_Publications = PublicationVertexType::GetPtr((PublicationVertexOID) B["Publications"]);
   auto B_Topics       = TopicVertexType::GetPtr((TopicVertexOID) B["Topics"]);
 
+  double time1 = my_timer();
+
   TopicVertex NYC;
   B_Topics->Lookup(60, & NYC);
 
