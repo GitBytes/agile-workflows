@@ -78,10 +78,10 @@ void readFASTA(Handle & handle, const Args_t & args) {
     if (line[0] == '>') continue;                                        // skip comments
 
     uint64_t kmer = 0;
-    for (uint64_t i = 0; i < args.kmer_length - 1; ++ i)
+    for (uint64_t i = 0; i < args.mnLength; ++ i)
       kmer = (kmer << 2) + CHAR_TO_EL(line[i]);                          // ... shift 2 bits left and add next char
 
-    for (uint64_t i = args.kmer_length - 1; i < line.size(); ++ i) {     // for each char until end of line
+    for (uint64_t i = args.mnLength; i < line.size(); ++ i) {            // for each char until end of line
       kmer = (kmer << 2) + CHAR_TO_EL(line[i]);                          // ... shift 2 bits left and add next char
       KMap->BufferedAsyncInsert(handle, kmer, one);
   } }

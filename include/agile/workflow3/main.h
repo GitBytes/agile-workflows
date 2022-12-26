@@ -50,6 +50,7 @@
 #include <limits.h>
 
 #include "shad/data_structures/array.h"
+#include "shad/data_structures/vector.h"
 #include "shad/data_structures/hashmap.h"
 #include "shad/data_structures/multimap.h"
 #include "shad/extensions/data_types/data_types.h"
@@ -61,7 +62,7 @@
 
 #define UINT_BITS 64
 #define SIZE_BP 2          // bits per base pair
-#define SIZE_BPV 256       // size of base pair vector in 64 bit words
+#define SIZE_BPV 2         // size of base pair vector in 64 bit words
 #define BP_PER_WORD 32     // number of base pairs per word = 64 / 2
 
 namespace agile::workflow3 {
@@ -72,15 +73,14 @@ using IntArrayOID = shad::ObjectIdentifier<IntArray>;
 
 struct Args_t {
   uint64_t KMap_OID;
-  uint64_t KVMap_OID;
   uint64_t MNMap_OID;
   uint64_t WireMap_OID;
-  uint64_t bucketCounts_OID;
-  uint64_t kmer_length;
+  uint64_t ContigVector_OID;
+  uint64_t BucketCounts_OID;
+  uint64_t mnLength;
   uint64_t coverage;
   uint64_t min_index;
   uint64_t min_counts;
-  uint64_t node_threshold;
   char filename [120];
 };
 
@@ -90,9 +90,8 @@ std::string kmer_string(uint64_t, uint64_t);
 void int_fetch_add(Handle &, uint64_t, int64_t &, int64_t &);
 
 void readFASTA(Handle &, const Args_t &);
-void BucketCounts(Handle &, const Args_t &);
-void RemoveKmers(Handle &, const Args_t &);
-void ConstructMacroNodes(Handle &, const uint64_t & key, uint64_t & value, Args_t &);
+void BucketCounts_(Handle &, const Args_t &);
+void ConstructMacroNodes(Handle &, const Args_t &);
 
 } // namespace agile::workflow3
 

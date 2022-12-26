@@ -58,28 +58,28 @@ int main(int argc, char *argv[]) {
   double time1 = my_timer();
   std::string filename = argv[1];
   uint64_t min_counts  = std::stoull(argv[4]);
+  uint64_t node_threshold = std::stoull(argv[5]);
 
 //********** CREATE DATA STRUCTURES AND ARGS **********//
   rt:: Handle handle;
   auto KMap = KMapType::Create(LARGE);                     // distinct kmer hashmap
-  auto KVMap = KMapType::Create(LARGE);                    // valid kmer hashmap
   auto MNMap = MNMapType::Create(LARGE);                   // macro node multimap
   auto WireMap = WireMapType::Create(LARGE);               // wire multimap
+  auto ContigVector = ContigVectorType::Create(0);         // contig vector
+  auto BucketCounts = IntArray::Create(min_counts, 0);     // array to count kmers appearing [1..min_count] times
 
-  auto bucketCounts = IntArray::Create(min_counts, 0);     // array to count kmers appearing [1..min_count] times
-  bucketCounts->FillPtrs();
+  BucketCounts->FillPtrs();
 
   Args_t args;
   args.KMap_OID         = (uint64_t) (KMap->GetGlobalID());
-  args.KVMap_OID        = (uint64_t) (KVMap->GetGlobalID());
   args.MNMap_OID        = (uint64_t) (MNMap->GetGlobalID());
   args.WireMap_OID      = (uint64_t) (WireMap->GetGlobalID());
-  args.bucketCounts_OID = (uint64_t) (bucketCounts->GetGlobalID());
+  args.ContigVector_OID = (uint64_t) (ContigVector->GetGlobalID());
+  args.BucketCounts_OID = (uint64_t) (BucketCounts->GetGlobalID());
 
-  args.kmer_length    = std::stoull(argv[2]);
-  args.coverage       = std::stoull(argv[3]);
-  args.min_counts     = std::stoull(argv[4]);
-  args.node_threshold = std::stoull(argv[5]);
+  args.mnLength   = std::stoull(argv[2]) - 1;
+  args.coverage   = std::stoull(argv[3]);
+  args.min_counts = std::stoull(argv[4]);
   memcpy(args.filename, filename.c_str(), filename.size() + 1);
 
 //********** READ FASTA FILE AND CONSTRUCT KMER HASH MAP **********//
@@ -93,43 +93,57 @@ int main(int argc, char *argv[]) {
 //********** CONSTRUCT MACRO NODES **********//
   time1 = my_timer();
 
-  shad::rt::asyncExecuteOnAll(handle, BucketCounts, args);     // count number kmers appearing [1..min_count] times 
+  shad::rt::asyncExecuteOnAll(handle, BucketCounts_, args);     // count number kmers appearing [1..min_count] times 
   rt::waitForCompletion(handle);
 
   args.min_index = 0;
   uint64_t min_count = ULLONG_MAX;
 
-  for (uint64_t i = 1; i < min_counts; ++ i) {                 // compute ndx with minimum number of appearances
-    uint64_t count = bucketCounts->At(i);
+  for (uint64_t i = 1; i < min_counts; ++ i) {                  // compute ndx with minimum number of appearances
+    uint64_t count = BucketCounts->At(i);
     if (count < min_count) {args.min_index = i; min_count = count;}
   }
 
-  shad::rt::asyncExecuteOnAll(handle, RemoveKmers, args);      // move kmers that appear > min_index to KVMap
-  rt::waitForCompletion(handle);
-  KVMap->WaitForBufferedInsert();
-
-  KMap->Clear();
-  printf("Time to remove kmers = %lf\n", my_timer() - time1);
-  printf("Kmers appearing less than %lu times have been removed\n", args.min_index);
-  printf("Number of valid k-mer entries = %lu\n", KVMap->Size());
-
-  time1 = my_timer();
-
-  KVMap->AsyncForEachEntry(handle, ConstructMacroNodes, args);     // construct macro nodes
+  // construct a macro node for each kmer that appears > min_index times in KMap
+  shad::rt::asyncExecuteOnAll(handle, ConstructMacroNodes, args);
   rt::waitForCompletion(handle);
   MNMap->WaitForBufferedInsert();
 
+  KMap->Clear();                                                    // can delete KMap
   MNMap->AsyncForEachEntry(handle, InitialMacroNodeWire, args);     // initialize wiring
+
   rt::waitForCompletion(handle);
   WireMap->WaitForBufferedInsert();
 
   printf("Time to construct and wire macro nodes = %lf\n", my_timer() - time1);
-  printf("Number of macro nodes = %lu\n", MNMap->Size());     // TODO: change to MNMap->NumberKeys()
+  printf("Kmers appearing less than %lu times have been removed\n", args.min_index);
 
-// temp vector for storing all partial contigs generated during Phase 2
-  // args.node_threshold = node_threshold;
-  // std::vector<BasePairVector> partial_contig_list;
-  // size_t global_num_nodes = begin_iterative_compaction(MN_map, partial_contig_list);
+/*
+  uint64_t key = 0;
+
+  for (auto itr = MNMap->begin(); itr != MNMap->end(); ++ itr) {
+    if (key != (* itr).first) {
+       key = (* itr).first;
+       printf("\n%s,", kmer_string(key, args.mnLength).c_str());
+    }
+
+    MacroNode node = (* itr).second;
+    if (node.affix.size() == 0) printf("*"); else node.affix.print();
+    printf(",%lu,%lu,", node.count.first, node.count.second);
+  }
+*/
+
+//********** CONSTRUCT CONTIGS **********//
+  time1 = my_timer();
+  uint64_t num_iterations = 0;
+  uint64_t num_macro_nodes = MNMap->NumberKeys();
+  
+  while (num_macro_nodes >= node_threshold) {
+    printf("Iteration: %2lu, %lu macro nodes\n", num_iterations, num_macro_nodes);
+
+    MNMap->ForEachEntry(ProcessMacroNode, args);
+    break;
+  }
 
 //retain a list of terminal prefixes for each individual process, potential begin k-mers
   // std::vector<BeginMN> list_of_begin_kmers;

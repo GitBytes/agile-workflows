@@ -53,9 +53,9 @@ uint64_t visit_value (uint64_t count, uint64_t coverage) {
 }
 
 
-void BucketCounts(Handle & handle, const Args_t & args) {
+void BucketCounts_(Handle & handle, const Args_t & args) {
   auto KMap = KMapType::GetPtr((KMapOID) args.KMap_OID);
-  auto bucketCounts = IntArray::GetPtr((IntArrayOID) args.bucketCounts_OID);
+  auto BucketCounts = IntArray::GetPtr((IntArrayOID) args.BucketCounts_OID);
 
   uint64_t min_counts = args.min_counts;
   std::vector<int64_t> counts(min_counts, 0);
@@ -66,51 +66,46 @@ void BucketCounts(Handle & handle, const Args_t & args) {
   }
 
   for (uint64_t i = 0; i < min_counts; ++ i) {
-    bucketCounts->AsyncApply(handle, i, int_fetch_add, counts[i]);
+    BucketCounts->AsyncApply(handle, i, int_fetch_add, counts[i]);
 } }
 
 
-void RemoveKmers(Handle & handle, const Args_t & args) {
-  auto KMap = KMapType::GetPtr((KMapOID) args.KMap_OID);
-  auto KVMap = KMapType::GetPtr((KMapOID) args.KVMap_OID);
+void ConstructMacroNodes(Handle & handle, const Args_t & args) {
+  auto KMap  = KMapType::GetPtr((KMapOID) args.KMap_OID);
+  auto MNMap = MNMapType::GetPtr((MNMapOID) args.MNMap_OID);
+  uint64_t suffix_mask = ~0UL >> (UINT_BITS - (2 * (args.mnLength)));
 
   for (auto itr = KMap->local_begin(); itr != KMap->local_end(); ++ itr) {
     uint64_t kmer  = (* itr).first;
     uint64_t count = (* itr).second;
-    if (count >= args.min_index) KVMap->BufferedAsyncInsert(handle, kmer, count);
-} }
 
+    if (count >= args.min_index) {
+       MacroNode suffix_mn = MacroNode();
+       MacroNode prefix_mn = MacroNode();
+       uint64_t suffix_key = kmer >> 2;                            // first KMER_LENGTH - 1 proteins
+       uint64_t prefix_key = kmer & suffix_mask;                   // last  KMER_LENGTH - 1 proteins
+       suffix_mn.affix.push_back(kmer & 3);                        // push back last  protein of kmer
+       prefix_mn.affix.push_back(kmer >> (2 * args.mnLength));     // push back first protein of kmer
+       suffix_mn.isPrefix = false;
+       prefix_mn.isPrefix = true;
+       suffix_mn.count    = {count, visit_value(count, args.coverage)};
+       prefix_mn.count    = {count, visit_value(count, args.coverage)};
 
-void ConstructMacroNodes(Handle & handle, const uint64_t & key, uint64_t & value, Args_t & args) {
-  MacroNode prefix_mn = MacroNode();
-  MacroNode suffix_mn = MacroNode();
-  auto MNMap = MNMapType::GetPtr((MNMapOID) args.MNMap_OID);
-  uint64_t suffix_mask = ~0UL >> (UINT_BITS - (2 * (args.kmer_length - 1)));
-
-  prefix_mn.mnode    = key & suffix_mask;                                   // last  KMER_LENGTH - 1 proteins
-  suffix_mn.mnode    = key >> 2;                                            // first KMER_LENGTH - 1 proteins
-  prefix_mn.baseAcid = EL_TO_CHAR(key >> (2 * (args.kmer_length - 1)));     // first protein of key
-  suffix_mn.baseAcid = EL_TO_CHAR(key & 3);                                 // last protein of key
-  prefix_mn.isPrefix = true;
-  suffix_mn.isPrefix = false;
-  prefix_mn.count    = {value, visit_value(value, args.coverage)};
-  suffix_mn.count    = {value, visit_value(value, args.coverage)};
-
-  MNMap->BufferedAsyncInsert(handle, prefix_mn.mnode, prefix_mn);
-  MNMap->BufferedAsyncInsert(handle, suffix_mn.mnode, suffix_mn);
-}
+       MNMap->BufferedAsyncInsert(handle, suffix_key, suffix_mn);
+       MNMap->BufferedAsyncInsert(handle, prefix_key, prefix_mn);
+} } }
 
 
 void InitialMacroNodeWire(Handle & handle, const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
-  MacroNode prefix_mn = MacroNode();
-  MacroNode suffix_mn = MacroNode();
   auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
 
   // push null prefix and suffix onto value
+  MacroNode prefix_mn = MacroNode();
+  MacroNode suffix_mn = MacroNode();
   prefix_mn.isPrefix = true;
   suffix_mn.isPrefix = false;
-  prefix_mn.terminal = true;
-  suffix_mn.terminal = true;
+  prefix_mn.isTerminal = true;
+  suffix_mn.isTerminal = true;
   value.push_back(prefix_mn);
   value.push_back(suffix_mn);
 
@@ -121,9 +116,9 @@ void InitialMacroNodeWire(Handle & handle, const uint64_t & key, std::vector<Mac
 
   for (uint64_t i = 0; i < value.size(); ++ i) {
     if (value[i].isPrefix) {     // node is prefix
-       if (value[i].baseAcid != '*') pc += value[i].count.second; else null_prefix_id = i;
+       if (value[i].affix.size() > 0) pc += value[i].count.second; else null_prefix_id = i;
     } else {                     // node is suffix
-       if (value[i].baseAcid != '*') sc += value[i].count.second; else null_suffix_id = i;
+       if (value[i].affix.size() > 0) sc += value[i].count.second; else null_suffix_id = i;
   } }
 
   value[null_prefix_id].count = {1, std::max(sc - pc, 0L)};     // count and coverage for null prefix

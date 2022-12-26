@@ -51,8 +51,7 @@
 //
 // 11111...11111 >> 58 = 000...00000111111
 // 00...00111111 <<  4 = 000...01111110000
-inline uint64_t pred_mask(uint64_t pred_size, uint64_t word_size) {
-  uint64_t shift_right = (BP_PER_WORD - pred_size) * SIZE_BP;
+inline uint64_t pred_mask(uint64_t pred_size, uint64_t word_size) { uint64_t shift_right = (BP_PER_WORD - pred_size) * SIZE_BP;
   uint64_t shift_left  = (word_size - pred_size) * SIZE_BP;
   return ((~0UL) >> shift_right) << shift_left;
 }
@@ -119,8 +118,8 @@ class BasePairVector {
        return kmer;
   } }
 
-  void push_back(uint64_t val) {
-    assert(size_ < SIZE_BPV);
+  void push_back(uint64_t val) {                    // val is a single base pair
+    assert(size_ < SIZE_BPV * BP_PER_WORD);
 
     size_ ++;
     uint64_t word = (size_ - 1) / BP_PER_WORD;      // new base pair is in word
@@ -169,10 +168,7 @@ class BasePairVector {
       uint64_t BP = (vec_[num_full_words] & last_mask) >> ((j - 1) * SIZE_BP);
       printf("%c", EL_TO_CHAR(BP));
       last_mask >>= SIZE_BP;
-    }
-
-    printf("\n");
-  }
+  } }
 
 // base pairs: AAGTCCTACG
 // stored    : AAGT CCTA __CG          (assume 4 base pairs per word)
@@ -196,21 +192,19 @@ class BasePairVector {
 
 class MacroNode {
   public:
-    uint64_t mnode;          // key, KMER_LENGTH - 1 bases
-    char baseAcid;           // leading or trailing base
-    bool isPrefix;           // prefix - true, suffix - false
-    bool terminal;
+    BasePairVector affix;     // leading or trailing bases
+    bool isPrefix;            // prefix - true, suffix - false
+    bool isTerminal;
     int64_t  num_wires;
     uint64_t prefix_begin;
     std::pair<int64_t, int64_t> count;
 
     MacroNode () {
-      mnode    = ULLONG_MAX;
-      baseAcid = '*';
+      affix = BasePairVector();
       isPrefix = false;
-      terminal = false;
-      prefix_begin = 0;
+      isTerminal = false;
       num_wires = 0;
+      prefix_begin = 0;
       count = {-1, -1};
     }
 };     // MacroNode
@@ -264,19 +258,12 @@ using MNMapType   = shad::Multimap<uint64_t, MacroNode>;
 using MNMapOID    = shad::ObjectIdentifier<MNMapType>;
 using WireMapType = shad::Multimap<uint64_t, WireNode>;
 using WireMapOID  = shad::ObjectIdentifier<WireMapType>;
+using ContigVectorType = shad::Vector<BasePairVector>;
+using ContigVectorOID = shad::ObjectIdentifier<ContigVectorType>;
 
 bool MN_comp(MacroNode &, MacroNode &);
 void InitialMacroNodeWire(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
-
-bool inline operator == (const BasePairVector & k1, const BasePairVector & k2) {
-  if (k1.size_ != k2.size_) return false;
-  uint64_t num_words = (k1.size_ / BP_PER_WORD) + ((k1.size_ % BP_PER_WORD) ? 1 : 0);
-
-  for (uint64_t i = 0; i < num_words; ++ i)
-    if (k1.vec_[i] != k2.vec_[i]) return false;
-
-  return true;
-}
+void ProcessMacroNode(const uint64_t &, std::vector<MacroNode> &, Args_t &);
 
 } // namespace agile::workflow3
 
