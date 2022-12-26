@@ -7,10 +7,20 @@ class GCN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, dropout):
         super(GCN, self).__init__()
         self.model = Sequential('x, edge_index', [
-            (GCNConv(in_channels, hidden_channels).jittable(), 'x, edge_index -> x'),
+            (GCNConv(
+                in_channels, hidden_channels,
+                cached=True,
+                add_self_loops=False,
+                normalize=False,
+            ).jittable(), 'x, edge_index -> x'),
             ReLU(inplace=True),
-            (GCNConv(hidden_channels, out_channels).jittable(), 'x, edge_index -> x'),
-            Dropout(dropout),
+            (GCNConv(
+                hidden_channels, out_channels,
+                cached=True,
+                add_self_loops=False,
+                normalize=False,
+            ).jittable(), 'x, edge_index -> x'),
+            Dropout(dropout, inplace=True),
             LogSoftmax(dim=1)
         ])
 
@@ -19,6 +29,6 @@ class GCN(torch.nn.Module):
 
 
 if __name__ == '__main__':
-    model = GCN(30, 16, 13, 0.5)
+    model = GCN(30, 16, 5, 0.5)
     sm = torch.jit.script(model)
     sm.save('GNN-agile.pt')
