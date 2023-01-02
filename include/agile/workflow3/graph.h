@@ -51,7 +51,8 @@
 //
 // 11111...11111 >> 58 = 000...00000111111
 // 00...00111111 <<  4 = 000...01111110000
-inline uint64_t pred_mask(uint64_t pred_size, uint64_t word_size) { uint64_t shift_right = (BP_PER_WORD - pred_size) * SIZE_BP;
+inline uint64_t pred_mask(uint64_t pred_size, uint64_t word_size) {
+  uint64_t shift_right = (BP_PER_WORD - pred_size) * SIZE_BP;
   uint64_t shift_left  = (word_size - pred_size) * SIZE_BP;
   return ((~0UL) >> shift_right) << shift_left;
 }
@@ -64,6 +65,7 @@ class BasePairVector {
   uint64_t vec_[SIZE_BPV];
   
   BasePairVector() {size_ = 0;}
+  BasePairVector(uint64_t word, uint64_t size) {size_ = size; vec_[0] = word;}
 
 // base pairs: AAGTCCTACG
 // stored    : AAGT CCTA __CG
@@ -192,20 +194,20 @@ class BasePairVector {
 
 class MacroNode {
   public:
-    BasePairVector affix;     // leading or trailing bases
-    bool isPrefix;            // prefix - true, suffix - false
-    bool isTerminal;
-    int64_t  num_wires;
-    uint64_t prefix_begin;
-    std::pair<int64_t, int64_t> count;
+    BasePairVector affix;                  // leading or trailing bases
+    bool isPrefix;                         // true if prefix; false if suffix
+    bool isTerminal;                       // true if terminal (size == 0); otherwise, false (size > 0)
+    int64_t  num_wires;                    // number of wires (prefixInfo.num_wires in original code)
+    uint64_t wire_index;                   // index in this key's WireMap value vector
+    std::pair<int64_t, int64_t> count;     // prefix_count or suffix_count
 
     MacroNode () {
       affix = BasePairVector();
-      isPrefix = false;
+      isPrefix   = false;
       isTerminal = false;
-      num_wires = 0;
-      prefix_begin = 0;
-      count = {-1, -1};
+      num_wires  = 0;
+      wire_index = 0;
+      count      = {-1, -1};
     }
 };     // MacroNode
 
@@ -252,6 +254,20 @@ struct KMapInserter {
   }
 };
 
+class Comp_rev{
+  const std::vector<MacroNode> & _v;
+
+  public:
+  Comp_rev(const std::vector<MacroNode> & v) : _v(v) {}
+
+  bool operator()(size_t i, size_t j) {
+    if (_v[i].isPrefix != _v[j].isPrefix) return _v[i].isPrefix;     // prefixes stored before suffixes
+
+    return ( _v[i].count.second >  _v[j].count.second) ||
+           ((_v[i].count.second == _v[j].count.second) && (_v[i].count.first > _v[j].count.first));
+    }
+};
+
 using KMapType    = shad::Hashmap<uint64_t, uint64_t, shad::MemCmp<uint64_t>, KMapInserter<uint64_t>>;
 using KMapOID     = shad::ObjectIdentifier<KMapType>;
 using MNMapType   = shad::Multimap<uint64_t, MacroNode>;
@@ -261,9 +277,17 @@ using WireMapOID  = shad::ObjectIdentifier<WireMapType>;
 using ContigVectorType = shad::Vector<BasePairVector>;
 using ContigVectorOID = shad::ObjectIdentifier<ContigVectorType>;
 
+struct MNInfo {
+  uint64_t key;
+  BasePairVector affix;
+};
+
 bool MN_comp(MacroNode &, MacroNode &);
-void InitialMacroNodeWire(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
+MNInfo get_suffix_merge_info(uint64_t, BasePairVector &, uint64_t);
+MNInfo get_prefix_merge_info(uint64_t, BasePairVector &, uint64_t);
 void ProcessMacroNode(const uint64_t &, std::vector<MacroNode> &, Args_t &);
+void InitialMacroNodeWire(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
+void PushTerminals_Defaults(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 
 } // namespace agile::workflow3
 

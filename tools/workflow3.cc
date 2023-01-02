@@ -69,6 +69,7 @@ int main(int argc, char *argv[]) {
   auto BucketCounts = IntArray::Create(min_counts, 0);     // array to count kmers appearing [1..min_count] times
 
   BucketCounts->FillPtrs();
+  ContigVector->Reserve(SMALL);
 
   Args_t args;
   args.KMap_OID         = (uint64_t) (KMap->GetGlobalID());
@@ -109,9 +110,14 @@ int main(int argc, char *argv[]) {
   rt::waitForCompletion(handle);
   MNMap->WaitForBufferedInsert();
 
-  KMap->Clear();                                                    // can delete KMap
-  MNMap->AsyncForEachEntry(handle, InitialMacroNodeWire, args);     // initialize wiring
+  KMap->Clear();                                                      // can delete KMap
+  MNMap->AsyncForEachEntry(handle, PushTerminals_Defaults, args);     // push MNMap terminals and WireMap defaults
 
+  rt::waitForCompletion(handle);
+  MNMap->WaitForBufferedInsert();
+  WireMap->WaitForBufferedInsert();
+
+  MNMap->AsyncForEachEntry(handle, InitialMacroNodeWire, args);     // initialize wiring
   rt::waitForCompletion(handle);
   WireMap->WaitForBufferedInsert();
 
@@ -121,16 +127,61 @@ int main(int argc, char *argv[]) {
 /*
   uint64_t key = 0;
 
+    // key = 12203676461861181
+    // AAAATTGCCTGATGCGCTACGCTTATCAGGC,T,20,1,1,2,C,42,1,1,0,A,31,1,1,1,*,1,0,0,0,C,95,1,*,1,2,
+    //    1,0,1,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+
+    key = 12203676461861181;
+    MNMapType::LookupResult macro_node;
+    MNMap->Lookup(key, & macro_node);
+    printf("\n%s,", kmer_string(key, args.mnLength).c_str());
+
+    for (auto node : macro_node.value) {
+      if (node.affix.size() == 0) printf("*"); else node.affix.print();
+      printf(",%lu,%lu,", node.count.first, node.count.second);
+
+      if (node.isPrefix) printf("%d,%lu,", node.num_wires, node.wire_index);
+    }
+
+    WireMapType::LookupResult wire_map;
+    WireMap->Lookup(key, & wire_map);
+    printf("\n   ");
+    for (auto & T1 : wire_map.value) printf("%lu,%d,%d,", T1.sid, T1.offset, T1.count);
+    printf("\n");
+    return 0;
+*/
+
+/*
   for (auto itr = MNMap->begin(); itr != MNMap->end(); ++ itr) {
+
     if (key != (* itr).first) {
-       key = (* itr).first;
+       if (key != 0) {                         // print out the wire map for previous key
+          WireMapType::LookupResult wire_map;
+          WireMap->Lookup(key, & wire_map);
+
+          printf("\n   ");
+          for (auto & T1 : wire_map.value) printf("%lu,%d,%d,", T1.sid, T1.offset, T1.count);
+       }
+
+       key = (* itr).first;                    // print out next key
        printf("\n%s,", kmer_string(key, args.mnLength).c_str());
     }
 
     MacroNode node = (* itr).second;
     if (node.affix.size() == 0) printf("*"); else node.affix.print();
     printf(",%lu,%lu,", node.count.first, node.count.second);
+
+    if (node.isPrefix) printf("%d,%lu,", node.num_wires, node.wire_index);
   }
+
+    WireMapType::LookupResult wire_map;     // print out the wire map for last key
+    WireMap->Lookup(key, & wire_map);
+
+    printf("\n   ");
+    for (auto & T1 : wire_map.value) printf("%lu,%d,%d,", T1.sid, T1.offset, T1.count);
+    printf("\n");
+
+  return 0;
 */
 
 //********** CONSTRUCT CONTIGS **********//

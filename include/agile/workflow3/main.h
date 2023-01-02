@@ -46,6 +46,7 @@
 #define MAIN_H_
 
 #include <string>
+#include <numeric>
 #include <math.h>
 #include <limits.h>
 
