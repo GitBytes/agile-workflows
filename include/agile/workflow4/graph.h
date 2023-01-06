@@ -179,6 +179,7 @@ class SaleEdge {
     uint64_t product;
     time_t   date;
     double   amount;
+    double   weight;
     TYPES    src_type;
     TYPES    dst_type;
 
@@ -197,7 +198,7 @@ class SaleEdge {
       buyer    = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
       product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
       date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
-      amount   = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      amount   = ENCODE<double,   std::string, DOUBLE>(tokens[7]);
       src_type = TYPES::PERSON;
       dst_type = TYPES::PERSON;
     }

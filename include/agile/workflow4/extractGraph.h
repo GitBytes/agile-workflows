@@ -42,53 +42,90 @@
 //                       under Contract DE-AC05-76RL01830
 //===----------------------------------------------------------------------===//
 
-#ifndef MAIN_H_
-#define MAIN_H_
+#ifndef EXTRACTGRAPH_H_
+#define EXTRACTGRAPH_H_
 
-#include <map>
-#include <math.h>
-#include <limits.h>
+#include <mutex>
+#include <algorithm>
 #include <fstream>
+#include "shad/data_structures/atomic.h"
+#include "agile/workflow4/graph.h"
 
-#include "shad/data_structures/array.h"
-#include "shad/data_structures/hashmap.h"
-#include "shad/data_structures/multimap.h"
+#define UINT   shad::data_types::UINT
+#define DOUBLE shad::data_types::DOUBLE
+#define USDATE shad::data_types::USDATE
+#define ENCODE shad::data_types::encode
 
-#define TINY   5000
-#define SMALL  500000
-#define MEDIUM 5000000
-#define LARGE  50000000
+using intAtomic = shad::Atomic<int64_t>;
+using intAtomicOID = shad::ObjectIdentifier<intAtomic>;
 
-namespace agile::workflow4 {
+namespace agile::workflow4 { 
 
-using Handle = shad::rt::Handle;
-using Graph_t = std::map<std::string, uint64_t>;
+struct SellerVertex {
+    uint64_t id;
+    uint64_t glbid;
+    double sales;           // total sales by this seller
+    uint64_t sales_count;   // for verification?
+    TYPES type;
 
-struct RF_args_t {
-    uint64_t Topics_OID;
-    uint64_t Purchases_OID;
-    uint64_t Sales_OID;
-    uint64_t CoffeeSales_OID;
-    uint64_t Friends_OID;
-    uint64_t Persons_OID;
-    uint64_t Servers_OID;
-    uint64_t Sends_OID;
-    uint64_t Uses_OID;
-    char filename [120];
-    char filename2 [120];
-    char filename3 [120];
-    char filename4 [120];
-    char filename5 [120];
-    char outfilename [120];
+    SellerVertex () {
+        id          = shad::data_types::kNullValue<uint64_t>;
+        glbid       = shad::data_types::kNullValue<uint64_t>;
+        sales       = shad::data_types::kNullValue<double>;
+        sales_count = shad::data_types::kNullValue<uint64_t>;
+        type        = TYPES::NONE;
+    }
+
+    SellerVertex (uint64_t seller, double sale=0.0) {
+        id      = seller;
+        sales   = sale;
+        type   = TYPES::PERSON;
+    }
+
+    void add_sale_amount(double amount) {
+        sales += amount;
+        if (amount > 0.0)
+            ++sales_count;
+    }
+
+    void add_sale_amount(double amount, uint64_t count) {
+        sales       = amount;
+        sales_count = count;
+    }
+
+    uint64_t key() { return id;}
 };
 
-void readFileCoffee(Handle & handle, const RF_args_t & args);
-void readFileSocial(Handle & handle, const RF_args_t & args);
-void readFileCyber(Handle & handle, const RF_args_t & args);
-void readFileUses(Handle & handle, const RF_args_t & args);
-void readFileCommercial(Handle & handle, const RF_args_t & args);
+struct CoffeeSaleEdge {
+    uint64_t seller;
+    uint64_t buyer;
+    double sale_weight;
+    TYPES src_type;
+    TYPES dst_type;
 
+    CoffeeSaleEdge () {
+        seller      = shad::data_types::kNullValue<uint64_t>;
+        buyer       = shad::data_types::kNullValue<uint64_t>;
+        sale_weight = shad::data_types::kNullValue<double>;
+        src_type    = TYPES::NONE;
+        dst_type    = TYPES::NONE;
+    }
 
+    CoffeeSaleEdge (uint64_t s_id, uint64_t b_id, double sale_wt) {
+        seller      = s_id;
+        buyer       = b_id;
+        sale_weight = sale_wt;
+        src_type    = TYPES::PERSON;
+        dst_type    = TYPES::PERSON;
+    }
+};
+
+// void getCoffeeSalesEdge(Handle & handle, const uint64_t & topic_key, uint64_t & salesEdge_OID);
+
+// void printAllEntries(uint64_t & salesEdge_OID);
+
+void getCoffeeSaleEdgeWeights(Graph_t & graph, const RF_args_t & args, uint64_t  product_id);
+// void getCoffeeSaleEdgeWeights(Graph_t & graph, const RF_args_t & args);
 } // namespace agile::workflow4
-
-#endif  // MAIN_H
+ 
+#endif // EXTRACTGRAPH_H_

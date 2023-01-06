@@ -44,6 +44,7 @@
 
 #include "agile/workflow4/main.h"
 #include "agile/workflow4/graph.h"
+#include "agile/workflow4/extractGraph.h"
 
 namespace shad {
   using namespace agile::workflow4;
@@ -55,11 +56,12 @@ int main(int argc, char *argv[]) {
 
   Handle handle1, handle2, handle3, handle4, handle5;
   Graph_t graph;
-  std::string dataFile = argv[1];
+  std::string dataFile  = argv[1];
   std::string dataFile2 = argv[2];
   std::string dataFile3 = argv[3];
   std::string dataFile4 = argv[4];
   std::string dataFile5 = argv[5];
+  std::string outFile   = argv[6];
 
   std::vector<std::string> dataFiles{dataFile, dataFile2, dataFile3, dataFile4, dataFile5};
 
@@ -67,6 +69,7 @@ int main(int argc, char *argv[]) {
   auto Topics       = TopicVertexType::Create(SMALL);
   auto Purchases    = PurchaseEdgeType::Create(MEDIUM);
   auto Sales        = SaleEdgeType::Create(MEDIUM);
+  auto CoffeeSales  = SaleEdgeType::Create(MEDIUM);
   auto Friends      = FriendOfEdgeType::Create(MEDIUM);
   auto Servers      = ServerVertexType::Create(MEDIUM);
   auto Sends        = SendsEdgeType::Create(MEDIUM);
@@ -76,20 +79,24 @@ int main(int argc, char *argv[]) {
   graph["Topics"]       = (uint64_t) (Topics->GetGlobalID());
   graph["Purchases"]    = (uint64_t) (Purchases->GetGlobalID());
   graph["Sales"]        = (uint64_t) (Sales->GetGlobalID());
+  graph["CoffeeSales"]  = (uint64_t) (CoffeeSales->GetGlobalID());
   graph["Friends"]      = (uint64_t) (Friends->GetGlobalID());
   graph["Servers"]      = (uint64_t) (Servers->GetGlobalID());
-  graph["Sends"]      = (uint64_t) (Sends->GetGlobalID());
-  graph["Uses"]      = (uint64_t) (Uses->GetGlobalID());
+  graph["Sends"]        = (uint64_t) (Sends->GetGlobalID());
+  graph["Uses"]         = (uint64_t) (Uses->GetGlobalID());
 
   RF_args_t args;
-  args.Persons_OID = graph["Persons"];
-  args.Topics_OID = graph["Topics"];
-  args.Purchases_OID = graph["Purchases"];
-  args.Sales_OID = graph["Sales"];
-  args.Friends_OID = graph["Friends"];
-  args.Servers_OID = graph["Servers"];
-  args.Sends_OID = graph["Sends"];
-  args.Uses_OID = graph["Uses"];
+  args.Persons_OID      = graph["Persons"];
+  args.Topics_OID       = graph["Topics"];
+  args.Purchases_OID    = graph["Purchases"];
+  args.Sales_OID        = graph["Sales"];
+  args.CoffeeSales_OID  = graph["CoffeeSales"];
+  args.Friends_OID      = graph["Friends"];
+  args.Servers_OID      = graph["Servers"];
+  args.Sends_OID        = graph["Sends"];
+  args.Uses_OID         = graph["Uses"];
+  memcpy(args.outfilename, outFile.c_str(), outFile.size() + 1);
+  // args.outfilename      = outFile;
 
   int count = 1;
   for(auto itr=dataFiles.begin(); itr!=dataFiles.end(); itr++) {
@@ -147,6 +154,7 @@ int main(int argc, char *argv[]) {
   printf("Total number of edges    = %lu\n", 
        Purchases->Size() + Sales->Size() + Friends->Size() + Sends->Size() + Uses->Size());
 
+  getCoffeeSaleEdgeWeights(graph, args, 8486);
   return 0;
 }
 
