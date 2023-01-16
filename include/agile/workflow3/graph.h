@@ -70,8 +70,9 @@ class BasePairVector {
 // base pairs: AAGTCCTACG
 // stored    : AAGT CCTA __CG
 // word      :  0    1    2
-//
 // return leading base pairs in word; extract_pred(1, 2, 4), returns __CC
+//
+//
   uint64_t extract_pred(uint64_t word, uint64_t pred_size, uint64_t word_size) {
     assert(pred_size <= word_size);                        // # BP in pred <= # BP in word;
 
@@ -134,25 +135,23 @@ class BasePairVector {
 
   uint64_t size() const { return size_; }
   
-// base pairs: AAGTCCTACG
-// stored    : AAGT CCTA __CG
-// word      :  0    1    2
-// offset    : 0123 0123   01
-//
-// shrink number of base pairs to new_size; resize(6), leaves vec_ = AAGT __CC, size_ = 6
-  void resize(uint64_t new_size) {
-    assert(new_size < size_);
+  bool compare(BasePairVector rhs) {
+    if (size_ != rhs.size_) return false;
 
-    uint64_t word   = (new_size - 1) / BP_PER_WORD;                            // last base pair is in word 1
-    uint64_t offset = (new_size - 1) % BP_PER_WORD;                            // last base pair has offset 1
-    uint64_t last_word = size_ / BP_PER_WORD;                                  // last word is word 2
-    uint64_t base_pairs_in_word = (word < last_word) ? BP_PER_WORD : size_ % BP_PER_WORD;
+    uint64_t full_words = size_ / BP_PER_WORD;
+    for (uint64_t i = 0; i < full_words; ++ i)
+      if (vec_[i] != rhs.vec_[i]) return false;
 
-    vec_[word] = extract_pred(vec_[word], offset + 1, base_pairs_in_word);     // CCTA ==> __CC
-    size_ = new_size;
+    uint64_t mask = (1 << SIZE_BP) - 1;
+    uint64_t offset = size_ % BP_PER_WORD;
+    for (uint64_t i = 0; i < offset; ++ i)
+      if ((vec_[full_words] & mask) != (rhs.vec_[full_words] & mask)) return false;
+      else mask = mask << SIZE_BP;
+
+    return true;
   }
 
-  void print() {
+  void print(FILE * ff) {
     uint64_t num_full_words   = size_ / BP_PER_WORD;
     uint64_t extra_base_pairs = size_ % BP_PER_WORD;
     uint64_t last_mask = (extra_base_pairs) ? pred_mask(1, extra_base_pairs) : 0;
@@ -162,13 +161,13 @@ class BasePairVector {
 
       for (uint64_t j = BP_PER_WORD; j > 0; -- j) {
         uint64_t BP = (vec_[i] & mask) >> ((j - 1) * SIZE_BP);
-        printf("%c", EL_TO_CHAR(BP));
+        fprintf(ff, "%c", EL_TO_CHAR(BP));
         mask >>= SIZE_BP;
     } }
 
     for (uint64_t j = extra_base_pairs; j > 0; -- j) {
       uint64_t BP = (vec_[num_full_words] & last_mask) >> ((j - 1) * SIZE_BP);
-      printf("%c", EL_TO_CHAR(BP));
+      fprintf(ff, "%c", EL_TO_CHAR(BP));
       last_mask >>= SIZE_BP;
   } }
 
@@ -213,7 +212,7 @@ class MacroNode {
 
 class WireNode {
   public:
-    uint64_t sid;          // suffix id in MacroNode value
+    uint64_t sid;     // suffix id in MacroNode value
     int64_t  offset;
     int64_t  count;
 
@@ -229,6 +228,53 @@ class WireNode {
       count  = count_;
     }
 };     // WireNode
+
+class ModifiedNode {
+  public:
+    BasePairVector old_affix;              // macro node's old affix (==> node to be replaced)
+    BasePairVector new_affix;              // macro node's new affix
+    bool isPrefix;
+    bool isTerminal;
+    uint64_t num_wires;
+    uint64_t wire_index;
+    std::pair<int64_t, int64_t> count;     // macro node's new count
+
+    ModifiedNode () {
+      old_affix  = BasePairVector();
+      new_affix  = BasePairVector();
+      isPrefix   = false;
+      isTerminal = false;
+      num_wires  = 0;
+      wire_index = 0;
+      count      = {-1, -1};
+    }
+};
+
+inline bool operator<(const BasePairVector & k1, const BasePairVector & k2) {
+    if (k1.size() != k2.size()) return k1.size() < k2.size();
+    for (uint64_t i = 0; i < k1.size(); ++ i) if (k1[i] < k2[i]) return true;
+    return false;
+}
+
+class Comp_rev{
+  const std::vector<MacroNode> & _v;
+
+  public:
+  Comp_rev(const std::vector<MacroNode> & v) : _v(v) {}
+
+  bool operator()(size_t i, size_t j) {
+    if (_v[i].isPrefix     != _v[j].isPrefix)     return _v[i].isPrefix;     // prefixes stored before suffixes
+    if (_v[i].count.second != _v[j].count.second) return (_v[i].count.second > _v[j].count.second);
+    if (_v[i].count.first  != _v[j].count.first)  return (_v[i].count.first  > _v[j].count.first);
+    return _v[i].affix < _v[j].affix;
+  }
+
+};
+
+struct MNInfo {
+  uint64_t key;
+  BasePairVector affix;
+};
 
 template <typename T>
 struct KMapInserter {
@@ -254,40 +300,25 @@ struct KMapInserter {
   }
 };
 
-class Comp_rev{
-  const std::vector<MacroNode> & _v;
-
-  public:
-  Comp_rev(const std::vector<MacroNode> & v) : _v(v) {}
-
-  bool operator()(size_t i, size_t j) {
-    if (_v[i].isPrefix != _v[j].isPrefix) return _v[i].isPrefix;     // prefixes stored before suffixes
-
-    return ( _v[i].count.second >  _v[j].count.second) ||
-           ((_v[i].count.second == _v[j].count.second) && (_v[i].count.first > _v[j].count.first));
-    }
-};
-
-using KMapType    = shad::Hashmap<uint64_t, uint64_t, shad::MemCmp<uint64_t>, KMapInserter<uint64_t>>;
-using KMapOID     = shad::ObjectIdentifier<KMapType>;
-using MNMapType   = shad::Multimap<uint64_t, MacroNode>;
-using MNMapOID    = shad::ObjectIdentifier<MNMapType>;
-using WireMapType = shad::Multimap<uint64_t, WireNode>;
-using WireMapOID  = shad::ObjectIdentifier<WireMapType>;
-using ContigVectorType = shad::Vector<BasePairVector>;
-using ContigVectorOID = shad::ObjectIdentifier<ContigVectorType>;
-
-struct MNInfo {
-  uint64_t key;
-  BasePairVector affix;
-};
+using KMapType        = shad::Hashmap<uint64_t, uint64_t, shad::MemCmp<uint64_t>, KMapInserter<uint64_t>>;
+using KMapOID         = shad::ObjectIdentifier<KMapType>;
+using MNMapType       = shad::Multimap<uint64_t, MacroNode>;
+using MNMapOID        = shad::ObjectIdentifier<MNMapType>;
+using WireMapType     = shad::Multimap<uint64_t, WireNode>;
+using WireMapOID      = shad::ObjectIdentifier<WireMapType>;
+using ContigMapType   = shad::Hashmap<uint64_t, BasePairVector>;
+using ContigMapOID    = shad::ObjectIdentifier<ContigMapType>;
+using ModifiedMapType = shad::Multimap<uint64_t, ModifiedNode>;
+using ModifiedMapOID  = shad::ObjectIdentifier<ModifiedMapType>;
 
 bool MN_comp(MacroNode &, MacroNode &);
 MNInfo get_suffix_merge_info(uint64_t, BasePairVector &, uint64_t);
 MNInfo get_prefix_merge_info(uint64_t, BasePairVector &, uint64_t);
-void ProcessMacroNode(const uint64_t &, std::vector<MacroNode> &, Args_t &);
-void InitialMacroNodeWire(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
-void PushTerminals_Defaults(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
+void WireMacroNodes(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
+void ProcessMacroNode(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
+void ModifyMacroNode(Handle &, const uint64_t &, std::vector<ModifiedNode> &, Args_t &);
+void Finish_MN_WireMaps(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
+void ProcessContig(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 
 } // namespace agile::workflow3
 
