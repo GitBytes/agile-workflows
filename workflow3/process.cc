@@ -77,9 +77,9 @@ MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 
   if (size > mnLength) {
      // affix     = AACAGCAGGAAGGCACCGAAGATATACAGGATCCAGTCG
-     // key       =                                        AACTGCGAAATTAGCCAGCTGCCAGTGAAGA,
+     // key       =                                        AACTGCGAAATTAGCCAGCTGCCAGTGAAGA
      // new key   = AACAGCAGGAAGGCACCGAAGATATACAGGA
-     // new_affix =                                TCCAGTCGAACAGCAGGAAGGCACCGAAGATATACAGGA
+     // new_affix =                                TCCAGTCGAACTGCGAAATTAGCCAGCTGCCAGTGAAGA
      uint64_t rem = size - mnLength;
      new_key = affix.vec_[0] >> ((BP_PER_WORD - mnLength) * SIZE_BP);
      new_affix = BasePairVector(affix.extract_succ(rem), rem);
