@@ -124,7 +124,7 @@ void ModifyMN_(Handle & handle, const uint64_t & key,
 
     for (uint64_t i = 0; i < macroNodes.size(); ++ i) {           // ... for each macro node
       if (mod.isPrefix != macroNodes[i].isPrefix) continue;       // ... ... affix types are not the same
-      if (! mod.old_affix.compare(macroNodes[i].affix)) continue;
+      if (mod.old_affix != macroNodes[i].affix) continue;
 
       found = true;                                               // ... ... replace macro node
       macroNodes[i].affix      = mod.new_affix;

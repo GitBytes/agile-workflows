@@ -135,41 +135,11 @@ class BasePairVector {
 
   uint64_t size() const { return size_; }
   
-  bool compare(BasePairVector rhs) {
-    if (size_ != rhs.size_) return false;
-
-    uint64_t full_words = size_ / BP_PER_WORD;
-    for (uint64_t i = 0; i < full_words; ++ i)
-      if (vec_[i] != rhs.vec_[i]) return false;
-
-    uint64_t mask = (1 << SIZE_BP) - 1;
-    uint64_t offset = size_ % BP_PER_WORD;
-    for (uint64_t i = 0; i < offset; ++ i)
-      if ((vec_[full_words] & mask) != (rhs.vec_[full_words] & mask)) return false;
-      else mask = mask << SIZE_BP;
-
-    return true;
+  void print(FILE * ff) {
+    for (uint64_t i = 0; i < size_; ++ i)
+      fprintf(ff, "%c", EL_TO_CHAR((* this)[i]));
   }
 
-  void print(FILE * ff) {
-    uint64_t num_full_words   = size_ / BP_PER_WORD;
-    uint64_t extra_base_pairs = size_ % BP_PER_WORD;
-    uint64_t last_mask = (extra_base_pairs) ? pred_mask(1, extra_base_pairs) : 0;
-
-    for (uint64_t i = 0; i < num_full_words; ++ i) {
-      uint64_t mask = pred_mask(1, BP_PER_WORD);
-
-      for (uint64_t j = BP_PER_WORD; j > 0; -- j) {
-        uint64_t BP = (vec_[i] & mask) >> ((j - 1) * SIZE_BP);
-        fprintf(ff, "%c", EL_TO_CHAR(BP));
-        mask >>= SIZE_BP;
-    } }
-
-    for (uint64_t j = extra_base_pairs; j > 0; -- j) {
-      uint64_t BP = (vec_[num_full_words] & last_mask) >> ((j - 1) * SIZE_BP);
-      fprintf(ff, "%c", EL_TO_CHAR(BP));
-      last_mask >>= SIZE_BP;
-  } }
 
 // base pairs: AAGTCCTACG
 // stored    : AAGT CCTA __CG          (assume 4 base pairs per word)
@@ -189,6 +159,7 @@ class BasePairVector {
     uint64_t shift = (base_pairs_in_word - offset - 1) * SIZE_BP;     // (4 - 2 - 1) * 2 = 2
     return (vec_[word] >> shift) & (0x3);                             // (AAGT >> 2) & 00000011 = ___G
   }
+
 };     // BasePairVector
 
 class MacroNode {
@@ -258,6 +229,8 @@ inline bool operator==(const BasePairVector & k1, const BasePairVector & k2) {
 
     return true;
 }
+
+inline bool operator!=(const BasePairVector & k1, const BasePairVector & k2) { return ! (k1 == k2); }
 
 inline bool operator>(const BasePairVector & k1, const BasePairVector & k2) {
     if (k1.size() != k2.size()) return k1.size() > k2.size();

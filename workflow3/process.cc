@@ -76,22 +76,14 @@ MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
   uint64_t size = affix.size();
 
   if (size > mnLength) {
-     // uint64_t rem = size - mnLength;
+     // affix     = AACAGCAGGAAGGCACCGAAGATATACAGGATCCAGTCG
+     // key       =                                        AACTGCGAAATTAGCCAGCTGCCAGTGAAGA,
+     // new key   = AACAGCAGGAAGGCACCGAAGATATACAGGA
+     // new_affix =                                TCCAGTCGAACAGCAGGAAGGCACCGAAGATATACAGGA
+     uint64_t rem = size - mnLength;
      new_key = affix.vec_[0] >> ((BP_PER_WORD - mnLength) * SIZE_BP);
-     // new_affix = BasePairVector(affix.extract_succ(rem), mnLength);
-     // new_affix.append(BasePairVector(key, mnLength));
-     printf("prefix >= 32, new_key = %s\n", kmer_string(new_key, mnLength).c_str());
-     // new_affix.print(stdout); printf("\n");
-     // exit(-1);
-     // AACTGCGAAATTAGCCAGCTGCCAGTGAAGA *** AACAGCAGGAAGGCACCGAAGATATACAGGATCCAGTCG ***
-     // AACAGCAGGAAGGCACCGAAGATATACAGGA *** TCCAGTCGAACTGCGAAATTAGCCAGCTGCCAGTGAAGA
-     uint64_t rem = mnLength - size;                          // remainder = 7 - 4 = 3
-     uint64_t mask = ((1UL) << (size * SIZE_BP)) - 1;         // mask = 00001111
-
-// affix : ___AAGT; key = _GGTCATA
-     new_key = affix.vec_[0] << (rem * SIZE_BP);              // __AAGT << (3 * 2) = _AAGT___
-     new_key = new_key | (key >> (size * SIZE_BP));           // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
-     new_affix = BasePairVector(key & mask, size);            // _GGTCATA & 00001111 = ____CATA
+     new_affix = BasePairVector(affix.extract_succ(rem), rem);
+     new_affix.append(BasePairVector(key, mnLength));
 
   } else if (size == mnLength) {
      new_key   = affix.vec_[0];
