@@ -64,8 +64,8 @@ class BasePairVector {
   uint64_t size_;
   uint64_t vec_[SIZE_BPV];
   
-  BasePairVector() {size_ = 0;}
-  BasePairVector(uint64_t word, uint64_t size) {size_ = size; vec_[0] = word;}
+  BasePairVector() {size_ = 0; vec_[0] = 0; vec_[1] = 0;}
+  BasePairVector(uint64_t word, uint64_t size) {size_ = size; vec_[0] = word; vec_[1] = 0;}
 
 // base pairs: AAGTCCTACG
 // stored    : AAGT CCTA __CG
@@ -250,13 +250,25 @@ class ModifiedNode {
     }
 };
 
-inline bool operator<(const BasePairVector & k1, const BasePairVector & k2) {
-    if (k1.size() != k2.size()) return k1.size() < k2.size();
-    for (uint64_t i = 0; i < k1.size(); ++ i) if (k1[i] < k2[i]) return true;
+inline bool operator==(const BasePairVector & k1, const BasePairVector & k2) {
+    if (k1.size() != k2.size()) return false;
+
+    for (uint64_t i = 0; i < k1.size(); ++ i)
+      if (k1[i] != k2[i]) return false;
+
+    return true;
+}
+
+inline bool operator>(const BasePairVector & k1, const BasePairVector & k2) {
+    if (k1.size() != k2.size()) return k1.size() > k2.size();
+
+    for (uint64_t i = 0; i < k1.size(); ++ i)
+      if (k1[i] != k2[i]) return k1[i] > k2[i];
+
     return false;
 }
 
-class Comp_rev{
+class Comp_rev {
   const std::vector<MacroNode> & _v;
 
   public:
@@ -266,7 +278,7 @@ class Comp_rev{
     if (_v[i].isPrefix     != _v[j].isPrefix)     return _v[i].isPrefix;     // prefixes stored before suffixes
     if (_v[i].count.second != _v[j].count.second) return (_v[i].count.second > _v[j].count.second);
     if (_v[i].count.first  != _v[j].count.first)  return (_v[i].count.first  > _v[j].count.first);
-    return _v[i].affix < _v[j].affix;
+    return _v[i].affix > _v[j].affix;
   }
 
 };

@@ -71,16 +71,41 @@ uint64_t extract_succ_word(uint64_t word, uint64_t suff_size, uint64_t word_size
 
 
 MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLength) {
-  assert(affix.size() < mnLength);
+  uint64_t new_key;
   BasePairVector new_affix;
   uint64_t size = affix.size();
-  uint64_t rem = mnLength - size;                          // remainder = 7 - 4 = 3
-  uint64_t mask = ((1UL) << (size * SIZE_BP)) - 1;         // mask = 00001111
+
+  if (size > mnLength) {
+     // uint64_t rem = size - mnLength;
+     new_key = affix.vec_[0] >> ((BP_PER_WORD - mnLength) * SIZE_BP);
+     // new_affix = BasePairVector(affix.extract_succ(rem), mnLength);
+     // new_affix.append(BasePairVector(key, mnLength));
+     printf("prefix >= 32, new_key = %s\n", kmer_string(new_key, mnLength).c_str());
+     // new_affix.print(stdout); printf("\n");
+     // exit(-1);
+     // AACTGCGAAATTAGCCAGCTGCCAGTGAAGA *** AACAGCAGGAAGGCACCGAAGATATACAGGATCCAGTCG ***
+     // AACAGCAGGAAGGCACCGAAGATATACAGGA *** TCCAGTCGAACTGCGAAATTAGCCAGCTGCCAGTGAAGA
+     uint64_t rem = mnLength - size;                          // remainder = 7 - 4 = 3
+     uint64_t mask = ((1UL) << (size * SIZE_BP)) - 1;         // mask = 00001111
 
 // affix : ___AAGT; key = _GGTCATA
-  uint64_t new_key = affix.vec_[0] << (rem * SIZE_BP);     // __AAGT << (3 * 2) = _AAGT___
-  new_key = new_key | (key >> (size * SIZE_BP));           // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
-  new_affix = BasePairVector(key & mask, size);            // _GGTCATA & 00001111 = ____CATA
+     new_key = affix.vec_[0] << (rem * SIZE_BP);              // __AAGT << (3 * 2) = _AAGT___
+     new_key = new_key | (key >> (size * SIZE_BP));           // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
+     new_affix = BasePairVector(key & mask, size);            // _GGTCATA & 00001111 = ____CATA
+
+  } else if (size == mnLength) {
+     new_key   = affix.vec_[0];
+     new_affix = BasePairVector(key, mnLength);
+
+  } else {
+     uint64_t rem = mnLength - size;                          // remainder = 7 - 4 = 3
+     uint64_t mask = ((1UL) << (size * SIZE_BP)) - 1;         // mask = 00001111
+
+// affix : ___AAGT; key = _GGTCATA
+     new_key = affix.vec_[0] << (rem * SIZE_BP);              // __AAGT << (3 * 2) = _AAGT___
+     new_key = new_key | (key >> (size * SIZE_BP));           // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
+     new_affix = BasePairVector(key & mask, size);            // _GGTCATA & 00001111 = ____CATA
+  }
 
   return MNInfo{new_key, new_affix};
 }
@@ -90,8 +115,6 @@ MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLength) {
   BasePairVector new_affix;
   uint64_t new_key, size = affix.size();
-
-// affix : AAGTCCTA ______CG; key = _GGTCATA
   if (size > mnLength) {
      uint64_t rem = size - mnLength;                                        // remainder = 10 - 7 = 3
      new_key = affix.extract_succ(mnLength);                                // _TCCTACG
@@ -122,40 +145,6 @@ void walk(Handle & handle, uint64_t key, BasePairVector & contig,
   auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
   auto ContigMap = ContigMapType::GetPtr((ContigMapOID) args.ContigMap_OID);
   ContigMap->BufferedAsyncInsert(handle, key, contig);
-
-/*
-  for (int i = 0, offset = 0; i < node.num_wires; offset += wireNode[i].count, i ++) {
-    int64_t id = wireNode[i].sid;
-    int64_t size = wireNode[i].count;
-    int64_t offset_in_suffix = wireNode[i].offset_in_suffix;
-    if ((offset + size <= offset_in_prefix) || (offset > offset_in_prefix + freq)) continue;
-
-    int offset_in_wire = offset_in_prefix <= off ? 0 : offset_in_prefix - offset;
-    int freq_in_wire   = std::min(freq, (size - offset_in_wire));
-    int next_offset    = offset_in_suffix + offset_in_wire;
-
-    contig.append(node[id].affix);
-
-    if (node[id].isTerminal) {
-       ContigMap->BufferedAsyncInsert(contig);
-    } else {
-        BasePairVector succ_ext = mn.suffixes[id];
-        BasePairVector key = mn.k_1_mer;
-        MnodeInfo mn_info = retrieve_mn_sinfo(succ_ext, key);             // function call
-
-        int pos = find_mnode_exists(mn_info.search_mn, global_MN_map);    // function call
-        MacroNode &next_mn = global_MN_map[pos].second;                   // lookup the next macro node
-        std::vector<BasePairVector>::iterator viter = 
-            std::find(next_mn.prefixes.begin(), next_mn.prefixes.end(), BasePairVector(mn_info.search_ext));
-
- // find the prefix id this suffix id connects to
-        int next_prefix_id = std::distance(next_mn.prefixes.begin(), viter);
-        walk(partial_contig, freq_in_wire, next_offset, next_prefix_id, next_mn, global_MN_map, local_contig_list);
-    }
-
-    freq -= freq_in_wire;
-} }
-*/
 }
 
 
@@ -195,8 +184,12 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
     if (node.num_wires == 0) continue;     // ... skip prefixes with no wires
 
     MNInfo prefix_merge_info;
-    if ( (node.affix.size() > 0) && (! node.isTerminal) )
+    if ( (node.affix.size() > 0) && (! node.isTerminal) ) {
        prefix_merge_info = get_prefix_merge_info(key, node.affix, mnLength);
+    } else {
+       prefix_merge_info.key = 0;
+       prefix_merge_info.affix = BasePairVector();
+    }
 
     for (int t = 0; t < node.num_wires; ++ t) {
       uint64_t sid  = wireNodes[node.wire_index + t].sid;
@@ -204,8 +197,12 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
       MacroNode & suffix = macroNodes[sid];
 
       MNInfo suffix_merge_info;
-      if ( (suffix.affix.size() > 0) && (! suffix.isTerminal) )
+      if ( (suffix.affix.size() > 0) && (! suffix.isTerminal) ) {
          suffix_merge_info = get_suffix_merge_info(key, suffix.affix, mnLength);
+      } else {
+         suffix_merge_info.key = 0;
+         suffix_merge_info.affix = BasePairVector();
+      }
 
       bool self_loop_0 = (prefix_merge_info.key == key);
       bool self_loop_1 = (suffix_merge_info.key == key);

@@ -136,8 +136,8 @@ int main(int argc, char *argv[]) {
     time1 = my_timer();
     ModifiedNodes->Clear();                                                 // clear multimap of modified node
     ProcessedNodes->Clear();                                                // clear list of processed nodes
-    MNMap->AsyncForEachEntry(handle, ProcessMacroNode, args);               // process macro nodes
 
+    MNMap->AsyncForEachEntry(handle, ProcessMacroNode, args);               // process macro nodes
     rt::waitForCompletion(handle);
     MNMap->WaitForBufferedInsert();
 
