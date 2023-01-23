@@ -18,6 +18,8 @@ Key Files -
 
 Input file - ecoli/ecoli_illumina_10x_part_.fasta
 
+Output file - ecoli_10.output
+
 Input parameters -
 
 1) FASTA input file name

@@ -139,7 +139,6 @@ int main(int argc, char *argv[]) {
 
     MNMap->AsyncForEachEntry(handle, ProcessMacroNode, args);               // process macro nodes
     rt::waitForCompletion(handle);
-    MNMap->WaitForBufferedInsert();
 
     ProcessedNodes->AsyncForEachElement(handle, DeleteMacroNode, args);     // delete processed macro nodes
     rt::waitForCompletion(handle);
@@ -180,7 +179,7 @@ int main(int argc, char *argv[]) {
 
     num_contigs ++; 
     BasePairVector tmp = (* itr).second;
-    // fprintf(fc, ">contig_%lu_l_%lu\n", num_contigs, size);
+    fprintf(fc, ">contig_%lu_l_%lu\n", num_contigs, size);
 
     tmp.print(fc);
     fprintf(fc, "\n");

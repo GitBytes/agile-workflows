@@ -119,25 +119,39 @@ void ModifyMN_(Handle & handle, const uint64_t & key,
      std::vector<MacroNode> & macroNodes, std::vector<ModifiedNode> * (& modifiedNodes), Args_t & args) {
   auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
 
-  for (auto & mod : (* modifiedNodes))  {                         // for each modification
+  for (auto & mod : (* modifiedNodes))  {                           // for each modification
     bool found = false;
 
-    for (uint64_t i = 0; i < macroNodes.size(); ++ i) {           // ... for each macro node
-      if (mod.isPrefix != macroNodes[i].isPrefix) continue;       // ... ... affix types are not the same
-      if (mod.old_affix != macroNodes[i].affix) continue;
+    for (uint64_t i = 0; i < macroNodes.size(); ++ i) {             // ... for each macro node
+      if (mod.isPrefix != macroNodes[i].isPrefix) continue;         // ... ... affix types are not the same
+      if (mod.old_affix != macroNodes[i].affix) continue;           // ... ... affixes are not the same
+      found = true;                                                 // ... ... found affix in list
 
-      found = true;                                               // ... ... replace macro node
-      macroNodes[i].affix      = mod.new_affix;
-      macroNodes[i].isPrefix   = mod.isPrefix;
-      macroNodes[i].isTerminal = mod.isTerminal;
-      macroNodes[i].num_wires  = mod.num_wires;
-      macroNodes[i].wire_index = mod.wire_index;
-      macroNodes[i].count      = mod.count;
+      if (macroNodes[i].isTerminal) {                               // ... ... affix is a terminal 
+         MacroNode tmp;                                             // ... ... ... push new macro node
+         tmp.affix      = mod.new_affix;
+         tmp.isPrefix   = mod.isPrefix;
+         tmp.isTerminal = mod.isTerminal;
+         tmp.num_wires  = mod.num_wires;
+         tmp.wire_index = mod.wire_index;
+         tmp.count      = mod.count;
+         macroNodes.push_back(tmp);                                 // ... append new macro node
+         WireMap->BufferedAsyncInsert(handle, key, WireNode());     // ... extend wire map for key
+
+      } else {                                                      // ... ... affix is not a terminal 
+         macroNodes[i].affix      = mod.new_affix;                  // ... ... ... replace macro node
+         macroNodes[i].isPrefix   = mod.isPrefix;
+         macroNodes[i].isTerminal = mod.isTerminal;
+         macroNodes[i].num_wires  = mod.num_wires;
+         macroNodes[i].wire_index = mod.wire_index;
+         macroNodes[i].count      = mod.count;
+      }
+
       break;
     }
 
-    if (! found) {                                                // ... macro node not found
-       MacroNode tmp;
+    if (! found) {                                                // ... affix is not in list
+       MacroNode tmp;                                             // ... ... push new macro node
        tmp.affix      = mod.new_affix;
        tmp.isPrefix   = mod.isPrefix;
        tmp.isTerminal = mod.isTerminal;
@@ -231,7 +245,6 @@ void DeleteMacroNode(Handle & handle, const uint64_t & key, Args_t & args) {
 
 void ModifyMacroNode(Handle & handle, const uint64_t & key, std::vector<ModifiedNode> & value, Args_t & args) {
   auto MNMap = MNMapType::GetPtr((MNMapOID) args.MNMap_OID);
-  std::string kmer = kmer_string(key, args.mnLength);
 
   std::vector<ModifiedNode> * tmp = & value;
   MNMap->AsyncApply(handle, key, ModifyMN_, tmp, args);
