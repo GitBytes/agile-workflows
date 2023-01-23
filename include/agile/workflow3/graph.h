@@ -291,10 +291,12 @@ using MNMapType       = shad::Multimap<uint64_t, MacroNode>;
 using MNMapOID        = shad::ObjectIdentifier<MNMapType>;
 using WireMapType     = shad::Multimap<uint64_t, WireNode>;
 using WireMapOID      = shad::ObjectIdentifier<WireMapType>;
-using ContigMapType   = shad::Hashmap<uint64_t, BasePairVector>;
-using ContigMapOID    = shad::ObjectIdentifier<ContigMapType>;
 using ModifiedMapType = shad::Multimap<uint64_t, ModifiedNode>;
 using ModifiedMapOID  = shad::ObjectIdentifier<ModifiedMapType>;
+using ContigSetType   = shad::Set<BasePairVector>;
+using ContigSetOID    = shad::ObjectIdentifier<ContigSetType>;
+using ContigMapType   = shad::Hashmap<uint64_t, BasePairVector>;
+using ContigMapOID    = shad::ObjectIdentifier<ContigMapType>;
 
 bool MN_comp(MacroNode &, MacroNode &);
 MNInfo get_suffix_merge_info(uint64_t, BasePairVector &, uint64_t);

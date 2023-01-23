@@ -79,10 +79,11 @@ struct Args_t {
   uint64_t KMap_OID;
   uint64_t MNMap_OID;
   uint64_t WireMap_OID;
+  uint64_t BucketCounts_OID;
   uint64_t ModifiedNodes_OID;
   uint64_t ProcessedNodes_OID;
   uint64_t ContigMap_OID;
-  uint64_t BucketCounts_OID;
+  uint64_t PartialContigs_OID;
   uint64_t mnLength;
   uint64_t coverage;
   uint64_t min_index;

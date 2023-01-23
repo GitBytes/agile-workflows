@@ -68,6 +68,7 @@ int main(int argc, char *argv[]) {
   auto ModifiedNodes = ModifiedMapType::Create(LARGE);     // modified nodes multimap
   auto ProcessedNodes = IntSet::Create(LARGE);             // set of processed macro nodes
   auto ContigMap = ContigMapType::Create(SMALL);           // contig map
+  auto PartialContigs = ContigSetType::Create(SMALL);      // partial contig set
   auto BucketCounts = IntArray::Create(min_counts, 0);     // array to count kmers appearing [1..min_count] times
 
   BucketCounts->FillPtrs();
@@ -78,8 +79,9 @@ int main(int argc, char *argv[]) {
   args.WireMap_OID = (uint64_t) (WireMap->GetGlobalID());
   args.ModifiedNodes_OID = (uint64_t) (ModifiedNodes->GetGlobalID());
   args.ProcessedNodes_OID = (uint64_t) (ProcessedNodes->GetGlobalID());
-  args.ContigMap_OID = (uint64_t) (ContigMap->GetGlobalID());
   args.BucketCounts_OID = (uint64_t) (BucketCounts->GetGlobalID());
+  args.ContigMap_OID = (uint64_t) (ContigMap->GetGlobalID());
+  args.PartialContigs_OID = (uint64_t) (PartialContigs->GetGlobalID());
 
   args.mnLength   = std::stoull(argv[2]) - 1;
   args.coverage   = std::stoull(argv[3]);
