@@ -42,8 +42,8 @@
 //                       under Contract DE-AC05-76RL01830
 //===----------------------------------------------------------------------===//
 
-#ifndef EXTRACTGRAPH_H_
-#define EXTRACTGRAPH_H_
+#ifndef QUERYUPDATEGRAPH_H_
+#define QUERYUPDATEGRAPH_H_
 
 #include <mutex>
 #include <algorithm>
@@ -126,6 +126,7 @@ struct CoffeeSaleEdge {
 
 void getCoffeeSaleEdgeWeights(Graph_t & graph, const RF_args_t & args, uint64_t  product_id);
 // void getCoffeeSaleEdgeWeights(Graph_t & graph, const RF_args_t & args);
+void reconfigureGraph(Graph_t & graph, const std::vector<uint64_t>& influencers, const RF_args_t & args);
 } // namespace agile::workflow4
- 
-#endif // EXTRACTGRAPH_H_
+
+#endif // QUERYUPDATEGRAPH_H_

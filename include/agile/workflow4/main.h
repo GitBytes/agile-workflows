@@ -69,6 +69,7 @@ struct RF_args_t {
     uint64_t Purchases_OID;
     uint64_t Sales_OID;
     uint64_t CoffeeSales_OID;
+    uint64_t CoffeePurchases_OID;
     uint64_t Friends_OID;
     uint64_t Persons_OID;
     uint64_t Servers_OID;

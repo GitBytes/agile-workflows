@@ -48,6 +48,7 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
+#include <atomic>
 
 #include "shad/data_structures/hashmap.h"
 #include "shad/extensions/data_types/data_types.h"
@@ -66,8 +67,21 @@ class PersonVertex {
   public:
     uint64_t id;
     uint64_t glbid;
+    // std::atomic<uint64_t> coffee_sold = {0};
+    // std::atomic<uint64_t> coffee_purchased = {0};
+    double coffee_sold = {0};                       // original sell qty
+    double coffee_purchased = {0};                  // original buy qty  //FIFO..distirbuted control.
+    // Wholeseller.. deficit/surplus
+    // Distributor.. deficit/surplus 
 
-    PersonVertex () {
+    // double coffee_surplus = {0};                    // seller
+    // double coffee_deficit = {0};                    // buyer
+    
+    double coffee_sold_old = {0};                    // seller
+    double coffee_purchased_old = {0};                    // buyer
+
+    PersonVertex ()
+    {
       id    = shad::data_types::kNullValue<uint64_t>;
       glbid = shad::data_types::kNullValue<uint64_t>;
     }
@@ -78,7 +92,8 @@ class PersonVertex {
       glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
-    PersonVertex (std::vector <std::string> & tokens) {
+    PersonVertex (std::vector <std::string> & tokens)
+    {
       id    = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
       glbid = shad::data_types::kNullValue<uint64_t>;
     }

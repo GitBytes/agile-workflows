@@ -44,7 +44,7 @@
 
 #include "agile/workflow4/main.h"
 #include "agile/workflow4/graph.h"
-#include "agile/workflow4/extractGraph.h"
+#include "agile/workflow4/queryUpdateGraph.h"
 
 namespace shad {
   using namespace agile::workflow4;
@@ -65,36 +65,39 @@ int main(int argc, char *argv[]) {
 
   std::vector<std::string> dataFiles{dataFile, dataFile2, dataFile3, dataFile4, dataFile5};
 
-  auto Persons      = PersonVertexType::Create(MEDIUM);
-  auto Topics       = TopicVertexType::Create(SMALL);
-  auto Purchases    = PurchaseEdgeType::Create(MEDIUM);
-  auto Sales        = SaleEdgeType::Create(MEDIUM);
-  auto CoffeeSales  = SaleEdgeType::Create(MEDIUM);
-  auto Friends      = FriendOfEdgeType::Create(MEDIUM);
-  auto Servers      = ServerVertexType::Create(MEDIUM);
-  auto Sends        = SendsEdgeType::Create(MEDIUM);
-  auto Uses         = UsesEdgeType::Create(MEDIUM);
+  auto Persons          = PersonVertexType::Create(MEDIUM);
+  auto Topics           = TopicVertexType::Create(SMALL);
+  auto Purchases        = PurchaseEdgeType::Create(MEDIUM);
+  auto Sales            = SaleEdgeType::Create(MEDIUM);
+  auto CoffeeSales      = SaleEdgeType::Create(MEDIUM);
+  auto CoffeePurchases  = SaleEdgeType::Create(MEDIUM);
+  auto Friends          = FriendOfEdgeType::Create(MEDIUM);
+  auto Servers          = ServerVertexType::Create(MEDIUM);
+  auto Sends            = SendsEdgeType::Create(MEDIUM);
+  auto Uses             = UsesEdgeType::Create(MEDIUM);
 
-  graph["Persons"]      = (uint64_t) (Persons->GetGlobalID());
-  graph["Topics"]       = (uint64_t) (Topics->GetGlobalID());
-  graph["Purchases"]    = (uint64_t) (Purchases->GetGlobalID());
-  graph["Sales"]        = (uint64_t) (Sales->GetGlobalID());
-  graph["CoffeeSales"]  = (uint64_t) (CoffeeSales->GetGlobalID());
-  graph["Friends"]      = (uint64_t) (Friends->GetGlobalID());
-  graph["Servers"]      = (uint64_t) (Servers->GetGlobalID());
-  graph["Sends"]        = (uint64_t) (Sends->GetGlobalID());
-  graph["Uses"]         = (uint64_t) (Uses->GetGlobalID());
+  graph["Persons"]          = (uint64_t) (Persons->GetGlobalID());
+  graph["Topics"]           = (uint64_t) (Topics->GetGlobalID());
+  graph["Purchases"]        = (uint64_t) (Purchases->GetGlobalID());
+  graph["Sales"]            = (uint64_t) (Sales->GetGlobalID());
+  graph["CoffeeSales"]      = (uint64_t) (CoffeeSales->GetGlobalID());
+  graph["CoffeePurchases"]  = (uint64_t) (CoffeePurchases->GetGlobalID());
+  graph["Friends"]          = (uint64_t) (Friends->GetGlobalID());
+  graph["Servers"]          = (uint64_t) (Servers->GetGlobalID());
+  graph["Sends"]            = (uint64_t) (Sends->GetGlobalID());
+  graph["Uses"]             = (uint64_t) (Uses->GetGlobalID());
 
   RF_args_t args;
-  args.Persons_OID      = graph["Persons"];
-  args.Topics_OID       = graph["Topics"];
-  args.Purchases_OID    = graph["Purchases"];
-  args.Sales_OID        = graph["Sales"];
-  args.CoffeeSales_OID  = graph["CoffeeSales"];
-  args.Friends_OID      = graph["Friends"];
-  args.Servers_OID      = graph["Servers"];
-  args.Sends_OID        = graph["Sends"];
-  args.Uses_OID         = graph["Uses"];
+  args.Persons_OID          = graph["Persons"];
+  args.Topics_OID           = graph["Topics"];
+  args.Purchases_OID        = graph["Purchases"];
+  args.Sales_OID            = graph["Sales"];
+  args.CoffeeSales_OID      = graph["CoffeeSales"];
+  args.CoffeePurchases_OID  = graph["CoffeePurchases"];
+  args.Friends_OID          = graph["Friends"];
+  args.Servers_OID          = graph["Servers"];
+  args.Sends_OID            = graph["Sends"];
+  args.Uses_OID             = graph["Uses"];
   memcpy(args.outfilename, outFile.c_str(), outFile.size() + 1);
   // args.outfilename      = outFile;
 
@@ -155,6 +158,7 @@ int main(int argc, char *argv[]) {
        Purchases->Size() + Sales->Size() + Friends->Size() + Sends->Size() + Uses->Size());
 
   getCoffeeSaleEdgeWeights(graph, args, 8486);
+  std::vector<uint64_t> influencers = {20858,20859,41718,83435,166870,333741,667481};
   return 0;
 }
 
