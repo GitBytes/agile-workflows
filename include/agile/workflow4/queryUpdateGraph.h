@@ -126,6 +126,7 @@ struct CoffeeSaleEdge {
 
 void getCoffeeSaleEdgeWeights(Graph_t & graph, const RF_args_t & args, uint64_t  product_id);
 // void getCoffeeSaleEdgeWeights(Graph_t & graph, const RF_args_t & args);
+void getCoffeeTraders(Graph_t & graph, const RF_args_t & args);
 void reconfigureGraph(Graph_t & graph, const std::vector<uint64_t>& influencers, const RF_args_t & args);
 } // namespace agile::workflow4
 

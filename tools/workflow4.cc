@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
   std::vector<std::string> dataFiles{dataFile, dataFile2, dataFile3, dataFile4, dataFile5};
 
   auto Persons          = PersonVertexType::Create(MEDIUM);
+  auto CoffeeTraders    = PersonVertexType::Create(MEDIUM);
   auto Topics           = TopicVertexType::Create(SMALL);
   auto Purchases        = PurchaseEdgeType::Create(MEDIUM);
   auto Sales            = SaleEdgeType::Create(MEDIUM);
@@ -77,6 +78,7 @@ int main(int argc, char *argv[]) {
   auto Uses             = UsesEdgeType::Create(MEDIUM);
 
   graph["Persons"]          = (uint64_t) (Persons->GetGlobalID());
+  graph["CoffeeTraders"]    = (uint64_t) (Persons->GetGlobalID());
   graph["Topics"]           = (uint64_t) (Topics->GetGlobalID());
   graph["Purchases"]        = (uint64_t) (Purchases->GetGlobalID());
   graph["Sales"]            = (uint64_t) (Sales->GetGlobalID());
@@ -89,6 +91,7 @@ int main(int argc, char *argv[]) {
 
   RF_args_t args;
   args.Persons_OID          = graph["Persons"];
+  args.CoffeeTraders_OID    = graph["CoffeeTraders"];
   args.Topics_OID           = graph["Topics"];
   args.Purchases_OID        = graph["Purchases"];
   args.Sales_OID            = graph["Sales"];
@@ -158,7 +161,11 @@ int main(int argc, char *argv[]) {
        Purchases->Size() + Sales->Size() + Friends->Size() + Sends->Size() + Uses->Size());
 
   getCoffeeSaleEdgeWeights(graph, args, 8486);
-  std::vector<uint64_t> influencers = {20858,20859,41718,83435,166870,333741,667481};
+  getCoffeeTraders(graph, args);
+  printf("Total number of coffee traders = %lu\n", CoffeeTraders->Size());
+  std::vector<uint64_t> influencers = {20858,20859,41718,83435,166870,333741,667481}; // lost traders
+  reconfigureGraph(graph, influencers, args);
+  
   return 0;
 }
 

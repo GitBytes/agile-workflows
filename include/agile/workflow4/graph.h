@@ -159,6 +159,7 @@ class PurchaseEdge {
     uint64_t product;
     time_t   date;
     double   amount;
+    double   weight;
     TYPES    src_type;
     TYPES    dst_type;
 
@@ -168,6 +169,7 @@ class PurchaseEdge {
       product = shad::data_types::kNullValue<uint64_t>;
       date    = shad::data_types::kNullValue<time_t>;
       amount  = shad::data_types::kNullValue<double>;
+      weight  = shad::data_types::kNullValue<double>;
       src_type = TYPES::NONE;
       dst_type = TYPES::NONE;
     }
@@ -178,9 +180,20 @@ class PurchaseEdge {
       product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
       date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
       amount   = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::PERSON;
       dst_type = TYPES::PERSON;
     }
+
+    // PurchaseEdge (PurchaseEdge & purchase) {
+    //   buyer    = purchase.buyer;
+    //   seller   = purchase.seller;
+    //   product  = purchase.product;
+    //   date     = purchase.date;
+    //   amount   = purchase.amount;
+    //   src_type = purchase.src_type;
+    //   dst_type = purchase.dst_type;
+    // }
 
     uint64_t key() { return buyer; }
     uint64_t src() { return buyer; }
@@ -204,6 +217,7 @@ class SaleEdge {
       product  = shad::data_types::kNullValue<uint64_t>;
       date     = shad::data_types::kNullValue<time_t>;
       amount   = shad::data_types::kNullValue<double>;
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::NONE;
       dst_type = TYPES::NONE;
     }
@@ -214,9 +228,20 @@ class SaleEdge {
       product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
       date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
       amount   = ENCODE<double,   std::string, DOUBLE>(tokens[7]);
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::PERSON;
       dst_type = TYPES::PERSON;
     }
+
+    // SaleEdge (SaleEdge & sale) {
+    //   seller   = sale.seller;
+    //   buyer    = sale.buyer;
+    //   product  = sale.product;
+    //   date     = sale.date;
+    //   amount   = sale.amount;
+    //   src_type = sale.src_type;
+    //   dst_type = sale.dst_type;
+    // }
 
     uint64_t key() { return seller; }
     uint64_t src() { return seller; }
