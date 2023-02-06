@@ -48,6 +48,7 @@
 #include <map>
 #include <math.h>
 #include <limits.h>
+#include <fstream>
 
 #include "shad/data_structures/array.h"
 #include "shad/data_structures/hashmap.h"
@@ -62,6 +63,33 @@ namespace agile::workflow4 {
 
 using Handle = shad::rt::Handle;
 using Graph_t = std::map<std::string, uint64_t>;
+
+struct RF_args_t {
+    uint64_t Topics_OID;
+    uint64_t Purchases_OID;
+    uint64_t Sales_OID;
+    uint64_t CoffeeSales_OID;
+    uint64_t CoffeePurchases_OID;
+    uint64_t CoffeeTraders_OID;
+    uint64_t Friends_OID;
+    uint64_t Persons_OID;
+    uint64_t Servers_OID;
+    uint64_t Sends_OID;
+    uint64_t Uses_OID;
+    char filename [120];
+    char filename2 [120];
+    char filename3 [120];
+    char filename4 [120];
+    char filename5 [120];
+    char outfilename [120];
+};
+
+void readFileCoffee(Handle & handle, const RF_args_t & args);
+void readFileSocial(Handle & handle, const RF_args_t & args);
+void readFileCyber(Handle & handle, const RF_args_t & args);
+void readFileUses(Handle & handle, const RF_args_t & args);
+void readFileCommercial(Handle & handle, const RF_args_t & args);
+
 
 } // namespace agile::workflow4
 
