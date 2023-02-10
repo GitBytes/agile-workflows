@@ -48,6 +48,7 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
+#include <atomic>
 
 #include "shad/data_structures/hashmap.h"
 #include "shad/extensions/data_types/data_types.h"
@@ -66,13 +67,33 @@ class PersonVertex {
   public:
     uint64_t id;
     uint64_t glbid;
+    // std::atomic<uint64_t> coffee_sold = {0};
+    // std::atomic<uint64_t> coffee_purchased = {0};
+    double coffee_sold = {0};                       // original sell qty
+    double coffee_purchased = {0};                  // original buy qty  //FIFO..distirbuted control.
+    // Wholeseller.. deficit/surplus
+    // Distributor.. deficit/surplus 
 
-    PersonVertex () {
+    // double coffee_surplus = {0};                    // seller
+    // double coffee_deficit = {0};                    // buyer
+    
+    double coffee_sold_old = {0};                    // seller
+    double coffee_purchased_old = {0};                    // buyer
+
+    PersonVertex ()
+    {
       id    = shad::data_types::kNullValue<uint64_t>;
       glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
-    PersonVertex (std::vector <std::string> & tokens) {
+    PersonVertex(std::string id_)
+    {
+      id    = ENCODE<uint64_t, std::string, UINT>(id_);
+      glbid = shad::data_types::kNullValue<uint64_t>;
+    }
+
+    PersonVertex (std::vector <std::string> & tokens)
+    {
       id    = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
       glbid = shad::data_types::kNullValue<uint64_t>;
     }
@@ -90,6 +111,12 @@ class ServerVertex {
       glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
+    ServerVertex(std::string id_)
+    {
+      id    = ENCODE<uint64_t, std::string, UINT>(id_);
+      glbid = shad::data_types::kNullValue<uint64_t>;
+    }
+
     ServerVertex (std::vector <std::string> & tokens) {
       id    = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
       glbid = shad::data_types::kNullValue<uint64_t>;
@@ -104,12 +131,14 @@ class TopicVertex {
     double   lat;
     double   lon;
     uint64_t glbid;
+    TYPES    type;
 
     TopicVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
       lat   = shad::data_types::kNullValue<double>;
       lon   = shad::data_types::kNullValue<double>;
       glbid = shad::data_types::kNullValue<uint64_t>;
+      type  = TYPES::NONE;
     }
 
     TopicVertex (std::vector <std::string> & tokens) {
@@ -117,6 +146,7 @@ class TopicVertex {
       lat   = ENCODE<double,   std::string, DOUBLE>(tokens[5]);
       lon   = ENCODE<double,   std::string, DOUBLE>(tokens[6]);
       glbid = shad::data_types::kNullValue<uint64_t>;
+      type  = TYPES::TOPIC;
     }
 
     uint64_t key() { return id; }
@@ -129,6 +159,7 @@ class PurchaseEdge {
     uint64_t product;
     time_t   date;
     double   amount;
+    double   weight;
     TYPES    src_type;
     TYPES    dst_type;
 
@@ -138,19 +169,31 @@ class PurchaseEdge {
       product = shad::data_types::kNullValue<uint64_t>;
       date    = shad::data_types::kNullValue<time_t>;
       amount  = shad::data_types::kNullValue<double>;
+      weight  = shad::data_types::kNullValue<double>;
       src_type = TYPES::NONE;
       dst_type = TYPES::NONE;
     }
 
     PurchaseEdge (std::vector <std::string> & tokens) {
-      buyer    = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
-      seller   = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
+      buyer    = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
+      seller   = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
       product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
       date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
       amount   = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::PERSON;
       dst_type = TYPES::PERSON;
     }
+
+    // PurchaseEdge (PurchaseEdge & purchase) {
+    //   buyer    = purchase.buyer;
+    //   seller   = purchase.seller;
+    //   product  = purchase.product;
+    //   date     = purchase.date;
+    //   amount   = purchase.amount;
+    //   src_type = purchase.src_type;
+    //   dst_type = purchase.dst_type;
+    // }
 
     uint64_t key() { return buyer; }
     uint64_t src() { return buyer; }
@@ -164,6 +207,7 @@ class SaleEdge {
     uint64_t product;
     time_t   date;
     double   amount;
+    double   weight;
     TYPES    src_type;
     TYPES    dst_type;
 
@@ -173,6 +217,7 @@ class SaleEdge {
       product  = shad::data_types::kNullValue<uint64_t>;
       date     = shad::data_types::kNullValue<time_t>;
       amount   = shad::data_types::kNullValue<double>;
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::NONE;
       dst_type = TYPES::NONE;
     }
@@ -182,10 +227,21 @@ class SaleEdge {
       buyer    = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
       product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
       date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
-      amount   = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      amount   = ENCODE<double,   std::string, DOUBLE>(tokens[7]);
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::PERSON;
       dst_type = TYPES::PERSON;
     }
+
+    // SaleEdge (SaleEdge & sale) {
+    //   seller   = sale.seller;
+    //   buyer    = sale.buyer;
+    //   product  = sale.product;
+    //   date     = sale.date;
+    //   amount   = sale.amount;
+    //   src_type = sale.src_type;
+    //   dst_type = sale.dst_type;
+    // }
 
     uint64_t key() { return seller; }
     uint64_t src() { return seller; }
@@ -290,12 +346,15 @@ class SendsEdge {
       dst_bytes   = ENCODE<uint64_t, std::string, UINT>(tokens[10]);
       src_type = TYPES::SERVER;
       dst_type = TYPES::SERVER;
-    } }
+    }
 
     uint64_t key() { return src_device; }
     uint64_t src() { return src_device; }
     uint64_t dst() { return dst_device; }
 };
+
+// using GlobalIDType = shad::Hashmap<uint64_t, Vertex, shad::MemCmp<uint64_t>, globalIdInserter<Vertex> >;
+// using GlobalIDOID  = shad::ObjectIdentifier<GlobalIDType>;
 
 using PersonVertexType = shad::Hashmap<uint64_t, PersonVertex>;
 using PersonVertexOID  = shad::ObjectIdentifier<PersonVertexType>;
