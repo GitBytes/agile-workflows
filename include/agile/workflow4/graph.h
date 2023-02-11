@@ -63,39 +63,90 @@
 
 namespace agile::workflow4 {
 
+inline void atomic_double_add(double * lhs, double rhs) {
+  while (true) {
+    double old_value = * lhs;
+    double new_value = old_value + rhs;
+    int64_t * old_value_ptr = (int64_t *) lhs;
+    int64_t * new_value_ptr = (int64_t *) & new_value;
+    if (__sync_bool_compare_and_swap((uint64_t *) lhs, * old_value_ptr, * new_value_ptr)) break;
+} }
+
+template <typename T>
+struct TraderInserter {
+  
+  bool operator()(T *const lhs, const T &rhs, bool same_key) {
+    if (same_key) {     // entry in hashmap, increment edges
+       atomic_double_add(& lhs->sold, rhs.sold);
+       atomic_double_add(& lhs->bought, rhs.bought);
+       atomic_double_add(& lhs->desired, rhs.desired);
+    } else {            // entry not in hashmap, assign next local id
+       T temp = rhs;
+       * lhs = std::move(temp);
+    }  
+
+    return true;   
+  }    
+
+  bool Insert(T *const lhs, const T &rhs, bool same_key) {
+    if (same_key) {     // entry in hashmap, increment edges
+       atomic_double_add(& lhs->sold, rhs.sold);
+       atomic_double_add(& lhs->bought, rhs.bought);
+       atomic_double_add(& lhs->desired, rhs.desired);
+    } else {            // entry not in hashmap, assign next local id
+       T temp = rhs;                              
+       * lhs = std::move(temp);                              
+    }  
+
+    return true;                                                   
+  }    
+};     
+
 class PersonVertex {
   public:
     uint64_t id;
-    uint64_t glbid;
-    // std::atomic<uint64_t> coffee_sold = {0};
-    // std::atomic<uint64_t> coffee_purchased = {0};
-    double coffee_sold = {0};                       // original sell qty
-    double coffee_purchased = {0};                  // original buy qty  //FIFO..distirbuted control.
-    // Wholeseller.. deficit/surplus
-    // Distributor.. deficit/surplus 
 
-    // double coffee_surplus = {0};                    // seller
-    // double coffee_deficit = {0};                    // buyer
-    
-    double coffee_sold_old = {0};                    // seller
-    double coffee_purchased_old = {0};                    // buyer
-
-    PersonVertex ()
-    {
+    PersonVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
-      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
-    PersonVertex(std::string id_)
-    {
+    PersonVertex(std::string id_) {
       id    = ENCODE<uint64_t, std::string, UINT>(id_);
-      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
-    PersonVertex (std::vector <std::string> & tokens)
-    {
+    PersonVertex (std::vector <std::string> & tokens) {
       id    = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
-      glbid = shad::data_types::kNullValue<uint64_t>;
+    }
+
+    uint64_t key() { return id; }
+};
+
+class TraderVertex {
+  public:
+    uint64_t id;
+    double sold;        // amount of coffee sold
+    double bought;      // amount of coffee bought  (>= coffee sold)
+    double desired;     // amount of coffee desired (>= coffee bought)
+
+    TraderVertex () {
+      id = shad::data_types::kNullValue<uint64_t>;
+      sold = 0.0;
+      bought = 0.0;
+      desired = 0.0;
+    }
+
+    TraderVertex(std::string id_) {
+      id = ENCODE<uint64_t, std::string, UINT>(id_);
+      sold = 0.0;
+      bought = 0.0;
+      desired = 0.0;
+    }
+
+    TraderVertex (uint64_t id, double sold_, double bought_, double desired_) {
+      id = shad::data_types::kNullValue<uint64_t>;
+      sold = sold_;
+      bought = bought_;
+      desired = desired_;
     }
 
     uint64_t key() { return id; }
@@ -104,49 +155,17 @@ class PersonVertex {
 class ServerVertex {
   public:
     uint64_t id;
-    uint64_t glbid;
 
     ServerVertex () {
       id    = shad::data_types::kNullValue<uint64_t>;
-      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
-    ServerVertex(std::string id_)
-    {
+    ServerVertex(std::string id_) {
       id    = ENCODE<uint64_t, std::string, UINT>(id_);
-      glbid = shad::data_types::kNullValue<uint64_t>;
     }
 
     ServerVertex (std::vector <std::string> & tokens) {
       id    = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
-      glbid = shad::data_types::kNullValue<uint64_t>;
-    }
-
-    uint64_t key() { return id; }
-};
-
-class TopicVertex {
-  public:
-    uint64_t id;
-    double   lat;
-    double   lon;
-    uint64_t glbid;
-    TYPES    type;
-
-    TopicVertex () {
-      id    = shad::data_types::kNullValue<uint64_t>;
-      lat   = shad::data_types::kNullValue<double>;
-      lon   = shad::data_types::kNullValue<double>;
-      glbid = shad::data_types::kNullValue<uint64_t>;
-      type  = TYPES::NONE;
-    }
-
-    TopicVertex (std::vector <std::string> & tokens) {
-      id    = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
-      lat   = ENCODE<double,   std::string, DOUBLE>(tokens[5]);
-      lon   = ENCODE<double,   std::string, DOUBLE>(tokens[6]);
-      glbid = shad::data_types::kNullValue<uint64_t>;
-      type  = TYPES::TOPIC;
     }
 
     uint64_t key() { return id; }
@@ -185,16 +204,6 @@ class PurchaseEdge {
       dst_type = TYPES::PERSON;
     }
 
-    // PurchaseEdge (PurchaseEdge & purchase) {
-    //   buyer    = purchase.buyer;
-    //   seller   = purchase.seller;
-    //   product  = purchase.product;
-    //   date     = purchase.date;
-    //   amount   = purchase.amount;
-    //   src_type = purchase.src_type;
-    //   dst_type = purchase.dst_type;
-    // }
-
     uint64_t key() { return buyer; }
     uint64_t src() { return buyer; }
     uint64_t dst() { return seller; }
@@ -232,16 +241,6 @@ class SaleEdge {
       src_type = TYPES::PERSON;
       dst_type = TYPES::PERSON;
     }
-
-    // SaleEdge (SaleEdge & sale) {
-    //   seller   = sale.seller;
-    //   buyer    = sale.buyer;
-    //   product  = sale.product;
-    //   date     = sale.date;
-    //   amount   = sale.amount;
-    //   src_type = sale.src_type;
-    //   dst_type = sale.dst_type;
-    // }
 
     uint64_t key() { return seller; }
     uint64_t src() { return seller; }
@@ -353,17 +352,11 @@ class SendsEdge {
     uint64_t dst() { return dst_device; }
 };
 
-// using GlobalIDType = shad::Hashmap<uint64_t, Vertex, shad::MemCmp<uint64_t>, globalIdInserter<Vertex> >;
-// using GlobalIDOID  = shad::ObjectIdentifier<GlobalIDType>;
-
 using PersonVertexType = shad::Hashmap<uint64_t, PersonVertex>;
 using PersonVertexOID  = shad::ObjectIdentifier<PersonVertexType>;
 
 using ServerVertexType = shad::Hashmap<uint64_t, ServerVertex>;
 using ServerVertexOID  = shad::ObjectIdentifier<ServerVertexType>;
-
-using TopicVertexType = shad::Hashmap<uint64_t, TopicVertex>;
-using TopicVertexOID  = shad::ObjectIdentifier<TopicVertexType>;
 
 using PurchaseEdgeType = shad::Multimap<uint64_t, PurchaseEdge>;
 using PurchaseEdgeOID  = shad::ObjectIdentifier<PurchaseEdgeType>;
@@ -379,6 +372,11 @@ using UsesEdgeOID  = shad::ObjectIdentifier<UsesEdgeType>;
 
 using SendsEdgeType = shad::Multimap<uint64_t, SendsEdge>;
 using SendsEdgeOID  = shad::ObjectIdentifier<SendsEdgeType>;
+
+using TraderVertexType = shad::Hashmap<uint64_t, TraderVertex, shad::MemCmp<uint64_t>, TraderInserter<TraderVertex>>;
+using TraderVertexOID = shad::ObjectIdentifier<TraderVertexType>;
+
+void SelectMarket(Handle &, const uint64_t &, std::vector<SaleEdge> &, uint64_t &, RF_args_t &);
 
 } // namespace agile::workflow4
 
