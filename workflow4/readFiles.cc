@@ -102,21 +102,15 @@ void readFileCoffee(Handle & handle, const RF_args_t & args) {
 
     if (tokens[0] == "Sale") {
        SaleEdge sale(tokens);
-       CoffeeSales->BufferedAsyncInsert(handle, sale.seller, sale);
-
-       TraderVertex buyer(tokens[2]);
-       TraderVertex seller(tokens[1]);
-       CoffeeTraders->BufferedAsyncInsert(handle, buyer.id, buyer);
-       CoffeeTraders->BufferedAsyncInsert(handle, seller.id, seller);
+       uint64_t id = sale.seller;
+       CoffeeSales->BufferedAsyncInsert(handle, id, sale);
+       CoffeeTraders->BufferedAsyncInsert(handle, id, TraderVertex(id, sale.amount, 0.0, 0.0));
 
     } else if (tokens[0] == "Purchase") {
        PurchaseEdge purchase(tokens);
-       CoffeePurchases->BufferedAsyncInsert(handle, purchase.buyer, purchase);
-
-       TraderVertex buyer(tokens[1]);
-       TraderVertex seller(tokens[2]);
-       CoffeeTraders->BufferedAsyncInsert(handle, buyer.id, buyer);
-       CoffeeTraders->BufferedAsyncInsert(handle, seller.id, seller);
+       uint64_t id  = purchase.buyer;
+       CoffeePurchases->BufferedAsyncInsert(handle, id, purchase);
+       CoffeeTraders->BufferedAsyncInsert(handle, id, TraderVertex(id, 0.0, purchase.amount, purchase.amount));
   } }
 
   file.close();
@@ -215,7 +209,6 @@ void readFileCyber(Handle & handle, const RF_args_t & args) {
     Servers->BufferedAsyncInsert(handle, server2.key(), server2);
   }
 
-  printf("%lu\n", num_lines);
   file.close();
 }
 

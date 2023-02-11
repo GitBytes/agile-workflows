@@ -135,13 +135,6 @@ class TraderVertex {
       desired = 0.0;
     }
 
-    TraderVertex(std::string id_) {
-      id = ENCODE<uint64_t, std::string, UINT>(id_);
-      sold = 0.0;
-      bought = 0.0;
-      desired = 0.0;
-    }
-
     TraderVertex (uint64_t id, double sold_, double bought_, double desired_) {
       id = shad::data_types::kNullValue<uint64_t>;
       sold = sold_;
