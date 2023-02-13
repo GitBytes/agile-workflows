@@ -135,8 +135,8 @@ class TraderVertex {
       desired = 0.0;
     }
 
-    TraderVertex (uint64_t id, double sold_, double bought_, double desired_) {
-      id = shad::data_types::kNullValue<uint64_t>;
+    TraderVertex (uint64_t id_, double sold_, double bought_, double desired_) {
+      id = id_;
       sold = sold_;
       bought = bought_;
       desired = desired_;
@@ -191,7 +191,7 @@ class PurchaseEdge {
       seller   = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
       product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
       date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
-      amount   = ENCODE<time_t,   std::string, USDATE>(tokens[7]);
+      amount   = ENCODE<double,   std::string, DOUBLE>(tokens[7]);
       weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::PERSON;
       dst_type = TYPES::PERSON;
@@ -369,7 +369,7 @@ using SendsEdgeOID  = shad::ObjectIdentifier<SendsEdgeType>;
 using TraderVertexType = shad::Hashmap<uint64_t, TraderVertex, shad::MemCmp<uint64_t>, TraderInserter<TraderVertex>>;
 using TraderVertexOID = shad::ObjectIdentifier<TraderVertexType>;
 
-void SelectMarket(Handle &, const uint64_t &, std::vector<SaleEdge> &, uint64_t &, RF_args_t &);
+void CoffeeCancel(Handle &, const uint64_t & key, TraderVertex &, RF_args_t &);
 
 } // namespace agile::workflow4
 

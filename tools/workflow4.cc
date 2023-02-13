@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
   printf("\n");
   printf("Total number of vertices = %lu\n", Persons->Size() + Servers->Size()) + CoffeeTraders->Size();
   printf("Total number of edges    = %lu\n", Purchases->Size() + Sales->Size() + Friends->Size() +
-                           Sends->Size() + Uses->Size() + CoffeeSales->Size() + CoffeePurchases->Size());
+                          Sends->Size() + Uses->Size() + CoffeeSales->Size() + CoffeePurchases->Size());
 
 /********** KERNEL 3 - Identify most influential coffee suppliers **********/
   dataFile = argv[6];
@@ -147,7 +147,19 @@ int main(int argc, char *argv[]) {
 
 /********** KERNEL 4 - Adjust coffee market **********/
   // std::vector<uint64_t> influencers = {20858,20859,41718,83435,166870,333741,667481}; // lost traders
-  // reconfigureGraph(graph, influencers, args);
+  std::vector<uint64_t> influencers = {886128, 827536};
+
+  for (uint64_t influencer : influencers)
+    CoffeeTraders->AsyncApply(handle, influencer, CoffeeCancel, args);
+
+  waitForCompletion(handle);
+  CoffeeTraders->WaitForBufferedInsert();
+  CoffeeSales->WaitForBufferedInsert();
+  CoffeePurchases->WaitForBufferedInsert();
+
+  for (auto itr = CoffeeTraders->begin(); itr != CoffeeTraders->end(); ++ itr)
+    if ( ((* itr).first == 886128) || ((* itr).first == 827536) )
+    printf("%lu %lf %lf %lf\n", (* itr).second.id, (* itr).second.sold, (* itr).second.bought, (* itr).second.desired);
   
   return 0;
 }
