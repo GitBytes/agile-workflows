@@ -143,7 +143,11 @@ int main(int argc, char *argv[]) {
   dataFile = argv[6];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   // ... weight edges of coffee market ...
+  CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
+  waitForCompletion(handle);
   // ... output input file for influence maximization kernel ...
+  CoffeeSales->AsyncForEachEntry(handle, PrintWeightedSalesEdgesToFile, args);
+  waitForCompletion(handle);
 
 /********** KERNEL 4 - Adjust coffee market **********/
   // std::vector<uint64_t> influencers = {20858,20859,41718,83435,166870,333741,667481}; // lost traders

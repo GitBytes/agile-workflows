@@ -22,4 +22,25 @@ void CoffeeCancel(Handle & handle, const uint64_t & key, TraderVertex & value, R
   for (auto purchase : purchases.value) { };     // alert each supplier that I am not buying coffee
 }
 
+void PrintWeightedSalesEdgesToFile(Handle & handle, const uint64_t& seller, std::vector<SaleEdge>& sales, RF_args_t & args){
+  std::ofstream file_out;
+    file_out.open(args.filename, std::ios_base::app);
+    for (auto cse : sales)
+    {
+        file_out << cse.seller << "," << cse.buyer << "," << cse.weight << "\n";
+    }
+    file_out.close();
+}
+
+void CoffeeSalesWeight(Handle & handle, const uint64_t& seller, std::vector<SaleEdge>& sales, RF_args_t & args) {
+  auto CoffeeTraders = TraderVertexType::GetPtr((TraderVertexType::ObjectID) args.CoffeeTraders_OID);
+  // TraderVertexType::LookupResult trader;
+  TraderVertex trader;
+  CoffeeTraders->Lookup(seller, &trader);
+  for (auto se : sales)
+  {
+    se.weight = se.amount/trader.bought;
+  }
+}
+
 } // namespace

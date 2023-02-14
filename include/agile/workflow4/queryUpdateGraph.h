@@ -124,10 +124,12 @@ struct CoffeeSaleEdge {
 
 // void printAllEntries(uint64_t & salesEdge_OID);
 
-void getCoffeeSaleEdgeWeights(Graph_t & graph, const RF_args_t & args, uint64_t  product_id);
+// void CoffeeSalesWeight(Handle & handle, const uint64_t& seller, std::vector<SaleEdge>& sales, const RF_args_t & args);
+
+// void getCoffeeSaleEdgeWeights(Graph_t & graph, const RF_args_t & args, uint64_t  product_id);
 // void getCoffeeSaleEdgeWeights(Graph_t & graph, const RF_args_t & args);
-void getCoffeeTraders(Graph_t & graph, const RF_args_t & args);
-void reconfigureGraph(Graph_t & graph, const std::vector<uint64_t>& influencers, const RF_args_t & args);
+// void getCoffeeTraders(Graph_t & graph, const RF_args_t & args);
+// void reconfigureGraph(Graph_t & graph, const std::vector<uint64_t>& influencers, const RF_args_t & args);
 } // namespace agile::workflow4
 
 #endif // QUERYUPDATEGRAPH_H_

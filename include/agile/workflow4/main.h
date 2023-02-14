@@ -76,6 +76,7 @@ struct RF_args_t {
     uint64_t Sends_OID;
     uint64_t Uses_OID;
     char filename [120];
+    char outfilename [120];
 };
 
 void readFileCoffee(Handle & handle, const RF_args_t & args);

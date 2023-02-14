@@ -105,12 +105,14 @@ void readFileCoffee(Handle & handle, const RF_args_t & args) {
        uint64_t id = sale.seller;
        CoffeeSales->BufferedAsyncInsert(handle, id, sale);
        CoffeeTraders->BufferedAsyncInsert(handle, id, TraderVertex(id, sale.amount, 0.0, 0.0));
+       // Insert into Persons vertex list?
 
     } else if (tokens[0] == "Purchase") {
        PurchaseEdge purchase(tokens);
        uint64_t id  = purchase.buyer;
        CoffeePurchases->BufferedAsyncInsert(handle, id, purchase);
        CoffeeTraders->BufferedAsyncInsert(handle, id, TraderVertex(id, 0.0, purchase.amount, purchase.amount));
+       // Insert into Persons vertex list?
   } }
 
   file.close();

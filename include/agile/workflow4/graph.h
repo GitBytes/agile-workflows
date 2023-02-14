@@ -370,6 +370,8 @@ using TraderVertexType = shad::Hashmap<uint64_t, TraderVertex, shad::MemCmp<uint
 using TraderVertexOID = shad::ObjectIdentifier<TraderVertexType>;
 
 void CoffeeCancel(Handle &, const uint64_t & key, TraderVertex &, RF_args_t &);
+void CoffeeSalesWeight(Handle&, const uint64_t & key, std::vector<SaleEdge>& sales, RF_args_t &);
+void PrintWeightedSalesEdgesToFile(Handle & handle, const uint64_t& seller, std::vector<SaleEdge>& sales, RF_args_t & args);
 
 } // namespace agile::workflow4
 
