@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
   std::vector<uint64_t> influencers = {886128, 827536};
 
   for (uint64_t influencer : influencers)
-    CoffeeTraders->AsyncApply(handle, influencer, CoffeeCancel, args);
+    CoffeeTraders->AsyncApply(handle, influencer, CancelCoffeeTrader, args);
 
   waitForCompletion(handle);
   CoffeeTraders->WaitForBufferedInsert();
@@ -162,7 +162,6 @@ int main(int argc, char *argv[]) {
   CoffeePurchases->WaitForBufferedInsert();
 
   for (auto itr = CoffeeTraders->begin(); itr != CoffeeTraders->end(); ++ itr)
-    if ( ((* itr).first == 886128) || ((* itr).first == 827536) )
     printf("%lu %lf %lf %lf\n", (* itr).second.id, (* itr).second.sold, (* itr).second.bought, (* itr).second.desired);
   
   return 0;

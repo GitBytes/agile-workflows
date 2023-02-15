@@ -3,43 +3,93 @@
 
 namespace agile::workflow4 {
 
-void CoffeeCancel(Handle & handle, const uint64_t & key, TraderVertex & value, RF_args_t & args) {
-  auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
+void EraseSaleEdge(Handle & handle, const uint64_t & seller,
+     std::vector<SaleEdge> & sales, uint64_t & buyer, double & amount, time_t & date) {
+
+  for (auto itr = sales.begin(); itr != sales.end(); ++ itr) {
+    if ( ((* itr).buyer != buyer) || ((* itr).amount != amount) || ((* itr).date  != date) ) continue;
+    sales.erase(itr);
+    break;
+} }
+
+
+void ErasePurchaseEdge(Handle & handle, const uint64_t & buyer,
+     std::vector<PurchaseEdge> & purchases, uint64_t & seller, double & amount, time_t & date) { 
+
+  for (auto itr = purchases.begin(); itr != purchases.end(); ++ itr) {
+    if ( ((* itr).seller != seller) || ((* itr).amount != amount) || ((* itr).date  != date) ) continue;
+    purchases.erase(itr);
+    break;
+} }
+
+
+// Initiated by the seller at the site of the buyer, this routine adjusts the buyer's (trader's) purchase
+// amount, removes the purchase edge from the buyer to the seller, and searches for a new supplier to re-
+// place the buyer's lost purchase.
+void CancelCoffeeSale(Handle & handle,
+     const uint64_t & buyer, TraderVertex & trader, SaleEdge & sale, RF_args_t & args) {
   auto CoffeePurchases = PurchaseEdgeType::GetPtr((PurchaseEdgeType::ObjectID) args.CoffeePurchases_OID);
 
+  if (trader.bought > 0)  trader.bought  -= sale.amount;     // if buyer has been canceled, bought will be 0
+  if (trader.desired > 0) trader.desired -= sale.amount;     // if buyer has been canceled, desired will be 0
+  CoffeePurchases->AsyncApply(handle, buyer, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
+}
+
+
+// Initiated by the buyer at the site of the seller, this routine adjusts the seller's (trader's) sold
+// amount and removes the sale edge from the seller to the buyer.
+void CancelCoffeePurchase(Handle & handle,
+     const uint64_t & seller, TraderVertex & trader, PurchaseEdge & purchase, RF_args_t & args) {
+  auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
+  
+  if (trader.sold > 0)  trader.sold -= purchase.amount;     // if seller has been canceled, sold will be 0
+  CoffeeSales->AsyncApply(handle, seller, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
+}
+
+
+void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & trader, RF_args_t & args) {
   SaleEdgeType::LookupResult sales;
   PurchaseEdgeType::LookupResult purchases;
+  auto CoffeeTraders   = TraderVertexType::GetPtr((TraderVertexType::ObjectID) args.CoffeeTraders_OID);
+  auto CoffeeSales     = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
+  auto CoffeePurchases = PurchaseEdgeType::GetPtr((PurchaseEdgeType::ObjectID) args.CoffeePurchases_OID);
 
-  value.sold = 0.0;
-  value.bought = 0.0;
-  value.desired = 0.0;
-  CoffeeSales->Lookup(key, & sales);              // get my coffee sales
-  CoffeePurchases->Lookup(key, & purchases);      // get my coffee purchases
-  CoffeeSales->AsyncErase(handle, key);           // delete my coffee sales
-  CoffeePurchases->AsyncErase(handle, key);       // delete my coffee purchases
+  trader.sold = 0.0;                            // zero out my coffee sales
+  trader.bought = 0.0;                          // zero out my coffee purchases
+  trader.desired = 0.0;                         // zero out my desired coffee purchases
 
-  for (auto sale : sales.value) { };             // alert each customer that I am not selling coffee
-  for (auto purchase : purchases.value) { };     // alert each supplier that I am not buying coffee
+  CoffeeSales->Lookup(id, & sales);             // get my coffee sales
+  CoffeeSales->Erase(id);                       // erase my sale edges from the graph
+  CoffeePurchases->Lookup(id, & purchases);     // get my coffee sales
+  CoffeePurchases->Erase(id);                   // erase my purchase edges from the graph
+
+  for (auto sale : sales.value)                 // alert my customers
+      CoffeeTraders->AsyncApply(handle, sale.buyer, CancelCoffeeSale, sale, args);
+  for (auto purchase : purchases.value)         // alert my suppliers
+      CoffeeTraders->AsyncApply(handle, purchase.seller, CancelCoffeePurchase, purchase, args);
 }
 
-void PrintWeightedSalesEdgesToFile(Handle & handle, const uint64_t& seller, std::vector<SaleEdge>& sales, RF_args_t & args){
+void PrintWeightedSalesEdgesToFile(Handle & handle,
+     const uint64_t& seller, std::vector<SaleEdge>& sales, RF_args_t & args) {
+
   std::ofstream file_out;
-    file_out.open(args.filename, std::ios_base::app);
-    for (auto cse : sales)
-    {
-        file_out << cse.seller << "," << cse.buyer << "," << cse.weight << "\n";
-    }
-    file_out.close();
+  file_out.open(args.filename, std::ios_base::app);
+  for (auto cse : sales)
+  {
+      file_out << cse.seller << "," << cse.buyer << "," << cse.weight << "\n";
+  }
+  file_out.close();
 }
 
-void CoffeeSalesWeight(Handle & handle, const uint64_t& seller, std::vector<SaleEdge>& sales, RF_args_t & args) {
+void CoffeeSalesWeight(Handle & handle, const uint64_t & seller, std::vector<SaleEdge> & sales, RF_args_t & args) {
   auto CoffeeTraders = TraderVertexType::GetPtr((TraderVertexType::ObjectID) args.CoffeeTraders_OID);
-  // TraderVertexType::LookupResult trader;
+
   TraderVertex trader;
   CoffeeTraders->Lookup(seller, &trader);
+
   for (auto se : sales)
   {
-    se.weight = se.amount/trader.bought;
+  se.weight = se.amount/trader.bought;
   }
 }
 
