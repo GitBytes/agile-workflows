@@ -44,7 +44,6 @@
 
 #include "agile/workflow4/main.h"
 #include "agile/workflow4/graph.h"
-// #include "agile/workflow4/queryUpdateGraph.h"
 
 namespace shad {
   using namespace agile::workflow4;
@@ -146,7 +145,6 @@ int main(int argc, char *argv[]) {
   
   // ... weight edges of coffee market ...
   CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
-  // CoffeeSales->ForEachEntry(handle, CoffeeSalesWeight, args);
   waitForCompletion(handle);
   // ... output input file for influence maximization kernel ...
   PrintWeightedSalesEdgesToFile(handle, args);
@@ -154,23 +152,23 @@ int main(int argc, char *argv[]) {
   waitForCompletion(handle);
 
 /********** KERNEL 4 - Adjust coffee market **********/
-  std::vector<uint64_t> influencers = {903453, 1276402, 329181, 122499, 951178, 689682, 319132,
-                                        1037142, 932031, 1448592, 1395659, 530814, 55727, 908324,
-                                        981, 1632691, 1595992, 1129895, 496553, 108260, 107668,
-                                        825329, 625871, 1251316, 529004, 1226668, 1192388,
-                                        536758, 1034758, 1998771, 918393, 917006, 880710,
-                                        400218, 794935, 1200210, 1198648, 57637,  1690236,
-                                        1642689, 47354, 1395417, 677051, 1339833, 1253273,
-                                        1223050, 1208053, 1190049, 66149, 1063211, 1057828,
-                                        1488089, 1437252, 703019, 1340335, 1294764, 609928,
-                                        1138726, 1124803, 553886, 1077754, 126051, 485213,
-                                        1832248, 897201, 443165, 1601872, 1579681, 1491527,
-                                        142072, 1966133, 476826, 5026, 452526, 1773806, 1747800,
-                                        833701, 1580216, 193606, 42717, 737197, 721629, 693333,
-                                        79685, 650652, 1289808, 620761, 1242280, 568465,
-                                        1136434, 1075891, 1017019, 58227, 1940186, 1907351,
-                                        910888, 417918, 1685946, 390635, 186890}; // lost traders
-  // std::vector<uint64_t> influencers = {886128, 827536};
+  // std::vector<uint64_t> influencers = {903453, 1276402, 329181, 122499, 951178, 689682, 319132,
+  //                                       1037142, 932031, 1448592, 1395659, 530814, 55727, 908324,
+  //                                       981, 1632691, 1595992, 1129895, 496553, 108260, 107668,
+  //                                       825329, 625871, 1251316, 529004, 1226668, 1192388,
+  //                                       536758, 1034758, 1998771, 918393, 917006, 880710,
+  //                                       400218, 794935, 1200210, 1198648, 57637,  1690236,
+  //                                       1642689, 47354, 1395417, 677051, 1339833, 1253273,
+  //                                       1223050, 1208053, 1190049, 66149, 1063211, 1057828,
+  //                                       1488089, 1437252, 703019, 1340335, 1294764, 609928,
+  //                                       1138726, 1124803, 553886, 1077754, 126051, 485213,
+  //                                       1832248, 897201, 443165, 1601872, 1579681, 1491527,
+  //                                       142072, 1966133, 476826, 5026, 452526, 1773806, 1747800,
+  //                                       833701, 1580216, 193606, 42717, 737197, 721629, 693333,
+  //                                       79685, 650652, 1289808, 620761, 1242280, 568465,
+  //                                       1136434, 1075891, 1017019, 58227, 1940186, 1907351,
+  //                                       910888, 417918, 1685946, 390635, 186890}; // lost traders
+  std::vector<uint64_t> influencers = {886128, 827536};
 
   for (uint64_t influencer : influencers)
     CoffeeTraders->AsyncApply(handle, influencer, CancelCoffeeTrader, args);
@@ -180,8 +178,8 @@ int main(int argc, char *argv[]) {
   CoffeeSales->WaitForBufferedInsert();
   CoffeePurchases->WaitForBufferedInsert();
 
-  // for (auto itr = CoffeeTraders->begin(); itr != CoffeeTraders->end(); ++ itr)
-  //   printf("%lu %lf %lf %lf\n", (* itr).second.id, (* itr).second.sold, (* itr).second.bought, (* itr).second.desired);
+  for (auto itr = CoffeeTraders->begin(); itr != CoffeeTraders->end(); ++ itr)
+    printf("%lu %lf %lf %lf\n", (* itr).second.id, (* itr).second.sold, (* itr).second.bought, (* itr).second.desired);
   
   return 0;
 }
