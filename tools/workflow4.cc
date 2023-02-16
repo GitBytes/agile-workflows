@@ -142,11 +142,15 @@ int main(int argc, char *argv[]) {
 /********** KERNEL 3 - Identify most influential coffee suppliers **********/
   dataFile = argv[6];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
+  memcpy(args.outfilename, dataFile.c_str(), dataFile.size() + 1);
+  
   // ... weight edges of coffee market ...
   CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
+  // CoffeeSales->ForEachEntry(handle, CoffeeSalesWeight, args);
   waitForCompletion(handle);
   // ... output input file for influence maximization kernel ...
-  CoffeeSales->AsyncForEachEntry(handle, PrintWeightedSalesEdgesToFile, args);
+  PrintWeightedSalesEdgesToFile(handle, args);
+  // CoffeeSales->AsyncForEachEntry(handle, PrintWeightedSalesEdgesToFile, args);
   waitForCompletion(handle);
 
 /********** KERNEL 4 - Adjust coffee market **********/
@@ -176,8 +180,8 @@ int main(int argc, char *argv[]) {
   CoffeeSales->WaitForBufferedInsert();
   CoffeePurchases->WaitForBufferedInsert();
 
-  for (auto itr = CoffeeTraders->begin(); itr != CoffeeTraders->end(); ++ itr)
-    printf("%lu %lf %lf %lf\n", (* itr).second.id, (* itr).second.sold, (* itr).second.bought, (* itr).second.desired);
+  // for (auto itr = CoffeeTraders->begin(); itr != CoffeeTraders->end(); ++ itr)
+  //   printf("%lu %lf %lf %lf\n", (* itr).second.id, (* itr).second.sold, (* itr).second.bought, (* itr).second.desired);
   
   return 0;
 }
