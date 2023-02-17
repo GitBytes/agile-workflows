@@ -65,18 +65,23 @@ int main(int argc, char *argv[]) {
   auto KMap = KMapType::Create(LARGE);                     // distinct kmer hashmap
   auto MNMap = MNMapType::Create(LARGE);                   // macro node multimap
   auto WireMap = WireMapType::Create(LARGE);               // wire multimap
-  auto ContigVector = ContigVectorType::Create(0);         // contig vector
+  auto ModifiedNodes = ModifiedMapType::Create(LARGE);     // modified nodes multimap
+  auto ProcessedNodes = IntSet::Create(LARGE);             // set of processed macro nodes
+  auto ContigMap = ContigMapType::Create(SMALL);           // contig map
+  auto PartialContigs = ContigSetType::Create(SMALL);      // partial contig set
   auto BucketCounts = IntArray::Create(min_counts, 0);     // array to count kmers appearing [1..min_count] times
 
   BucketCounts->FillPtrs();
-  ContigVector->Reserve(SMALL);
 
   Args_t args;
-  args.KMap_OID         = (uint64_t) (KMap->GetGlobalID());
-  args.MNMap_OID        = (uint64_t) (MNMap->GetGlobalID());
-  args.WireMap_OID      = (uint64_t) (WireMap->GetGlobalID());
-  args.ContigVector_OID = (uint64_t) (ContigVector->GetGlobalID());
+  args.KMap_OID = (uint64_t) (KMap->GetGlobalID());
+  args.MNMap_OID = (uint64_t) (MNMap->GetGlobalID());
+  args.WireMap_OID = (uint64_t) (WireMap->GetGlobalID());
+  args.ModifiedNodes_OID = (uint64_t) (ModifiedNodes->GetGlobalID());
+  args.ProcessedNodes_OID = (uint64_t) (ProcessedNodes->GetGlobalID());
   args.BucketCounts_OID = (uint64_t) (BucketCounts->GetGlobalID());
+  args.ContigMap_OID = (uint64_t) (ContigMap->GetGlobalID());
+  args.PartialContigs_OID = (uint64_t) (PartialContigs->GetGlobalID());
 
   args.mnLength   = std::stoull(argv[2]) - 1;
   args.coverage   = std::stoull(argv[3]);
@@ -111,101 +116,80 @@ int main(int argc, char *argv[]) {
   MNMap->WaitForBufferedInsert();
 
   KMap->Clear();                                                      // can delete KMap
-  MNMap->AsyncForEachEntry(handle, PushTerminals_Defaults, args);     // push MNMap terminals and WireMap defaults
+  MNMap->AsyncForEachEntry(handle, Finish_MN_WireMaps, args);         // push MNMap terminals and WireMap defaults
 
   rt::waitForCompletion(handle);
   MNMap->WaitForBufferedInsert();
   WireMap->WaitForBufferedInsert();
 
-  MNMap->AsyncForEachEntry(handle, InitialMacroNodeWire, args);     // initialize wiring
+  MNMap->AsyncForEachEntry(handle, WireMacroNodes, args);             // wire macro nodes
   rt::waitForCompletion(handle);
   WireMap->WaitForBufferedInsert();
 
   printf("Time to construct and wire macro nodes = %lf\n", my_timer() - time1);
   printf("Kmers appearing less than %lu times have been removed\n", args.min_index);
 
-/*
-  uint64_t key = 0;
-
-    // key = 12203676461861181
-    // AAAATTGCCTGATGCGCTACGCTTATCAGGC,T,20,1,1,2,C,42,1,1,0,A,31,1,1,1,*,1,0,0,0,C,95,1,*,1,2,
-    //    1,0,1,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
-
-    key = 12203676461861181;
-    MNMapType::LookupResult macro_node;
-    MNMap->Lookup(key, & macro_node);
-    printf("\n%s,", kmer_string(key, args.mnLength).c_str());
-
-    for (auto node : macro_node.value) {
-      if (node.affix.size() == 0) printf("*"); else node.affix.print();
-      printf(",%lu,%lu,", node.count.first, node.count.second);
-
-      if (node.isPrefix) printf("%d,%lu,", node.num_wires, node.wire_index);
-    }
-
-    WireMapType::LookupResult wire_map;
-    WireMap->Lookup(key, & wire_map);
-    printf("\n   ");
-    for (auto & T1 : wire_map.value) printf("%lu,%d,%d,", T1.sid, T1.offset, T1.count);
-    printf("\n");
-    return 0;
-*/
-
-/*
-  for (auto itr = MNMap->begin(); itr != MNMap->end(); ++ itr) {
-
-    if (key != (* itr).first) {
-       if (key != 0) {                         // print out the wire map for previous key
-          WireMapType::LookupResult wire_map;
-          WireMap->Lookup(key, & wire_map);
-
-          printf("\n   ");
-          for (auto & T1 : wire_map.value) printf("%lu,%d,%d,", T1.sid, T1.offset, T1.count);
-       }
-
-       key = (* itr).first;                    // print out next key
-       printf("\n%s,", kmer_string(key, args.mnLength).c_str());
-    }
-
-    MacroNode node = (* itr).second;
-    if (node.affix.size() == 0) printf("*"); else node.affix.print();
-    printf(",%lu,%lu,", node.count.first, node.count.second);
-
-    if (node.isPrefix) printf("%d,%lu,", node.num_wires, node.wire_index);
-  }
-
-    WireMapType::LookupResult wire_map;     // print out the wire map for last key
-    WireMap->Lookup(key, & wire_map);
-
-    printf("\n   ");
-    for (auto & T1 : wire_map.value) printf("%lu,%d,%d,", T1.sid, T1.offset, T1.count);
-    printf("\n");
-
-  return 0;
-*/
-
 //********** CONSTRUCT CONTIGS **********//
-  time1 = my_timer();
   uint64_t num_iterations = 0;
   uint64_t num_macro_nodes = MNMap->NumberKeys();
+  printf("Initial number of macro nodes: %7lu\n", num_macro_nodes);
   
   while (num_macro_nodes >= node_threshold) {
-    printf("Iteration: %2lu, %lu macro nodes\n", num_iterations, num_macro_nodes);
+    time1 = my_timer();
+    ModifiedNodes->Clear();                                                 // clear multimap of modified node
+    ProcessedNodes->Clear();                                                // clear list of processed nodes
 
-    MNMap->ForEachEntry(ProcessMacroNode, args);
-    break;
+    MNMap->AsyncForEachEntry(handle, ProcessMacroNode, args);               // process macro nodes
+    rt::waitForCompletion(handle);
+
+    ProcessedNodes->AsyncForEachElement(handle, DeleteMacroNode, args);     // delete processed macro nodes
+    rt::waitForCompletion(handle);
+
+    ModifiedNodes->AsyncForEachEntry(handle, ModifyMacroNode, args);        // modify macro nodes
+    rt::waitForCompletion(handle);
+    WireMap->WaitForBufferedInsert();
+
+    ModifiedNodes->AsyncForEachKey(handle, RewireMacroNode, args);          // rewire macro nodes
+    rt::waitForCompletion(handle);
+    WireMap->WaitForBufferedInsert();
+
+    printf("Iteration: %2lu\n", num_iterations);
+    printf("     Time for iteration %lu = %lf\n", num_iterations, my_timer() - time1);
+    printf("     Number of modified nodes : %7lu\n", ModifiedNodes->NumberKeys());
+    printf("     Number of processed nodes: %7lu\n", ProcessedNodes->Size());
+
+    num_iterations ++;
+    num_macro_nodes = MNMap->NumberKeys();
+    printf("     Number of macro nodes    : %7lu\n", num_macro_nodes);
   }
 
-//retain a list of terminal prefixes for each individual process, potential begin k-mers
-  // std::vector<BeginMN> list_of_begin_kmers;
-  // identify_begin_kmers (MN_map, list_of_begin_kmers);
+//********** PRINT CONTIGS **********//
+/*
+  time1 = my_timer();
+  uint64_t num_contigs = 0;
+  filename = "contigs_out.fa";
+  FILE * fc = fopen(filename.c_str(), "w");
+  if (fc == NULL) {printf("Cannot open file %s\n", filename.c_str()); exit(-1);}
 
-/* Perform an Allgather such that all macro_nodes are accessible to all procs */
-  // std::vector<std::pair<kmer_t,MacroNode>> global_MN_map(global_num_nodes); // new map for storing all the macro_nodes
-  // generate_compacted_pakgraph(MN_map, global_MN_map);
-  // traverse_pakgraph(global_MN_map, list_of_begin_kmers, partial_contig_list);
-  //
+  MNMap->AsyncForEachEntry(handle, ProcessContig, args);
+  rt::waitForCompletion(handle);
+  ContigMap->WaitForBufferedInsert();
 
+  for (auto itr = ContigMap->begin(); itr != ContigMap->end(); ++ itr) {
+    uint64_t size = (* itr).second.size();
+    // if (size <= 400) continue;
+
+    num_contigs ++; 
+    BasePairVector tmp = (* itr).second;
+    fprintf(fc, ">contig_%lu_l_%lu\n", num_contigs, size);
+
+    tmp.print(fc);
+    fprintf(fc, "\n");
+  }
+
+  fclose(fc);
+  printf("Time to print contigs = %lf\n", my_timer() - time1);
+*/
   return 0;
 }
 

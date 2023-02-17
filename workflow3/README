@@ -1,0 +1,35 @@
+Pakman performs large-scale genomic assembly through k-mer counting and contig generation. The original MPI code
+can be found at https://github.com/pnnl/pakman, as well as a references to technical publications describing the
+algorithm and data structures used.
+
+The SHAD implementation uses SHAD multimaps to store macro nodes, modified nodes, and wire nodes where the maps'
+keys are kmer strings.  The list of macro nodes processed by an iteration is stored in the ProcessedNodes set.
+
+Key Files -
+
+1) include/graph.h - defines the BasePairVector, MultiNode, ModifiedNode, and WireNode classes and their methods.
+2) tools/workflow3.cc - the main program.
+3) workflow3/readFasta.cc - a method to read fasta file and initialize the macro node multimap.
+4) workflow3/macroNode.cc - methods to count number of kmers of different lengths, construct macro nodes, modify
+   macro nodes, wire macro nodes, delete macro nodes.
+5) workflow3/process.cc - method that examines each marco node and decides which ones are ready for processing.
+   For selected node, the modifications imparteds on other nodes is computed and stored in the ModifiedNodes mul-
+   timap and its key is inserted in the ProcessedNodes set in preparation for deletion.
+
+Input file - ecoli/ecoli_illumina_10x_part_.fasta
+
+Output file - ecoli_10.output
+
+Input parameters -
+
+1) FASTA input file name
+2) kmer length
+3) coverage
+4) minimum length count
+5) node threshold 
+
+Run script (I use on our home cluster) -
+
+salloc --cpu-freq=Performance -N 8 -p all mpirun -np 16 -npernode 2 --bind-to socket --mca mpi_cuda_support 0 \
+/bin/do-workflow3 --gmt_num_workers 8 --gmt_num_helpers 1 --gmt_comm_buffer_size 4194304 \
+/lustre/scratch/feo/wk3/ecoli_10.fasta 32 100 21 100000

@@ -70,18 +70,34 @@ uint64_t extract_succ_word(uint64_t word, uint64_t suff_size, uint64_t word_size
 }
 
 
-// return the new key and prefix for the macro node to be merged with this affix and key
 MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLength) {
-  assert(affix.size() < mnLength);
+  uint64_t new_key;
   BasePairVector new_affix;
   uint64_t size = affix.size();
-  uint64_t rem = mnLength - size;                          // remainder = 7 - 4 = 3
-  uint64_t mask = ((1UL) << (size * SIZE_BP)) - 1;         // mask = 00001111
+
+  if (size > mnLength) {
+     // affix     = AACAGCAGGAAGGCACCGAAGATATACAGGATCCAGTCG
+     // key       =                                        AACTGCGAAATTAGCCAGCTGCCAGTGAAGA
+     // new key   = AACAGCAGGAAGGCACCGAAGATATACAGGA
+     // new_affix =                                TCCAGTCGAACTGCGAAATTAGCCAGCTGCCAGTGAAGA
+     uint64_t rem = size - mnLength;
+     new_key = affix.vec_[0] >> ((BP_PER_WORD - mnLength) * SIZE_BP);
+     new_affix = BasePairVector(affix.extract_succ(rem), rem);
+     new_affix.append(BasePairVector(key, mnLength));
+
+  } else if (size == mnLength) {
+     new_key   = affix.vec_[0];
+     new_affix = BasePairVector(key, mnLength);
+
+  } else {
+     uint64_t rem = mnLength - size;                          // remainder = 7 - 4 = 3
+     uint64_t mask = ((1UL) << (size * SIZE_BP)) - 1;         // mask = 00001111
 
 // affix : ___AAGT; key = _GGTCATA
-  uint64_t new_key = affix.vec_[0] << (rem * SIZE_BP);     // __AAGT << (3 * 2) = _AAGT___
-  new_key = new_key | (key >> (size * SIZE_BP));           // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
-  new_affix = BasePairVector(key & mask, size);            // _GGTCATA & 00001111 = ____CATA
+     new_key = affix.vec_[0] << (rem * SIZE_BP);              // __AAGT << (3 * 2) = _AAGT___
+     new_key = new_key | (key >> (size * SIZE_BP));           // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
+     new_affix = BasePairVector(key & mask, size);            // _GGTCATA & 00001111 = ____CATA
+  }
 
   return MNInfo{new_key, new_affix};
 }
@@ -91,8 +107,6 @@ MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLength) {
   BasePairVector new_affix;
   uint64_t new_key, size = affix.size();
-
-// affix : AAGTCCTA ______CG; key = _GGTCATA
   if (size > mnLength) {
      uint64_t rem = size - mnLength;                                        // remainder = 10 - 7 = 3
      new_key = affix.extract_succ(mnLength);                                // _TCCTACG
@@ -117,11 +131,21 @@ MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 }
 
 
-void ProcessMacroNode(const uint64_t & key, std::vector<MacroNode> & macroNodes, Args_t & args) {
-  uint64_t mnLength = args.mnLength;
-  auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
-  auto ContigVector = ContigVectorType::GetPtr((ContigVectorOID) args.ContigVector_OID);
+void walk(Handle & handle, uint64_t key, BasePairVector & contig,
+     int64_t freq, int64_t offset_in_prefix, MacroNode & node, Args_t & args) {
 
+  auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
+  auto ContigMap = ContigMapType::GetPtr((ContigMapOID) args.ContigMap_OID);
+  ContigMap->BufferedAsyncInsert(handle, key, contig);
+}
+
+
+void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNode> & macroNodes, Args_t & args) {
+  uint64_t mnLength   = args.mnLength;
+  auto WireMap        = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
+  auto ModifiedNodes  = ModifiedMapType::GetPtr((ModifiedMapOID) args.ModifiedNodes_OID);
+  auto ProcessedNodes = IntSet::GetPtr((IntSetOID) args.ProcessedNodes_OID);
+  auto PartialContigs = ContigSetType::GetPtr((ContigSetOID) args.PartialContigs_OID);
 
   for (auto node : macroNodes) {
     if (node.isTerminal) continue;     // skip terminals
@@ -141,7 +165,9 @@ void ProcessMacroNode(const uint64_t & key, std::vector<MacroNode> & macroNodes,
     if (kmer > key) return;
   }
 
-// node has no prefix/suffix > key, so process
+// *** node has no prefix/suffix > key, so process *** //
+  ProcessedNodes->AsyncInsert(handle, key);
+
   WireMapType::LookupResult wireEntry;     // get wireNodes
   WireMap->Lookup(key, & wireEntry);
   std::vector<WireNode> & wireNodes = wireEntry.value;
@@ -150,59 +176,75 @@ void ProcessMacroNode(const uint64_t & key, std::vector<MacroNode> & macroNodes,
     if (! node.isPrefix) break;            // ... process only prefixes, prefixes listed first
     if (node.num_wires == 0) continue;     // ... skip prefixes with no wires
 
-    MNInfo prefix_merge_info;;
-    if ( (node.affix.size() > 0) && (! node.isTerminal) )
+    MNInfo prefix_merge_info;              // ... get key and affix for node that prefix modifies
+    if ( (node.affix.size() > 0) && (! node.isTerminal) ) {
        prefix_merge_info = get_prefix_merge_info(key, node.affix, mnLength);
+    } else {
+       prefix_merge_info.key = 0;
+       prefix_merge_info.affix = BasePairVector();
+    }
 
-    for (int t = 0; t < node.num_wires; ++ t) {
+    for (int t = 0; t < node.num_wires; ++ t) {                 // ... for each wire attached to the node
       uint64_t sid  = wireNodes[node.wire_index + t].sid;
       int64_t count = wireNodes[node.wire_index + t].count;
-      MacroNode & suffix = macroNodes[sid];
+      MacroNode & suffix = macroNodes[sid];                     // ... ... suffix attached
 
-      if (node.isTerminal && suffix.isTerminal) {
-         BasePairVector contig = node.affix;
-         BasePairVector key_bvp(key, mnLength);
-
-         contig.append(key_bvp);
+      if (node.isTerminal && suffix.isTerminal) {               // ... ... string is terminated on both sides
+         BasePairVector contig = node.affix;                    // ... ... ... push string to partial contigs
+         contig.append( BasePairVector(key, mnLength) );
          contig.append(suffix.affix);
-         ContigVector->PushBack(contig);
-         printf("saved contig\n");
+         PartialContigs->AsyncInsert(handle, contig);
 
-      } else {
-         MNInfo suffix_merge_info;
-         if ( (suffix.affix.size() > 0) && (! suffix.isTerminal) )
+      } else {                                                  // ... ... string is open on at least one side
+
+         MNInfo suffix_merge_info;                              // ... ... ... get key and affix for node that
+         if ( (suffix.affix.size() > 0) && (! suffix.isTerminal) ) {                    // ... suffix modifies
             suffix_merge_info = get_suffix_merge_info(key, suffix.affix, mnLength);
+         } else {
+            suffix_merge_info.key = 0;
+            suffix_merge_info.affix = BasePairVector();
+         }
 
          bool self_loop_0 = (prefix_merge_info.key == key);
          bool self_loop_1 = (suffix_merge_info.key == key);
 
-         if ( (! node.isTerminal) && (! self_loop_0) ) {
-            printf("transferred pred\n");
-            // mn_nodes_per_proc[retrieve_proc_id(prefix_merge_info.key)].push_back(
-                // TransferNode { prefix_merge_info.key,
-                               // prefix_merge_info.affix,
-                               // suffix.affix,
-                               // std::make_pair( std::min(node.count.first, suffix.count.first), count ),
-                               // (suffix.isTerminal || self_loop_1)     // isTerminal
-                               // true                                   // isPrefix
-                             // }
-                // );
+         if ( (! node.isTerminal) && (! self_loop_0) ) {       // ... ... ... prefix is not a terminal or a self_loop
+            ModifiedNode tmp;                                  // ... ... ... ... prefix modifies suffix node
+            tmp.old_affix = prefix_merge_info.affix;
+            tmp.new_affix = prefix_merge_info.affix;
+
+            (tmp.new_affix).append(suffix.affix);
+            tmp.isPrefix   = false;
+            tmp.isTerminal = suffix.isTerminal || self_loop_1;
+            tmp.num_wires  = 0;
+            tmp.wire_index = 0;
+            tmp.count      = {std::min(node.count.first, suffix.count.first), count };
+            ModifiedNodes->AsyncInsert(handle, prefix_merge_info.key, tmp);
          }
 
-         if ( (! suffix.isTerminal) && (! self_loop_1) ) {
-            printf("transferred succ\n");
-            // mn_nodes_per_proc[retrieve_proc_id(suffix_merge_info.key)].push_back(
-                // TransferNode { suffix_merge_info.key,
-                               // suffix_merge_info.affix,
-                               // node.affix,
-                               // std::make_pair( std::min(node.count.first, suffix.count.first), count ),
-                               // (node.isTerminal || self_loop_0)     // isTerminal
-                               // false                                // isPrefix
-                             // }
-                // );
- }  }
+         if ( (! suffix.isTerminal) && (! self_loop_1) ) {     // ... ... ... suffix is not a terminal or a self_loop
+            ModifiedNode tmp;                                  // ... ... ... ... suffix modifies prefix node
+            tmp.old_affix = suffix_merge_info.affix;
+            tmp.new_affix = node.affix;
 
- printf("deleted macro node\n");
-} } }
+            (tmp.new_affix).append(suffix_merge_info.affix);
+            tmp.isPrefix   = true;
+            tmp.isTerminal = node.isTerminal || self_loop_0;
+            tmp.num_wires  = 0;
+            tmp.wire_index = 0;
+            tmp.count      = {std::min(node.count.first, suffix.count.first), count };
+            ModifiedNodes->AsyncInsert(handle, suffix_merge_info.key, tmp);
+} } } }  }
+
+
+void ProcessContig(Handle & handle, const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
+
+  for (auto node : value) {
+    if (! (node.isPrefix && node.isTerminal && node.count.second > 0) ) continue;
+
+    BasePairVector contig = node.affix;
+    contig.append( BasePairVector(key, args.mnLength) );
+    walk(handle, key, contig, node.count.second, 0, node, args);
+} }
 
 } // namespace agile::workflow3

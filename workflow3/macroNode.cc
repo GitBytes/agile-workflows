@@ -53,14 +53,6 @@ uint64_t visit_value (uint64_t count, uint64_t coverage) {
 }
 
 
-void UpdateWireMap(Handle & handle, const uint64_t & key, std::vector<WireNode> & value,
-        uint64_t & idx, uint64_t & sid, int64_t & offset, int64_t & count) {
-  value[idx].sid    = sid;
-  value[idx].offset = offset;
-  value[idx].count  = count;
-}
-
-
 void BucketCounts_(Handle & handle, const Args_t & args) {
   auto KMap = KMapType::GetPtr((KMapOID) args.KMap_OID);
   auto BucketCounts = IntArray::GetPtr((IntArrayOID) args.BucketCounts_OID);
@@ -104,13 +96,12 @@ void ConstructMacroNodes(Handle & handle, const Args_t & args) {
 } } }
 
 
-void PushTerminals_Defaults(Handle & handle, const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
+void Finish_MN_WireMaps(Handle & handle, const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
   uint64_t size = value.size();
   auto MNMap = MNMapType::GetPtr((MNMapOID) args.MNMap_OID);
   auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
 
-  // push null prefix and suffix onto value
-  MacroNode prefix_mn = MacroNode();
+  MacroNode prefix_mn = MacroNode();                           // push null prefix and suffix onto MNMap
   MacroNode suffix_mn = MacroNode();
   prefix_mn.isPrefix = true;
   suffix_mn.isPrefix = false;
@@ -119,49 +110,97 @@ void PushTerminals_Defaults(Handle & handle, const uint64_t & key, std::vector<M
   MNMap->BufferedAsyncInsert(handle, key, prefix_mn);
   MNMap->BufferedAsyncInsert(handle, key, suffix_mn);
 
-  for (uint64_t i = 0; i < size + 3; ++ i)
+  for (uint64_t i = 0; i < size + 3; ++ i)                     // push default wire node onto WireMap
     WireMap->BufferedAsyncInsert(handle, key, WireNode());
 }
 
 
-void InitialMacroNodeWire(Handle & handle, const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
+void ModifyMN_(Handle & handle, const uint64_t & key,
+     std::vector<MacroNode> & macroNodes, std::vector<ModifiedNode> * (& modifiedNodes), Args_t & args) {
   auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
-  // std::string my_kmer = kmer_string(key, args.mnLength);
-  // if (strcmp(my_kmer.c_str(), "AAAATTGCCTGATGCGCTACGCTTATCAGGC") != 0) return;
-  // printf("processing macro node AAAATTGCCTGATGCGCTACGCTTATCAGGC, key = %lu\n", key);
 
-  int64_t  pc = 0, sc = 0;
-  uint64_t null_prefix_id;
-  uint64_t null_suffix_id;
-  std::sort(value.begin(), value.end(), MN_comp);               // sort value ... prefixes stored before suffixes
+  for (auto & mod : (* modifiedNodes))  {                           // for each modification
+    bool found = false;
 
-  for (uint64_t i = 0; i < value.size(); ++ i) {
-    if (value[i].isPrefix) {     // node is prefix
-       if (value[i].affix.size() > 0) pc += value[i].count.second; else null_prefix_id = i;
-    } else {                     // node is suffix
-       if (value[i].affix.size() > 0) sc += value[i].count.second; else null_suffix_id = i;
+    for (uint64_t i = 0; i < macroNodes.size(); ++ i) {             // ... for each macro node
+      if (mod.isPrefix != macroNodes[i].isPrefix) continue;         // ... ... affix types are not the same
+      if (mod.old_affix != macroNodes[i].affix) continue;           // ... ... affixes are not the same
+      found = true;                                                 // ... ... found affix in list
+
+      if (macroNodes[i].isTerminal) {                               // ... ... affix is a terminal 
+         MacroNode tmp;                                             // ... ... ... push new macro node
+         tmp.affix      = mod.new_affix;
+         tmp.isPrefix   = mod.isPrefix;
+         tmp.isTerminal = mod.isTerminal;
+         tmp.num_wires  = mod.num_wires;
+         tmp.wire_index = mod.wire_index;
+         tmp.count      = mod.count;
+         macroNodes.push_back(tmp);                                 // ... append new macro node
+         WireMap->BufferedAsyncInsert(handle, key, WireNode());     // ... extend wire map for key
+
+      } else {                                                      // ... ... affix is not a terminal 
+         macroNodes[i].affix      = mod.new_affix;                  // ... ... ... replace macro node
+         macroNodes[i].isPrefix   = mod.isPrefix;
+         macroNodes[i].isTerminal = mod.isTerminal;
+         macroNodes[i].num_wires  = mod.num_wires;
+         macroNodes[i].wire_index = mod.wire_index;
+         macroNodes[i].count      = mod.count;
+      }
+
+      break;
+    }
+
+    if (! found) {                                                // ... affix is not in list
+       MacroNode tmp;                                             // ... ... push new macro node
+       tmp.affix      = mod.new_affix;
+       tmp.isPrefix   = mod.isPrefix;
+       tmp.isTerminal = mod.isTerminal;
+       tmp.num_wires  = mod.num_wires;
+       tmp.wire_index = mod.wire_index;
+       tmp.count      = mod.count;
+       macroNodes.push_back(tmp);                                 // ... append new macro node
+       WireMap->BufferedAsyncInsert(handle, key, WireNode());     // ... extend wire map for key
+} } }
+
+
+void RewireMN_(Handle & handle, const uint64_t & key,
+     std::vector<WireNode> & wireNodes, std::vector<MacroNode> * (& macroNodes), Args_t & args) {
+  int64_t  pc = 0, sc = 0, index = -1;
+  uint64_t top_prefix = 0, top_suffix = 0;
+  uint64_t null_prefix_id, null_suffix_id;
+
+  for (auto & node : (* macroNodes)) {
+    index ++;
+    if (node.isPrefix) {                            // node is prefix
+       if (node.affix.size() == 0) null_prefix_id = index; else pc += node.count.second;
+    } else {                                        // node is suffix
+       if (top_suffix == 0) top_suffix = index;     // ... first suffix
+       if (node.affix.size() == 0) null_suffix_id = index; else sc += node.count.second;
   } }
 
-  value[null_prefix_id].count = {1, std::max(sc - pc, 0L)};     // count and coverage for null prefix
-  value[null_suffix_id].count = {1, std::max(pc - sc, 0L)};     // count and coverage for null suffix
+  (* macroNodes)[null_prefix_id].count = {1, std::max(sc - pc, 0L)};     // count and coverage for null prefix
+  (* macroNodes)[null_suffix_id].count = {1, std::max(pc - sc, 0L)};     // count and coverage for null suffix
 
-  std::vector<uint64_t> indices(value.size());
+  std::vector<uint64_t> indices((* macroNodes).size());
   std::iota(indices.begin(), indices.end(), 0);
-  std::sort(indices.begin(), indices.end(), Comp_rev(value));
+  std::sort(indices.begin(), indices.end(), Comp_rev(* macroNodes));
 
   uint64_t wire_idx = 0, num_wires = 0;
-  uint64_t top_prefix = 0, top_suffix = null_prefix_id + 1;
   uint64_t last_prefix_id = ULLONG_MAX, prefix_begin = ULLONG_MAX;
 
   int64_t  var_p = 0, var_s = 0, offset_in_suffix = 0;
-  int64_t  leftover = sc + value[null_suffix_id].count.second;
+  int64_t  leftover = sc + (* macroNodes)[null_suffix_id].count.second;
 
   while (leftover > 0) {
     uint64_t prefix_id = indices[top_prefix];
     uint64_t suffix_id = indices[top_suffix];
-    int64_t count = std::min( (value[prefix_id].count.second - var_p), (value[suffix_id].count.second - var_s) );
-    WireMap->AsyncApply(handle, key, UpdateWireMap, wire_idx, suffix_id, offset_in_suffix, count);
+    int64_t  prefix_count = (* macroNodes)[prefix_id].count.second - var_p;
+    int64_t  suffix_count = (* macroNodes)[suffix_id].count.second - var_s;
+    int64_t  count = std::min(prefix_count, suffix_count);
 
+    wireNodes[wire_idx].sid    =  suffix_id;
+    wireNodes[wire_idx].offset = offset_in_suffix;
+    wireNodes[wire_idx].count  = count;
     if (last_prefix_id != prefix_id) {prefix_begin = wire_idx; last_prefix_id = prefix_id;}
 
     wire_idx  ++;
@@ -171,18 +210,59 @@ void InitialMacroNodeWire(Handle & handle, const uint64_t & key, std::vector<Mac
     leftover -= count;
     offset_in_suffix += count;
 
-    if (var_p == value[prefix_id].count.second) {
-       value[prefix_id].num_wires  = num_wires;
-       value[prefix_id].wire_index = prefix_begin;
+    if (var_p == (* macroNodes)[prefix_id].count.second) {
+       (* macroNodes)[prefix_id].num_wires  = num_wires;
+       (* macroNodes)[prefix_id].wire_index = prefix_begin;
        var_p      = 0;
        num_wires  = 0;
        top_prefix ++;
     }
 
-    if (var_s == value[suffix_id].count.second) {
+    if (var_s == (* macroNodes)[suffix_id].count.second) {
        offset_in_suffix = 0;
        var_s      = 0;
        top_suffix ++;
 } } }
+
+
+void WireMacroNodes(Handle & handle, const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
+  std::vector<MacroNode> * tmp = & value;
+  auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
+
+  std::sort(value.begin(), value.end(), MN_comp);     // sort macro nodes
+  WireMap->AsyncApply(handle, key, RewireMN_, tmp, args);
+}
+
+
+void DeleteMacroNode(Handle & handle, const uint64_t & key, Args_t & args) {
+  auto MNMap = MNMapType::GetPtr((MNMapOID) args.MNMap_OID);
+  auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
+
+  MNMap->AsyncErase(handle, key);
+  WireMap->AsyncErase(handle, key);
+}
+
+
+void ModifyMacroNode(Handle & handle, const uint64_t & key, std::vector<ModifiedNode> & value, Args_t & args) {
+  auto MNMap = MNMapType::GetPtr((MNMapOID) args.MNMap_OID);
+
+  std::vector<ModifiedNode> * tmp = & value;
+  MNMap->AsyncApply(handle, key, ModifyMN_, tmp, args);
+}
+
+
+void RewireMacroNode(Handle & handle, const uint64_t & key, Args_t & args) {
+  auto MNMap = MNMapType::GetPtr((MNMapOID) args.MNMap_OID);
+
+  auto RewireLambda = [] (Handle & handle, const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
+    std::vector<MacroNode> * tmp = & value;
+    auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
+
+    std::sort(value.begin(), value.end(), MN_comp);
+    WireMap->AsyncApply(handle, key, RewireMN_, tmp, args);
+  };
+
+  MNMap->AsyncApply(handle, key, RewireLambda, args);
+}
 
 } // namespace agile::workflow3

@@ -50,6 +50,7 @@
 #include <math.h>
 #include <limits.h>
 
+#include "shad/data_structures/set.h"
 #include "shad/data_structures/array.h"
 #include "shad/data_structures/vector.h"
 #include "shad/data_structures/hashmap.h"
@@ -69,15 +70,20 @@
 namespace agile::workflow3 {
 
 using Handle      = shad::rt::Handle;
+using IntSet      = shad::Set<uint64_t>;
 using IntArray    = shad::Array<int64_t>;
+using IntSetOID   = shad::ObjectIdentifier<IntSet>;
 using IntArrayOID = shad::ObjectIdentifier<IntArray>;
 
 struct Args_t {
   uint64_t KMap_OID;
   uint64_t MNMap_OID;
   uint64_t WireMap_OID;
-  uint64_t ContigVector_OID;
   uint64_t BucketCounts_OID;
+  uint64_t ModifiedNodes_OID;
+  uint64_t ProcessedNodes_OID;
+  uint64_t ContigMap_OID;
+  uint64_t PartialContigs_OID;
   uint64_t mnLength;
   uint64_t coverage;
   uint64_t min_index;
@@ -93,6 +99,8 @@ void int_fetch_add(Handle &, uint64_t, int64_t &, int64_t &);
 void readFASTA(Handle &, const Args_t &);
 void BucketCounts_(Handle &, const Args_t &);
 void ConstructMacroNodes(Handle &, const Args_t &);
+void DeleteMacroNode(Handle &, const uint64_t &, Args_t &);
+void RewireMacroNode(Handle &, const uint64_t &, Args_t &);
 
 } // namespace agile::workflow3
 

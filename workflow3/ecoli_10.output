@@ -1,0 +1,95 @@
+salloc: Granted job allocation 161460
+----------------------------------------------------------------------------------------------------
+                                        GMT config
+----------------------------------------------------------------------------------------------------
+                   Option   Dynamic           Value
+
+                num_nodes       yes              16
+              num_workers       yes               8
+              num_helpers       yes               1
+  num_uthreads_per_worker       yes            1024
+              max_nesting       yes               2
+         comm_buffer_size       yes         4194304
+    num_buffs_per_channel       yes              64
+           num_cmd_blocks       yes             128
+           cmd_block_size       yes            4096
+         mtasks_per_queue       yes         1048576
+        num_mtasks_queues       yes               9
+     max_handles_per_node       yes          262144
+      handle_check_interv       yes            1024
+       mtask_check_interv       yes          100000
+        cmdb_check_interv       yes          100000
+    node_agg_check_interv       yes         2000000
+           dta_chunk_size       yes            1024
+dta_prealloc_worker_chunks       yes              32
+dta_prealloc_helper_chunks       yes             256
+               state_name       yes                
+                 state_rw       yes               1
+           state_populate       yes               0
+                 ssd_path       yes                
+                disk_path       yes                
+        limit_parallelism       yes               0
+           thread_pinning       yes               0
+                num_cores       yes              20
+           stride_pinning       yes               1
+    release_uthread_stack       yes               0
+        print_stack_break       yes               0
+      print_gmt_mem_usage       yes               0
+       print_sched_interv       yes               0
+        enable_usr_signal       yes               0
+
+  ENABLE_SINGLE_NODE_ONLY                         0
+           ENABLE_ASSERTS                         1
+         ENABLE_PROFILING                         0
+            ENABLE_TIMING                         0
+      GMT_ENABLE_UCONTEXT                         1
+ ENABLE_EXPANDABLE_STACKS                         1
+       ENABLE_AGGREGATION                         1
+  ENABLE_HELPER_BUFF_COPY                         1
+            BUILD_VERSION                     2.0.0
+                   CFLAGS                      -m64
+            COMPILER_NAME                          
+         COMPILER_VERSION                          
+----------------------------------------------------------------------------------------------------
+Time to read FASTA file = 1.688644
+Number of distinct k-mer entries = 33655008
+Time to construct and wire macro nodes = 0.444659
+Kmers appearing less than 20 times have been removed
+Initial number of macro nodes:  869238
+Iteration:  0
+     Time for iteration 0 = 1.510429
+     Number of modified nodes :  419304
+     Number of processed nodes:  266426
+     Number of macro nodes    :  602812
+Iteration:  1
+     Time for iteration 1 = 0.906104
+     Number of modified nodes :  273314
+     Number of processed nodes:  181767
+     Number of macro nodes    :  421045
+Iteration:  2
+     Time for iteration 2 = 0.647054
+     Number of modified nodes :  182924
+     Number of processed nodes:  119238
+     Number of macro nodes    :  301807
+Iteration:  3
+     Time for iteration 3 = 0.622768
+     Number of modified nodes :  128689
+     Number of processed nodes:   83620
+     Number of macro nodes    :  218187
+Iteration:  4
+     Time for iteration 4 = 0.516800
+     Number of modified nodes :   91561
+     Number of processed nodes:   59633
+     Number of macro nodes    :  158554
+Iteration:  5
+     Time for iteration 5 = 0.481050
+     Number of modified nodes :   65467
+     Number of processed nodes:   43189
+     Number of macro nodes    :  115365
+Iteration:  6
+     Time for iteration 6 = 0.458025
+     Number of modified nodes :   46944
+     Number of processed nodes:   31609
+     Number of macro nodes    :   83756
+----------------------------------------------------------------------------------------------------
+salloc: Relinquishing job allocation 161460
