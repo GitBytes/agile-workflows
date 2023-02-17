@@ -158,7 +158,9 @@ public:
     // Create Optimizer
     std::vector<at::Tensor> parameters;
     for (const auto &params : TS.Module.parameters()) {
-      parameters.push_back(params);
+      if (params.requires_grad()) {
+        parameters.push_back(params);
+      }
     }
 
     const double learningRate = 0.01;
@@ -302,9 +304,13 @@ void vcBackPropAndEvaluationLoop(TrainingState &TS) {
 
 typename shad::Array<
     agile::workflow1::TrainingState<VertexClassificationWMDDataset>>::ObjectID
-GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
+GCN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
     std::string modelFileName);
 
+typename shad::Array<
+    agile::workflow1::TrainingState<LinkPredictionWMDDataset>>::ObjectID
+LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
+              std::string modelFileName);
 } // namespace agile::workflow1
 
 #endif

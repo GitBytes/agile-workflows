@@ -223,7 +223,7 @@ auto GenerateFalseEdges(
   return result;
 }
 
-void GenerateLinkPredictionDataSet(Graph_t &graph, float train,
+auto GenerateLinkPredictionDataSet(Graph_t &graph, float train,
                                    float validation) {
   auto Vertices = VertexType::GetPtr((VertexOID)graph["Vertices"]);
   auto allEdges = XEdgeType::GetPtr((XEdgeOID)graph["XEdges"]);
@@ -269,8 +269,8 @@ void GenerateLinkPredictionDataSet(Graph_t &graph, float train,
   auto testSet =
       XEdgeType::Create(trueTestEdgesNum + falseTestEdgesNum, Edge());
 
-  // TODO: We need a random shuffle to scramble the order of edges before
-  //       assigning it to one of train, validation, and test.
+  auto falseEdgeArray =
+      GenerateFalseEdges(falseEdgesTotal, EdgeSet, Vertices->Size() - 1);
   auto begin = Edges->begin();
   auto end = begin + trueTrainEdgesNum;
   auto falseTrainItrB =
@@ -287,8 +287,6 @@ void GenerateLinkPredictionDataSet(Graph_t &graph, float train,
       copy(shad::distributed_parallel_tag{}, begin, end, testSet->begin());
 
   // Generate False Edges
-  auto falseEdgeArray =
-      GenerateFalseEdges(falseEdgesTotal, EdgeSet, Vertices->Size() - 1);
   begin = falseEdgeArray->begin();
   end = begin + falseTrainEdgesNum;
   copy(shad::distributed_parallel_tag{}, begin, end, falseTrainItrB);
@@ -299,14 +297,88 @@ void GenerateLinkPredictionDataSet(Graph_t &graph, float train,
 
   begin = end;
   end += falseTestEdgesNum;
-  copy(shad::distributed_parallel_tag{}, begin, end, falseValItrB);
+  copy(shad::distributed_parallel_tag{}, begin, end, falseTestItrB);
 
   // Create Observed Graph
   Graph_t observedGraph;
+  auto observedGraphVertices = VertexType::Create(Vertices->Size(), Vertex());
+  auto observedGraphVerticesOID = observedGraphVertices->GetGlobalID();
+  observedGraph["Vertices"] = static_cast<uint64_t>(observedGraphVerticesOID);
+  auto observedEdges = EdgeType::Create(LARGE);
+  observedGraph["Edges"] = static_cast<uint64_t>(observedEdges->GetGlobalID());
+  auto observedXEdgesOID =
+      XEdgeType::Create(trueTrainEdgesNum + trueValidationEdgesNum, Edge())
+          ->GetGlobalID();
+  observedGraph["XEdges"] = static_cast<uint64_t>(observedXEdgesOID);
+
+  auto edgeInserter = [](shad::rt::Handle &h, size_t i, Edge &e,
+                         size_t &edgeMapOID) {
+    auto observedEdges = EdgeType::GetPtr(EdgeType::ObjectID(edgeMapOID));
+    observedEdges->BufferedAsyncInsert(h, e.src, e);
+  };
+
+  // 1 - Insert all the edges in Train+Validation in an hashmap
+  trainingSet->AsyncForEachInRange(h, 0, trueTrainEdgesNum, edgeInserter,
+                                   observedGraph["Edges"]);
+  validationSet->AsyncForEachInRange(h, 0, trueValidationEdgesNum, edgeInserter,
+                                     observedGraph["Edges"]);
+  shad::rt::waitForCompletion(h);
+  observedEdges->WaitForBufferedInsert();
+
+  auto observedEdgesOID = observedEdges->GetGlobalID();
+
+  shad::transform(shad::distributed_parallel_tag{}, Vertices->begin(),
+                  Vertices->end(), observedGraphVertices->begin(),
+                  [observedEdgesOID](auto &v) {
+                    auto edges = EdgeType::GetPtr(observedEdgesOID);
+                    Vertex out = v;
+                    typename EdgeType::LookupResult res;
+                    edges->Lookup(out.id, &res);
+                    out.edges = res.size;
+                    return out;
+                  });
+
+  // 2 - compute prefix scan of the neighboorhoods size
+  exclusiveScanVertices<Vertex>(
+      observedGraph["Vertices"]); // convert # edges to start location
+
+  // 3 - copy the content of the hashmap into the CSR
+  // shad::for_each(shad::distributed_parallel_tag{},
+  // observedEdges->key_begin(),
+  //                observedEdges->key_end(),
+  //                [h, observedXEdgesOID, observedGraphVerticesOID](auto &t) {
+  //                  auto key = std::get<0>(t);
+  //                  auto &edges = std::get<1>(t);
+  //                  auto XEdges = XEdgesType::GetPtr(observedXEdgesOID);
+  //                  auto Vertices =
+  //                  VertexType::GetPtr(observedGraphVerticesOID);
+
+  //                  auto pos = Vertices->At(key).start;
+  //                  for (auto &e : edges) {
+  //                    XEdges->AsyncInsertAt(h, pos, e);
+  //                    ++pos;
+  //                  }
+  //                });
+  observedEdges->AsyncForEachEntry(
+      h,
+      [](shad::rt::Handle &h, const auto &key, auto &edges,
+         auto &observedXEdgesOID, auto &observedGraphVerticesOID) {
+        auto XEdges = XEdgeType::GetPtr(observedXEdgesOID);
+        auto Vertices = VertexType::GetPtr(observedGraphVerticesOID);
+
+        auto pos = Vertices->At(key).start;
+        for (auto &e : edges) {
+          XEdges->AsyncInsertAt(h, pos, e);
+          ++pos;
+        }
+      },
+      observedXEdgesOID, observedGraphVerticesOID);
+  shad::rt::waitForCompletion(h);
 
   // Freeing up temporaries
   EdgeSetType::Destroy(EdgeSetOID);
   XEdgeType::Destroy(Edges->GetGlobalID());
-  // return std::make_tuple(observedGraph, trainingSet, validationSet, testSet);
+  return std::make_tuple(observedGraph, trainingSet->GetGlobalID(),
+                         validationSet->GetGlobalID(), testSet->GetGlobalID());
 }
 } // namespace agile::workflow1

@@ -4,6 +4,9 @@ target_link_libraries(pi CONAN_PKG::shad Threads::Threads MPI::MPI_CXX)
 add_executable(do-workflow1 workflow1.cc)
 target_link_libraries(do-workflow1 gnn_utils workflow1 CONAN_PKG::shad CONAN_PKG::pytorch_sparse CONAN_PKG::pytorch_scatter CONAN_PKG::libtorch Threads::Threads MPI::MPI_CXX)
 
+add_executable(do-wk1_linkpred wk1_linkpred.cc)
+target_link_libraries(do-wk1_linkpred gnn_utils workflow1 CONAN_PKG::shad CONAN_PKG::pytorch_sparse CONAN_PKG::pytorch_scatter CONAN_PKG::libtorch Threads::Threads MPI::MPI_CXX)
+
 add_executable(do-wk2_exact wk2_exact.cc)
 target_link_libraries(do-wk2_exact wk2_exact CONAN_PKG::shad Threads::Threads MPI::MPI_CXX)
 
