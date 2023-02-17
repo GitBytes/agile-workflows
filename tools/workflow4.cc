@@ -146,9 +146,9 @@ int main(int argc, char *argv[]) {
   // ... weight edges of coffee market ...
   CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
   waitForCompletion(handle);
+
   // ... output input file for influence maximization kernel ...
   PrintWeightedSalesEdgesToFile(handle, args);
-  // CoffeeSales->AsyncForEachEntry(handle, PrintWeightedSalesEdgesToFile, args);
   waitForCompletion(handle);
 
 /********** KERNEL 4 - Adjust coffee market **********/
@@ -178,9 +178,22 @@ int main(int argc, char *argv[]) {
   CoffeeSales->WaitForBufferedInsert();
   CoffeePurchases->WaitForBufferedInsert();
 
-  for (auto itr = CoffeeTraders->begin(); itr != CoffeeTraders->end(); ++ itr)
-    printf("%lu %lf %lf %lf\n", (* itr).second.id, (* itr).second.sold, (* itr).second.bought, (* itr).second.desired);
-  
+  printf("Time for Kernel 4 - Graph Adjustment = %lf\n\n", my_timer() - time1);
+
+  printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
+  printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
+  printf("Number of coffee purchases = %lu\n", CoffeePurchases->Size());
+
+  for (auto itr = CoffeeSales->begin(); itr != CoffeeSales->end(); ++ itr) {
+    if ( ((* itr).second.seller == 886128) || ((* itr).second.seller == 827536) ) printf("influencer to buyer sale edge not deleted\n");
+    if ( ((* itr).second.buyer  == 886128) || ((* itr).second.buyer  == 827536) ) printf("trader to influencer sale edge not deleted\n");
+  }
+
+  for (auto itr = CoffeePurchases->begin(); itr != CoffeePurchases->end(); ++ itr) {
+    if ( ((* itr).second.seller == 886128) || ((* itr).second.seller == 827536) ) printf("trader to influencer purchase edge not deleted\n");
+    if ( ((* itr).second.buyer  == 886128) || ((* itr).second.buyer == 827536) ) printf("influencer to trader purchase edge not deleted\n");
+  }
+
   return 0;
 }
 
