@@ -82,7 +82,7 @@ void PrintWeightedSalesEdgesToFile(Handle & handle, RF_args_t & args) {
     auto mapPtr = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) argsL.CoffeeSales_OID);
     auto localMapPtr = mapPtr->GetLocalMultimap();
     std::ofstream file_out;
-    file_out.open(argsL.outfilename, std::ios_base::app);
+    file_out.open(argsL.filename, std::ios_base::app);
     for (auto itr = localMapPtr->begin(); itr != localMapPtr->end(); ++itr)
     {
       auto se = (*itr).second;
