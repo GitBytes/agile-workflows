@@ -125,7 +125,7 @@ void OneHopFeatures(Handle &handle, const uint64_t ndx, Vertex &vertex,
 
 typename shad::Array<
     agile::workflow1::TrainingState<VertexClassificationWMDDataset>>::ObjectID
-GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
+GCN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
     std::string modelFileName) {
   Handle handle;
   auto Vertices = VertexType::GetPtr((VertexOID)graph["Vertices"]);
@@ -224,6 +224,35 @@ GNN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
   }
 
   std::cout << "Model Trained" << std::endl;
+
+  return TSs->GetGlobalID();
+}
+
+typename shad::Array<
+    agile::workflow1::TrainingState<LinkPredictionWMDDataset>>::ObjectID
+LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
+              std::string modelFileName) {
+  Handle handle;
+  auto Vertices = VertexType::GetPtr((VertexOID)graph["Vertices"]);
+  auto Embeddings = EmbeddingType::Create(num_vertices * NUM_FEATURES, 0);
+
+  Embeddings->FillPtrs();
+  graph["Embeddings"] = (uint64_t)(Embeddings->GetGlobalID());
+  Args_t args = {graph["XEdges"], graph["Embeddings"]};
+
+  Vertices->AsyncForEachInRange(handle, 0, num_vertices, OneHopFeatures, args);
+  waitForCompletion(handle);
+
+  Vertices->AsyncForEachInRange(handle, 0, num_vertices, TwoHopFeatures, args);
+  waitForCompletion(handle);
+
+  std::cout << "Embeddings created" << std::endl;
+
+  size_t parallelThreads =
+      shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
+  TrainingState<LinkPredictionWMDDataset> initState;
+  auto TSs = shad::Array<TrainingState<LinkPredictionWMDDataset>>::Create(
+      parallelThreads, initState);
 
   return TSs->GetGlobalID();
 }
