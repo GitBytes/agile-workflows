@@ -153,14 +153,108 @@ int main(int argc, char *argv[]) {
 
 /********** KERNEL 4 - Adjust coffee market **********/
   std::vector<uint64_t> influencers = 
-      {600470,1620581,1472054,243105,592280,136186,133413,499012,1918709,702069,1399150,1135385,1780223,1533338,
-        130242,278875,1081486,1028876,998909,979579,555870,1313210,1185795,1155461,1037590,966917,386472,188047,
-        348443,38632,1854570,223826,1623771,1565214,1437794,1178196,576756,1155085,562832,1117461,529004,487424,
-        237471,933935,1853732,452315,1734321,1644813,89481,1504982,696383,1399413,162202,660534,272254,56327,
-        1682757,761768,77245,1226668,289826,569388,1139751,14879,531449,526644,1976842,958069,231772,1733641,
-        1686896,1604168,1551073,188950,1494291,1487896,732235,650877,1315525,1186573,1156220,1097773,505759,500360,
-        1992200,112568,1858582,912819,1829726,448488,219218,1759042,1690236,1680154,1518927,1512574,1444259,1345105,
-        653884,1299800 }; // lost traders
+      {
+        1276402,
+        1041682,
+        99655,
+        125113,
+        54395,
+        417055,
+        790367,
+        738985,
+        642085,
+        1476713,
+        491166,
+        837634,
+        370202,
+        1485592,
+        182127,
+        1340335,
+        652543,
+        136186,
+        557953,
+        1067753,
+        1013377,
+        1586874,
+        289695,
+        255697,
+        951545,
+        213279,
+        1621392,
+        1359593,
+        1229956,
+        719015,
+        712014,
+        607583,
+        295133,
+        289867,
+        277417,
+        977555,
+        481573,
+        230275,
+        1797815,
+        1701255,
+        1527648,
+        1163681,
+        262232,
+        463828,
+        1858132,
+        454940,
+        443748,
+        872776,
+        842009,
+        208529,
+        741705,
+        1359431,
+        1289355,
+        1172519,
+        1038751,
+        1007456,
+        233838,
+        918225,
+        224854,
+        440910,
+        1792993,
+        1781210,
+        209475,
+        1628381,
+        1542292,
+        1471802,
+        345107,
+        147652,
+        1225937,
+        1225168,
+        1214361,
+        569771,
+        1069017,
+        28965,
+        962566,
+        1851269,
+        451242,
+        1726941,
+        1586581,
+        181938,
+        596887,
+        588302,
+        575761,
+        536758,
+        1055255,
+        1028881,
+        501041,
+        1001567,
+        970385,
+        452394,
+        399192,
+        1628453,
+        808231,
+        1623532,
+        1554815,
+        1542047,
+        1391446,
+        1386498,
+        641673,
+        1272139
+      }; // lost traders
   // std::vector<uint64_t> influencers = {886128, 827536};
 
   for (uint64_t influencer : influencers)
@@ -177,15 +271,15 @@ int main(int argc, char *argv[]) {
   printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
   printf("Number of coffee purchases = %lu\n", CoffeePurchases->Size());
 
-  for (auto itr = CoffeeSales->begin(); itr != CoffeeSales->end(); ++ itr) {
-    if ( ((* itr).second.seller == 886128) || ((* itr).second.seller == 827536) ) printf("influencer to buyer sale edge not deleted\n");
-    if ( ((* itr).second.buyer  == 886128) || ((* itr).second.buyer  == 827536) ) printf("trader to influencer sale edge not deleted\n");
-  }
+  // for (auto itr = CoffeeSales->begin(); itr != CoffeeSales->end(); ++ itr) {
+  //   if ( ((* itr).second.seller == 886128) || ((* itr).second.seller == 827536) ) printf("influencer to buyer sale edge not deleted\n");
+  //   if ( ((* itr).second.buyer  == 886128) || ((* itr).second.buyer  == 827536) ) printf("trader to influencer sale edge not deleted\n");
+  // }
 
-  for (auto itr = CoffeePurchases->begin(); itr != CoffeePurchases->end(); ++ itr) {
-    if ( ((* itr).second.seller == 886128) || ((* itr).second.seller == 827536) ) printf("trader to influencer purchase edge not deleted\n");
-    if ( ((* itr).second.buyer  == 886128) || ((* itr).second.buyer == 827536) ) printf("influencer to trader purchase edge not deleted\n");
-  }
+  // for (auto itr = CoffeePurchases->begin(); itr != CoffeePurchases->end(); ++ itr) {
+  //   if ( ((* itr).second.seller == 886128) || ((* itr).second.seller == 827536) ) printf("trader to influencer purchase edge not deleted\n");
+  //   if ( ((* itr).second.buyer  == 886128) || ((* itr).second.buyer == 827536) ) printf("influencer to trader purchase edge not deleted\n");
+  // }
 
   return 0;
 }
