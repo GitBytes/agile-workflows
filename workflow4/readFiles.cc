@@ -100,20 +100,15 @@ void readFileCoffee(Handle & handle, const RF_args_t & args) {
     if (line[0] == '#') continue;                               // skip comments
     std::vector <std::string> tokens = split(line, ',', 8);     // delimiter and # tokens set for wmd data file
 
-    if (tokens[0] == "Sale") {
-       SaleEdge sale(tokens);
-       uint64_t id = sale.seller;
-       CoffeeSales->BufferedAsyncInsert(handle, id, sale);
-       CoffeeTraders->BufferedAsyncInsert(handle, id, TraderVertex(id, sale.amount, 0.0, 0.0));
-       // Insert into Persons vertex list?
+    SaleEdge S(tokens);
+    CoffeeSales->BufferedAsyncInsert(handle, S.seller, S);
+    CoffeeTraders->BufferedAsyncInsert(handle, S.seller, TraderVertex(S.seller, S.amount, 0.0, 0.0));
 
-    } else if (tokens[0] == "Purchase") {
-       PurchaseEdge purchase(tokens);
-       uint64_t id  = purchase.buyer;
-       CoffeePurchases->BufferedAsyncInsert(handle, id, purchase);
-       CoffeeTraders->BufferedAsyncInsert(handle, id, TraderVertex(id, 0.0, purchase.amount, purchase.amount));
-       // Insert into Persons vertex list?
-  } }
+    PurchaseEdge P(tokens);
+    std::swap(P.buyer, P.seller);
+    CoffeePurchases->BufferedAsyncInsert(handle, P.buyer, P);
+    CoffeeTraders->BufferedAsyncInsert(handle, P.buyer, TraderVertex(P.buyer, P.amount, 0.0, 0.0));
+  }
 
   file.close();
 }
