@@ -371,7 +371,6 @@ using TraderVertexOID = shad::ObjectIdentifier<TraderVertexType>;
 
 void CancelCoffeeTrader(Handle &, const uint64_t &, TraderVertex &, RF_args_t &);
 void CoffeeSalesWeight(Handle&, const uint64_t & key, std::vector<SaleEdge>& sales, RF_args_t &);
-void PrintWeightedSalesEdgesToFile(Handle & handle, RF_args_t & args);
 } // namespace agile::workflow4
 
 #endif // GRAPH_H

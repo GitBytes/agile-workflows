@@ -73,31 +73,16 @@ void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & tra
 }
 
 
-void PrintWeightedSalesEdgesToFile(Handle & handle, RF_args_t & args) {
+void PrintWeightedSalesEdgesToFile(const RF_args_t & args) {
+  std::ofstream file;
+  file.open(args.filename, std::ios_base::app);
+  auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID)->GetLocalMultimap();
 
-  auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
+  for (auto itr = CoffeeSales->begin(); itr != CoffeeSales->end(); ++ itr)
+    file << (* itr).second.seller << "," << (* itr).second.buyer << "," << (* itr).second.weight << "\n";
 
-  auto printLambda = [](const uint8_t *argsBuffer, const uint32_t) {
-    const RF_args_t argsL = *reinterpret_cast<const RF_args_t *>(argsBuffer);
-    auto mapPtr = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) argsL.CoffeeSales_OID);
-    auto localMapPtr = mapPtr->GetLocalMultimap();
-    std::ofstream file_out;
-    file_out.open(argsL.filename, std::ios_base::app);
-    for (auto itr = localMapPtr->begin(); itr != localMapPtr->end(); ++itr)
-    {
-      auto se = (*itr).second;
-      file_out << se.seller << "," << se.buyer << "," << se.weight << "\n";
-    }
-    file_out.close();
-  };
-
-  std::shared_ptr<uint8_t> args_buffer(new uint8_t[sizeof(RF_args_t)], std::default_delete<uint8_t[]>());
-  std::memcpy(args_buffer.get(), &args, sizeof(RF_args_t));
-
-  for(auto loc : shad::rt::allLocalities()) {
-    shad::rt::executeAt(loc, printLambda, args_buffer, sizeof(args));
-  }
-}
+  file.close();
+};
 
 
 void CoffeeSalesWeight(Handle & handle, const uint64_t & seller, std::vector<SaleEdge> & sales, RF_args_t & args) {

@@ -147,8 +147,8 @@ int main(int argc, char *argv[]) {
   waitForCompletion(handle);
 
   // ... output input file for influence maximization kernel ...
-  PrintWeightedSalesEdgesToFile(handle, args);
-  waitForCompletion(handle);
+  for (auto loc : shad::rt::allLocalities())
+    shad::rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
 
 /********** KERNEL 4 - Adjust coffee market **********/
   std::vector<uint64_t> influencers = 

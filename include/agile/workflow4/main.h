@@ -83,6 +83,7 @@ void readFileSocial(Handle & handle, const RF_args_t & args);
 void readFileCyber(Handle & handle, const RF_args_t & args);
 void readFileUses(Handle & handle, const RF_args_t & args);
 void readFileCommercial(Handle & handle, const RF_args_t & args);
+void PrintWeightedSalesEdgesToFile(const RF_args_t & args);
 
 } // namespace agile::workflow4
 
