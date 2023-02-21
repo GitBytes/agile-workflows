@@ -75,8 +75,12 @@ void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & tra
 
 void PrintWeightedSalesEdgesToFile(const RF_args_t & args) {
   std::ofstream file;
-  file.open(args.filename, std::ios_base::app);
   auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID)->GetLocalMultimap();
+
+  if (shad::rt::thisLocality() == (shad::rt::Locality) 0)
+     file.open(args.filename);
+  else
+     file.open(args.filename, std::ios_base::app);
 
   for (auto itr = CoffeeSales->begin(); itr != CoffeeSales->end(); ++ itr)
     file << (* itr).second.seller << "," << (* itr).second.buyer << "," << (* itr).second.weight << "\n";

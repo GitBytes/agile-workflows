@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
 
   // ... output input file for influence maximization kernel ...
   for (auto loc : shad::rt::allLocalities())
-    shad::rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
+    rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
 
 /********** KERNEL 4 - Adjust coffee market **********/
   std::vector<uint64_t> influencers = 
