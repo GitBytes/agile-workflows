@@ -7,7 +7,7 @@ void EraseSaleEdge(Handle & handle, const uint64_t & seller,
      std::vector<SaleEdge> & sales, uint64_t & buyer, double & amount, time_t & date) {
 
   for (auto itr = sales.begin(); itr != sales.end(); ++ itr) {
-    if ( ((* itr).buyer != buyer) || ((* itr).amount != amount) || ((* itr).date  != date) ) continue;
+    if ( ((* itr).buyer != buyer) || ((* itr).amount != amount) || ((* itr).date != date) ) continue;
     sales.erase(itr);
     break;
 } }
@@ -17,36 +17,35 @@ void ErasePurchaseEdge(Handle & handle, const uint64_t & buyer,
      std::vector<PurchaseEdge> & purchases, uint64_t & seller, double & amount, time_t & date) { 
 
   for (auto itr = purchases.begin(); itr != purchases.end(); ++ itr) {
-    if ( ((* itr).seller != seller) || ((* itr).amount != amount) || ((* itr).date  != date) ) continue;
+    if ( ((* itr).seller != seller) || ((* itr).amount != amount) || ((* itr).date != date) ) continue;
     purchases.erase(itr);
     break;
 } }
 
 
-// Initiated by the cancelled trader at the site of the buyer, this routine adjusts the buyer's purchase
-// amount, removes the purchase edge from the buyer to the cancelled trader and searches for one or more
-// uppliers that can replace the lost purchase.
-void CancelCoffeeSale(Handle & handle,
-     const uint64_t & buyer, TraderVertex & trader, SaleEdge & sale, RF_args_t & args) {
+// Initiated by the seller at the site of the buyer, this routine adjusts the buyer's purchase amount,
+// removes the purchase edge from the buyer to the seller and searches for one or more suppliers that
+// can replace the lost purchase.
+void CancelCoffeePurchase(Handle & handle,
+     const uint64_t & id, TraderVertex & buyer, SaleEdge & sale, RF_args_t & args) {
   auto CoffeePurchases = PurchaseEdgeType::GetPtr((PurchaseEdgeType::ObjectID) args.CoffeePurchases_OID);
 
-  if (trader.bought > 0) {     // if buyer has not been canceled
-     trader.bought  -= sale.amount;
-     trader.desired -= sale.amount;
-     CoffeePurchases->AsyncApply(handle, buyer, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
+  if (buyer.bought > 0) {     // if buyer has not been canceled
+     buyer.bought -= sale.amount;
+     CoffeePurchases->AsyncApply(handle, id, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
      // ... TODO search for supplier to replace amount ...
 } }
 
 
-// Initiated by the cancelled trader at the site of the seller,  this  routine adjusts the seller's sold
-// amount and removes the sale edge from the seller to the cancelled trader.
-void CancelCoffeePurchase(Handle & handle,
-     const uint64_t & seller, TraderVertex & trader, PurchaseEdge & purchase, RF_args_t & args) {
+// Initiated by the purchaser at the site of the seller, this routine adjusts the seller's sold amount
+// and removes the sale edge from the seller to the purchaser.
+void CancelCoffeeSale(Handle & handle,
+     const uint64_t & id, TraderVertex & seller, PurchaseEdge & purchase, RF_args_t & args) {
   auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
   
-  if (trader.sold > 0)  {      // if seller has not been canceled
-     trader.sold -= purchase.amount;
-     CoffeeSales->AsyncApply(handle, seller, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
+  if (seller.sold > 0)  {      // if seller has not been canceled
+     seller.sold -= purchase.amount;
+     CoffeeSales->AsyncApply(handle, id, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
 } }
 
 
@@ -67,9 +66,9 @@ void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & tra
   CoffeePurchases->Erase(id);                   // erase my purchase edges from the graph
 
   for (auto sale : sales.value)                 // alert my customers
-      CoffeeTraders->AsyncApply(handle, sale.buyer, CancelCoffeeSale, sale, args);
+      CoffeeTraders->AsyncApply(handle, sale.buyer, CancelCoffeePurchase, sale, args);
   for (auto purchase : purchases.value)         // alert my suppliers
-      CoffeeTraders->AsyncApply(handle, purchase.seller, CancelCoffeePurchase, purchase, args);
+      CoffeeTraders->AsyncApply(handle, purchase.seller, CancelCoffeeSale, purchase, args);
 }
 
 

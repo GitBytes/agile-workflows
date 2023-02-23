@@ -139,6 +139,7 @@ int main(int argc, char *argv[]) {
                           Sends->Size() + Uses->Size() + CoffeeSales->Size() + CoffeePurchases->Size());
 
 /********** KERNEL 3 - Identify most influential coffee suppliers **********/
+  time1 = my_timer();
   dataFile = argv[6];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   
@@ -150,20 +151,20 @@ int main(int argc, char *argv[]) {
   for (auto loc : shad::rt::allLocalities())
     rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
 
+  // ... run influence maximization kernel off line ...
+  printf("Time for Kernel 3 - Identify Influencers = %lf\n", my_timer() - time1);
+
+  // ... read list of influencers ...
+  dataFile = argv[7];
+  std::ifstream file(dataFile.c_str());
+  if (! file.is_open()) { printf("Cannot open file %s\n", dataFile.c_str()); exit(-1); }
+
+  std::string token;
+  std::vector<uint64_t> influencers;
+  while (getline(file, token, ',')) influencers.push_back( std::stoull(token) );
+
 /********** KERNEL 4 - Adjust coffee market **********/
-  std::vector<uint64_t> influencers = 
-      { 1276402, 1041682, 99655, 125113, 54395, 417055, 790367, 738985, 642085, 1476713,
-        491166, 837634, 370202, 1485592, 182127, 1340335, 652543, 136186, 557953, 1067753,
-        1013377, 1586874, 289695, 255697, 951545, 213279, 1621392, 1359593, 1229956, 719015,
-        712014, 607583, 295133, 289867, 277417, 977555, 481573, 230275, 1797815, 1701255,
-        1527648, 1163681, 262232, 463828, 1858132, 454940, 443748, 872776, 842009, 208529,
-        741705, 1359431, 1289355, 1172519, 1038751, 1007456, 233838, 918225, 224854, 440910,
-        1792993, 1781210, 209475, 1628381, 1542292, 1471802, 345107, 147652, 1225937, 1225168,
-        1214361, 569771, 1069017, 28965, 962566, 1851269, 451242, 1726941, 1586581, 181938,
-        596887, 588302, 575761, 536758, 1055255, 1028881, 501041, 1001567, 970385, 452394,
-        399192, 1628453, 808231, 1623532, 1554815, 1542047, 1391446, 1386498, 641673, 1272139
-      }; // lost traders
-  // std::vector<uint64_t> influencers = {886128, 827536};
+  time1 = my_timer();
 
   for (uint64_t influencer : influencers)
     CoffeeTraders->AsyncApply(handle, influencer, CancelCoffeeTrader, args);

@@ -107,7 +107,7 @@ void readFileCoffee(Handle & handle, const RF_args_t & args) {
     PurchaseEdge P(tokens);
     std::swap(P.buyer, P.seller);
     CoffeePurchases->BufferedAsyncInsert(handle, P.buyer, P);
-    CoffeeTraders->BufferedAsyncInsert(handle, P.buyer, TraderVertex(P.buyer, P.amount, 0.0, 0.0));
+    CoffeeTraders->BufferedAsyncInsert(handle, P.buyer, TraderVertex(P.buyer, 0.0, P.amount, P.amount));
   }
 
   file.close();
