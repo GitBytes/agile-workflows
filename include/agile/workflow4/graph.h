@@ -224,19 +224,6 @@ class PurchaseEdge {
       dst_type = TYPES::NONE;
     }
 
-/*
-    PurchaseEdge (std::vector <std::string> & tokens) {
-      buyer    = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
-      seller   = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
-      product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
-      date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
-      amount   = ENCODE<double,   std::string, DOUBLE>(tokens[7]);
-      weight   = shad::data_types::kNullValue<double>;
-      src_type = TYPES::PERSON;
-      dst_type = TYPES::PERSON;
-    }
-*/
-
     PurchaseEdge (SaleEdge & sale) {
       buyer    = sale.buyer;
       seller   = sale.seller;

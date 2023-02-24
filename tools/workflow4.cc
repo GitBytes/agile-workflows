@@ -132,12 +132,7 @@ int main(int argc, char *argv[]) {
   printf("Number of uses edges       = %lu\n", Uses->Size());
   printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
   printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
-  printf("Number of coffee purchases = %lu\n", CoffeePurchases->Size());
-
-  printf("\n");
-  printf("Total number of vertices = %lu\n", Persons->Size() + Servers->Size()) + CoffeeTraders->Size();
-  printf("Total number of edges    = %lu\n", Purchases->Size() + Sales->Size() + Friends->Size() +
-                          Sends->Size() + Uses->Size() + CoffeeSales->Size() + CoffeePurchases->Size());
+  printf("Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
 
 /********** KERNEL 3 - Identify most influential coffee suppliers **********/
   time1 = my_timer();
@@ -153,7 +148,7 @@ int main(int argc, char *argv[]) {
     rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
 
   // ... run influence maximization kernel off line ...
-  printf("Time for Kernel 3 - Identify Influencers = %lf\n", my_timer() - time1);
+  printf("Time for Kernel 3 - Identify Influencers = %lf\n\n", my_timer() - time1);
 
   // ... read list of influencers ...
   dataFile = argv[6];
@@ -163,6 +158,8 @@ int main(int argc, char *argv[]) {
   std::string token;
   std::vector<uint64_t> influencers;
   while (getline(file, token, ',')) influencers.push_back( std::stoull(token) );
+
+  printf("Number of influencers = %lu\n\n", influencers.size());
 
 /********** KERNEL 4 - Adjust coffee market **********/
   time1 = my_timer();
