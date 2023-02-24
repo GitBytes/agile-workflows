@@ -113,11 +113,13 @@ mpiexec -n 4 --npernode 2 --bind-to socket ./build/bin/do-wk2_partial ../wmd-dat
 #+END_SRC
 
 
-**** Workflow 4 installation and run on PUMA cluster
-This workflow has an external dependency on library 'ripples', which can be built (sequential version) by running following script: 
+**** Workflow 4 installation and run on PNNL clusters
+This workflow has an external dependency on library 'ripples', which can be built (sequential or parallel version) by running following script: 
 #+BEGIN_SRC: bash
 cd agile-workflows
 source scripts/ripples_setup_puma_seq.sh
+OR
+source scripts/ripples_setup_marianas_par.sh
 #+END_SRC
 Note: we need at least GCC-10 for ripples.
 
@@ -128,10 +130,12 @@ cd agile-workflows
 ./build/bin/do-workflow4 /lustre/scratch/feo/wk4/coffee.csv /lustre/scratch/feo/wk4/social.csv /lustre/scratch/feo/wk4/cyber.csv /lustre/scratch/feo/wk4/uses.csv /lustre/scratch/feo/wk4/commercial.csv coffee_sales_weights.csv
 #+END_SRC
 
-Stage 2: Run ripples code with the weighted sale edges as input. Note: Sequential version.
+Stage 2: Run ripples code with the weighted sale edges as input. 
 #+BEGIN_SRC: bash
 cd agile-workflows
 $HOME/ripples/build/release/tools/imm -i ./coffee_sales_weights.csv -w -p -k 100 -d IC -e 0.25 -o output.json
+OR 
+mpiexec -np 2 --npernode 1 $HOME/ripples/build/release/tools/mpi-imm -i ./coffee_sales_weights.csv -w -p -k 100 -d IC -e 0.25 -o output.json
 #+END_SRC
 
 Stage 3: Re-run workflow 4 to reconfigure graph with the influential traders removed. Note: The influencers are manually removed in the current version of workflow 4.
