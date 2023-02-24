@@ -24,6 +24,7 @@ class AgileWorkflowsConan(ConanFile):
         self.options["rapidcheck"].enable_gtest = True
 
     def requirements(self):
+        self.requires('nlohmann_json/3.9.1')
         self.requires('gmt/2.0.0@user/stable')
         self.requires('shad/1.0.0@user/stable')
         self.requires('gtest/1.11.0')
