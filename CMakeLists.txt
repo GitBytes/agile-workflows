@@ -48,6 +48,8 @@ add_subdirectory(workflow1)
 add_subdirectory(wk2_approx)
 add_subdirectory(wk2_exact)
 add_subdirectory(wk2_partial)
+add_subdirectory(workflow3)
+add_subdirectory(workflow4)
 
 enable_testing()
 include(CTest)

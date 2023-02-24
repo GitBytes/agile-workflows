@@ -250,21 +250,31 @@ public:
 class LinkPredictionWMDDataset
     : public torch::data::Dataset<LinkPredictionWMDDataset, WMDData<>>,
       public WMDDataset {
-  LinkPredictionWMDDataset() : WMDDataset() {}
+public:
+  LinkPredictionWMDDataset() : WMDDataset(), _LinkArrayOID(XEdgeOID::kNullID) {}
 
-  LinkPredictionWMDDataset(const LinkPredictionWMDDataset &O) : WMDDataset(O) {}
+  LinkPredictionWMDDataset(const LinkPredictionWMDDataset &O)
+      : WMDDataset(O), _LinkArrayOID(XEdgeOID::kNullID) {
+    _LinkArrayOID = O._LinkArrayOID;
+  }
 
-  LinkPredictionWMDDataset(LinkPredictionWMDDataset &&O) : WMDDataset(O) {}
+  LinkPredictionWMDDataset(LinkPredictionWMDDataset &&O)
+      : WMDDataset(O), _LinkArrayOID(XEdgeOID::kNullID) {
+    _LinkArrayOID = O._LinkArrayOID;
+  }
 
   LinkPredictionWMDDataset &operator=(const LinkPredictionWMDDataset &O) {
     WMDDataset::operator=(O);
+    _LinkArrayOID = O._LinkArrayOID;
     return *this;
   }
 
   LinkPredictionWMDDataset(const VertexOID &VertexArrayID,
                            const XEdgeOID &EdgeArrayOID,
-                           const ArrayOID &FeaturesArrayID)
-      : WMDDataset(VertexArrayID, EdgeArrayOID, FeaturesArrayID) {}
+                           const ArrayOID &FeaturesArrayID,
+                           const XEdgeOID &LinkArrayOID)
+    : WMDDataset(VertexArrayID, EdgeArrayOID, FeaturesArrayID)
+    , _LinkArrayOID(LinkArrayOID) {}
 
   WMDDataset &operator=(WMDDataset &&O) {
     WMDDataset::operator=(O);
@@ -282,13 +292,53 @@ class LinkPredictionWMDDataset
   //! Each data point is constructed on the fly by querying the CSR
   //! representation that is built at the beginning of the workflow.
   WMDData<> get(size_t idx) override {
-    int64_t n = VertexType::GetPtr(_verticesOID)->Size() - 1;
-    int64_t i = idx / n;
-    int64_t j = idx % n;
+    auto edges = XEdgeType::GetPtr(_LinkArrayOID);
+    auto edge = edges->At(idx);
+    int64_t i = edge.src_glbid;
+    int64_t j = edge.dst_glbid;
     int64_t root[2] = {i, j};
     auto [graph, vertex_set] = _build_ego_graph(root, root + 2);
-    return {graph, torch::Tensor(), torch::Tensor(), torch::Tensor()};
+
+    int64_t num_vertices = vertex_set.size();
+
+    // create type and feature vector
+    std::vector<int64_t> featureVectors(num_vertices * NUM_FEATURES);
+
+    shad::rt::Handle handle;
+    auto Features = shad::Array<uint64_t>::GetPtr(_featuresOID);
+    for (auto itr = vertex_set.begin(); itr != vertex_set.end(); ++itr) {
+      int64_t glbID = (*itr).first;
+      int64_t localID = (*itr).second.id;
+      int64_t type = (int64_t)(*itr).second.type;
+
+      auto ptr = (uint64_t *)(featureVectors.data() + localID * NUM_FEATURES);
+      Features->AsyncGetElements(handle, ptr, glbID * NUM_FEATURES,
+                                 NUM_FEATURES);
+    }
+
+    std::vector<float> floatFeatures(featureVectors.begin(),
+                                     featureVectors.end());
+
+    shad::rt::waitForCompletion(handle);
+
+    // The features tensor stores the two hop features of the ego-graph vertices
+    auto features =
+        torch::from_blob(floatFeatures.data(), {num_vertices, NUM_FEATURES},
+                         torch::TensorOptions().dtype(torch::kFloat))
+            .clone();
+
+    // The labels tensor stores the type of the ego-graph vertices
+    int edgeExists = idx > (edges->Size() / 2) ? 0 : 1;
+    auto label = torch::tensor({edgeExists});
+    return {graph, features, label, torch::Tensor()};
   }
+
+  torch::optional<size_t> size() const override {
+    return XEdgeType::GetPtr(_LinkArrayOID)->Size();
+  }
+
+private:
+  XEdgeOID _LinkArrayOID; // The globl array storing the edge set.
 };
 } // namespace agile::workflow1
 

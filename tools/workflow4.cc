@@ -49,90 +49,134 @@ namespace shad {
   using namespace agile::workflow4;
 
 int main(int argc, char *argv[]) {
+  Graph_t graph;
+  Handle handle;
   double time1 = my_timer();
 
 /********** KERNEL 1 - Graph Construction **********/
+  auto Persons         = PersonVertexType::Create(MEDIUM);
+  auto Purchases       = PurchaseEdgeType::Create(MEDIUM);
+  auto Sales           = SaleEdgeType::Create(MEDIUM);
+  auto Friends         = FriendOfEdgeType::Create(MEDIUM);
+  auto Servers         = ServerVertexType::Create(MEDIUM);
+  auto Sends           = SendsEdgeType::Create(MEDIUM);
+  auto Uses            = UsesEdgeType::Create(MEDIUM);
+  auto CoffeeTraders   = TraderVertexType::Create(MEDIUM);
+  auto CoffeeSales     = SaleEdgeType::Create(MEDIUM);
+  auto CoffeePurchases = PurchaseEdgeType::Create(MEDIUM);
 
-  Handle handle;
-  Graph_t graph;
-  std::string dataFile = argv[1];
-
-  auto Persons      = PersonVertexType::Create(MEDIUM);
-  auto ForumEvents  = ForumEventVertexType::Create(MEDIUM);
-  auto Forums       = ForumVertexType::Create(SMALL);
-  auto Publications = PublicationVertexType::Create(SMALL);
-  auto Topics       = TopicVertexType::Create(SMALL);
-  auto Purchases    = PurchaseEdgeType::Create(MEDIUM);
-  auto Sales        = SaleEdgeType::Create(MEDIUM);
-  auto Authors      = AuthorEdgeType::Create(LARGE);
-  auto Includes     = IncludesEdgeType::Create(LARGE);
-  auto HasTopic     = HasTopicEdgeType::Create(LARGE);
-  auto HasOrg       = HasOrgEdgeType::Create(MEDIUM);
-
-  graph["Persons"]      = (uint64_t) (Persons->GetGlobalID());
-  graph["ForumEvents"]  = (uint64_t) (ForumEvents->GetGlobalID());
-  graph["Forums"]       = (uint64_t) (Forums->GetGlobalID());
-  graph["Publications"] = (uint64_t) (Publications->GetGlobalID());
-  graph["Topics"]       = (uint64_t) (Topics->GetGlobalID());
-  graph["Purchases"]    = (uint64_t) (Purchases->GetGlobalID());
-  graph["Sales"]        = (uint64_t) (Sales->GetGlobalID());
-  graph["Authors"]      = (uint64_t) (Authors->GetGlobalID());
-  graph["Includes"]     = (uint64_t) (Includes->GetGlobalID());
-  graph["HasTopic"]     = (uint64_t) (HasTopic->GetGlobalID());
-  graph["HasOrg"]       = (uint64_t) (HasOrg->GetGlobalID());
+  graph["Persons"]         = (uint64_t) (Persons->GetGlobalID());
+  graph["Purchases"]       = (uint64_t) (Purchases->GetGlobalID());
+  graph["Sales"]           = (uint64_t) (Sales->GetGlobalID());
+  graph["Friends"]         = (uint64_t) (Friends->GetGlobalID());
+  graph["Servers"]         = (uint64_t) (Servers->GetGlobalID());
+  graph["Sends"]           = (uint64_t) (Sends->GetGlobalID());
+  graph["Uses"]            = (uint64_t) (Uses->GetGlobalID());
+  graph["CoffeeTraders"]   = (uint64_t) (CoffeeTraders->GetGlobalID());
+  graph["CoffeeSales"]     = (uint64_t) (CoffeeSales->GetGlobalID());
+  graph["CoffeePurchases"] = (uint64_t) (CoffeePurchases->GetGlobalID());
 
   RF_args_t args;
-  args.Persons_OID = graph["Persons"];
-  args.ForumEvents_OID = graph["ForumEvents"];
-  args.Forums_OID = graph["Forums"];
-  args.Publications_OID = graph["Publications"];
-  args.Topics_OID = graph["Topics"];
-  args.Purchases_OID = graph["Purchases"];
-  args.Sales_OID = graph["Sales"];
-  args.Authors_OID = graph["Authors"];
-  args.Includes_OID = graph["Includes"];
-  args.HasTopic_OID = graph["HasTopic"];
-  args.HasOrg_OID = graph["HasOrg"];
+  args.Persons_OID         = graph["Persons"];
+  args.Purchases_OID       = graph["Purchases"];
+  args.Sales_OID           = graph["Sales"];
+  args.Friends_OID         = graph["Friends"];
+  args.Servers_OID         = graph["Servers"];
+  args.Sends_OID           = graph["Sends"];
+  args.Uses_OID            = graph["Uses"];
+  args.CoffeeTraders_OID   = graph["CoffeeTraders"];
+  args.CoffeeSales_OID     = graph["CoffeeSales"];
+  args.CoffeePurchases_OID = graph["CoffeePurchases"];
+
+  std::string dataFile = argv[1];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
+  shad::rt::asyncExecuteOnAll(handle, readFileSocial, args);
 
-  printf("Reading data file %s\n",  dataFile.c_str());    // read file, create tables
-  shad::rt::asyncExecuteOnAll(handle, readFile, args);
-  shad::rt::waitForCompletion(handle);
+  dataFile = argv[2];
+  memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
+  shad::rt::asyncExecuteOnAll(handle, readFileCyber, args);
 
+  dataFile = argv[3];
+  memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
+  shad::rt::asyncExecuteOnAll(handle, readFileUses, args);
+
+  dataFile = argv[4];
+  memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
+  shad::rt::asyncExecuteOnAll(handle, readFileCommercial, args);
+
+  waitForCompletion(handle);
   Persons->WaitForBufferedInsert();
-  ForumEvents->WaitForBufferedInsert();
-  Forums->WaitForBufferedInsert();
-  Publications->WaitForBufferedInsert();
-  Topics->WaitForBufferedInsert();
-
   Purchases->WaitForBufferedInsert();
   Sales->WaitForBufferedInsert();
-  Authors->WaitForBufferedInsert();
-  Includes->WaitForBufferedInsert();
-  HasTopic->WaitForBufferedInsert();
-  HasOrg->WaitForBufferedInsert();
+  Friends->WaitForBufferedInsert();
+  Servers->WaitForBufferedInsert();
+  Sends->WaitForBufferedInsert();
+  Uses->WaitForBufferedInsert();
+
+  uint64_t product = 8486;     // coffee market
+  Sales->AsyncForEachEntry(handle, SelectSalesMarket, product, args);
+
+  waitForCompletion(handle);
+  CoffeeTraders->WaitForBufferedInsert();
+  CoffeeSales->WaitForBufferedInsert();
+  CoffeePurchases->WaitForBufferedInsert();
 
   printf("Time for Kernel 1 - Graph Construction = %lf\n\n", my_timer() - time1);
 
-  printf("Number of persons      = %lu\n", Persons->Size());
-  printf("Number of forum_events = %lu\n", ForumEvents->Size());
-  printf("Number of forums       = %lu\n", Forums->Size());
-  printf("Number of publications = %lu\n", Publications->Size());
-  printf("Number of topics       = %lu\n", Topics->Size());
+  printf("Number of persons          = %lu\n", Persons->Size());
+  printf("Number of servers          = %lu\n", Servers->Size());
+  printf("Number of purchase edges   = %lu\n", Purchases->Size());
+  printf("Number of sale edges       = %lu\n", Sales->Size());
+  printf("Number of friends edges    = %lu\n", Friends->Size());
+  printf("Number of sends edges      = %lu\n", Sends->Size());
+  printf("Number of uses edges       = %lu\n", Uses->Size());
+  printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
+  printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
+  printf("Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
 
-  printf("\n");
-  printf("Number of purchase edges = %lu\n", Purchases->Size());
-  printf("Number of sale edges     = %lu\n", Sales->Size());
-  printf("Number of author edges   = %lu\n", Authors->Size());
-  printf("Number of include edges  = %lu\n", Includes->Size());
-  printf("Number of hasTopic edges = %lu\n", HasTopic->Size());
-  printf("Number of hasOrg edges   = %lu\n", HasOrg->Size());
+/********** KERNEL 3 - Identify most influential coffee suppliers **********/
+  time1 = my_timer();
+  dataFile = argv[5];
+  memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
+  
+  // ... weight edges of coffee market ...
+  CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
+  waitForCompletion(handle);
 
-  printf("\n");
-  printf("Total number of vertices = %lu\n",
-       Persons->Size() + ForumEvents->Size() + Forums->Size() + Publications->Size() + Topics->Size());
-  printf("Total number of edges    = %lu\n", 
-       Purchases->Size() + Sales->Size() + Authors->Size() + Includes->Size() + HasTopic->Size() + HasOrg->Size());
+  // ... output input file for influence maximization kernel ...
+  for (auto loc : shad::rt::allLocalities())
+    rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
+
+  // ... run influence maximization kernel off line ...
+  printf("Time for Kernel 3 - Identify Influencers = %lf\n\n", my_timer() - time1);
+
+  // ... read list of influencers ...
+  dataFile = argv[6];
+  std::ifstream file(dataFile.c_str());
+  if (! file.is_open()) { printf("Cannot open file %s\n", dataFile.c_str()); exit(-1); }
+
+  std::string token;
+  std::vector<uint64_t> influencers;
+  while (getline(file, token, ',')) influencers.push_back( std::stoull(token) );
+
+  printf("Number of influencers = %lu\n\n", influencers.size());
+
+/********** KERNEL 4 - Adjust coffee market **********/
+  time1 = my_timer();
+
+  for (uint64_t influencer : influencers)
+    CoffeeTraders->AsyncApply(handle, influencer, CancelCoffeeTrader, args);
+
+  waitForCompletion(handle);
+  CoffeeTraders->WaitForBufferedInsert();
+  CoffeeSales->WaitForBufferedInsert();
+  CoffeePurchases->WaitForBufferedInsert();
+
+  printf("Time for Kernel 4 - Graph Adjustment = %lf\n\n", my_timer() - time1);
+
+  printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
+  printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
+  printf("Number of coffee purchases = %lu\n", CoffeePurchases->Size());
 
   return 0;
 }

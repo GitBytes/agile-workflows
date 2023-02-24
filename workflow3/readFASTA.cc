@@ -64,13 +64,17 @@ void readFASTA(Handle & handle, const Args_t & args) {
 
   stat(filename.c_str(), & stats);
 
-  uint64_t num_bytes = stats.st_size / num_locales;                      // file size / number of locales
+  uint64_t num_bytes = stats.st_size / num_locales;             // file size / number of locales
   uint64_t start = this_locale * num_bytes;
   uint64_t end = start + num_bytes;
 
-  file.seekg(start);
-  if (start != 0) { getline(file, line); start += line.size() + 1; }     // discard partial line
-  if (this_locale == num_locales - 1) end = stats.st_size;               // last locale processes to end of file
+  if (this_locale != 0) {                                       // check for partial line
+     file.seekg(start - 1);
+     getline(file, line);
+     if (line[0] != '\n') start += line.size();                 // if not at start of a line, discard partial line
+  }
+
+  if (this_locale == num_locales - 1) end = stats.st_size;      // last locale processes to end of file
 
   while (start < end) {
     getline(file, line);

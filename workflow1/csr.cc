@@ -92,7 +92,7 @@ void moveEdges(Handle & handle, const uint64_t & src_id, std::vector<Edge> & edg
   GlobalIDS->Lookup(src_id, & srcVertex);                                    // lookup global id for src vertex
   uint64_t ndx = Vertices->At(srcVertex.id).start;                           // start index for src vertex edges
 
-  for (auto edge : edges) {                                                  // for each edge of src vertex
+  for (auto & edge : edges) {                                                // for each edge of src vertex
     edge.src_glbid = srcVertex.id;
     GlobalIDS->AsyncApply(handle, edge.dst, Dst_, ndx, edge, XEdgesOID);     // ... send edge to dst vertex and forget
     ndx ++;                                                                  // ... increment edge index
