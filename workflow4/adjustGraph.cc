@@ -65,9 +65,9 @@ void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & tra
   CoffeePurchases->Lookup(id, & purchases);     // get my coffee sales
   CoffeePurchases->Erase(id);                   // erase my purchase edges from the graph
 
-  for (auto sale : sales.value)                 // alert my customers
+  for (auto & sale : sales.value)                 // alert my customers
       CoffeeTraders->AsyncApply(handle, sale.buyer, CancelCoffeePurchase, sale, args);
-  for (auto purchase : purchases.value)         // alert my suppliers
+  for (auto & purchase : purchases.value)         // alert my suppliers
       CoffeeTraders->AsyncApply(handle, purchase.seller, CancelCoffeeSale, purchase, args);
 }
 

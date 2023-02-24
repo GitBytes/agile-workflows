@@ -66,52 +66,21 @@ std::vector <std::string> split(std::string & line, char delim, uint64_t size = 
   return tokens;
 }
 
-void readFileCoffee(Handle & handle, const RF_args_t & args) {
-  std::string line;
-  struct stat stats;
-  std::string filename = args.filename;
-  uint64_t this_locale = (uint32_t) shad::rt::thisLocality();
-  uint64_t num_locales = (uint64_t) shad::rt::numLocalities();
-
-  std::ifstream file(filename);
-  if (! file.is_open()) { printf("Locale %lu cannot open file %s\n", this_locale, filename.c_str()); exit(-1); }
-
-  stat(filename.c_str(), & stats);
-
-  uint64_t num_bytes = stats.st_size / num_locales;                      // file size / number of locales
-  uint64_t start = this_locale * num_bytes;
-  uint64_t end = start + num_bytes;
-
-  if (this_locale != 0) {                                       // check for partial line
-     file.seekg(start - 1);
-     getline(file, line); 
-     if (line[0] != '\n') start += line.size();                 // if not at start of a line, discard partial line
-  } 
-
-  if (this_locale == num_locales - 1) end = stats.st_size;      // last locale processes to end of file
-
+void SelectSalesMarket(Handle & handle, const uint64_t & id,
+     std::vector<SaleEdge> & sales, uint64_t & product, RF_args_t & args) {
   auto CoffeeTraders   = TraderVertexType::GetPtr( (TraderVertexOID) args.CoffeeTraders_OID);
   auto CoffeeSales     = SaleEdgeType::GetPtr( (SaleEdgeOID) args.CoffeeSales_OID);
   auto CoffeePurchases = PurchaseEdgeType::GetPtr( (PurchaseEdgeOID) args.CoffeePurchases_OID);
 
-  while (start < end) {
-    getline(file, line);
-    start += line.size() + 1;
-    if (line[0] == '#') continue;                               // skip comments
-    std::vector <std::string> tokens = split(line, ',', 8);     // delimiter and # tokens set for wmd data file
+  for (auto & sale : sales) {
+    if (sale.product != product) continue;
 
-    SaleEdge S(tokens);
-    CoffeeSales->BufferedAsyncInsert(handle, S.seller, S);
-    CoffeeTraders->BufferedAsyncInsert(handle, S.seller, TraderVertex(S.seller, S.amount, 0.0, 0.0));
-
-    PurchaseEdge P(tokens);
-    std::swap(P.buyer, P.seller);
-    CoffeePurchases->BufferedAsyncInsert(handle, P.buyer, P);
-    CoffeeTraders->BufferedAsyncInsert(handle, P.buyer, TraderVertex(P.buyer, 0.0, P.amount, P.amount));
-  }
-
-  file.close();
-}
+    PurchaseEdge tmp(sale);
+    CoffeeSales->BufferedAsyncInsert(handle, sale.seller, sale);
+    CoffeePurchases->BufferedAsyncInsert(handle, tmp.buyer, tmp);
+    CoffeeTraders->BufferedAsyncInsert(handle, sale.seller, TraderVertex(sale.seller, sale.amount, 0.0, 0.0));
+    CoffeeTraders->BufferedAsyncInsert(handle, tmp.buyer, TraderVertex(tmp.buyer, 0.0, tmp.amount, tmp.amount));
+} }
 
 void readFileSocial(Handle & handle, const RF_args_t & args) {
   std::string line;
@@ -290,10 +259,8 @@ void readFileCommercial(Handle & handle, const RF_args_t & args) {
     std::vector <std::string> tokens = split(line, ',', 8);     // delimiter and # tokens set for wmd data file
 
     SaleEdge sale(tokens);
+    PurchaseEdge purchase(sale);
     Sales->BufferedAsyncInsert(handle, sale.key(), sale);
-
-    PurchaseEdge purchase(tokens);
-    std::swap(purchase.buyer, purchase.seller);
     Purchases->BufferedAsyncInsert(handle, purchase.key(), purchase);
 
     PersonVertex seller(tokens[1]);

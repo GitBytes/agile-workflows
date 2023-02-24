@@ -164,44 +164,6 @@ class ServerVertex {
     uint64_t key() { return id; }
 };
 
-class PurchaseEdge {
-  public:
-    uint64_t buyer;            // vertex id
-    uint64_t seller;           // vertex id
-    uint64_t product;
-    time_t   date;
-    double   amount;
-    double   weight;
-    TYPES    src_type;
-    TYPES    dst_type;
-
-    PurchaseEdge () {
-      buyer   = shad::data_types::kNullValue<uint64_t>;
-      seller  = shad::data_types::kNullValue<uint64_t>;
-      product = shad::data_types::kNullValue<uint64_t>;
-      date    = shad::data_types::kNullValue<time_t>;
-      amount  = shad::data_types::kNullValue<double>;
-      weight  = shad::data_types::kNullValue<double>;
-      src_type = TYPES::NONE;
-      dst_type = TYPES::NONE;
-    }
-
-    PurchaseEdge (std::vector <std::string> & tokens) {
-      buyer    = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
-      seller   = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
-      product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
-      date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
-      amount   = ENCODE<double,   std::string, DOUBLE>(tokens[7]);
-      weight   = shad::data_types::kNullValue<double>;
-      src_type = TYPES::PERSON;
-      dst_type = TYPES::PERSON;
-    }
-
-    uint64_t key() { return buyer; }
-    uint64_t src() { return buyer; }
-    uint64_t dst() { return seller; }
-};
-
 class SaleEdge {
   public:
     uint64_t seller;           // vertex id
@@ -238,6 +200,57 @@ class SaleEdge {
     uint64_t key() { return seller; }
     uint64_t src() { return seller; }
     uint64_t dst() { return buyer; }
+};
+
+class PurchaseEdge {
+  public:
+    uint64_t buyer;            // vertex id
+    uint64_t seller;           // vertex id
+    uint64_t product;
+    time_t   date;
+    double   amount;
+    double   weight;
+    TYPES    src_type;
+    TYPES    dst_type;
+
+    PurchaseEdge () {
+      buyer   = shad::data_types::kNullValue<uint64_t>;
+      seller  = shad::data_types::kNullValue<uint64_t>;
+      product = shad::data_types::kNullValue<uint64_t>;
+      date    = shad::data_types::kNullValue<time_t>;
+      amount  = shad::data_types::kNullValue<double>;
+      weight  = shad::data_types::kNullValue<double>;
+      src_type = TYPES::NONE;
+      dst_type = TYPES::NONE;
+    }
+
+/*
+    PurchaseEdge (std::vector <std::string> & tokens) {
+      buyer    = ENCODE<uint64_t, std::string, UINT>  (tokens[1]);
+      seller   = ENCODE<uint64_t, std::string, UINT>  (tokens[2]);
+      product  = ENCODE<uint64_t, std::string, UINT>  (tokens[3]);
+      date     = ENCODE<time_t,   std::string, USDATE>(tokens[4]);
+      amount   = ENCODE<double,   std::string, DOUBLE>(tokens[7]);
+      weight   = shad::data_types::kNullValue<double>;
+      src_type = TYPES::PERSON;
+      dst_type = TYPES::PERSON;
+    }
+*/
+
+    PurchaseEdge (SaleEdge & sale) {
+      buyer    = sale.buyer;
+      seller   = sale.seller;
+      product  = sale.product;
+      date     = sale.date;
+      amount   = sale.amount;
+      weight   = sale.weight;
+      src_type = sale.src_type;
+      dst_type = sale.src_type;
+    }
+
+    uint64_t key() { return buyer; }
+    uint64_t src() { return buyer; }
+    uint64_t dst() { return seller; }
 };
 
 class FriendOfEdge {
@@ -370,7 +383,8 @@ using TraderVertexType = shad::Hashmap<uint64_t, TraderVertex, shad::MemCmp<uint
 using TraderVertexOID = shad::ObjectIdentifier<TraderVertexType>;
 
 void CancelCoffeeTrader(Handle &, const uint64_t &, TraderVertex &, RF_args_t &);
-void CoffeeSalesWeight(Handle&, const uint64_t & key, std::vector<SaleEdge>& sales, RF_args_t &);
+void CoffeeSalesWeight(Handle &, const uint64_t &, std::vector<SaleEdge> &, RF_args_t &);
+void SelectSalesMarket(Handle &, const uint64_t &, std::vector<SaleEdge> &, uint64_t &, RF_args_t &);
 } // namespace agile::workflow4
 
 #endif // GRAPH_H

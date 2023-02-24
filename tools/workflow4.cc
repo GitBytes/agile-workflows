@@ -90,21 +90,17 @@ int main(int argc, char *argv[]) {
 
   std::string dataFile = argv[1];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
-  shad::rt::asyncExecuteOnAll(handle, readFileCoffee, args);
+  shad::rt::asyncExecuteOnAll(handle, readFileSocial, args);
 
   dataFile = argv[2];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
-  shad::rt::asyncExecuteOnAll(handle, readFileSocial, args);
+  shad::rt::asyncExecuteOnAll(handle, readFileCyber, args);
 
   dataFile = argv[3];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
-  shad::rt::asyncExecuteOnAll(handle, readFileCyber, args);
-
-  dataFile = argv[4];
-  memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   shad::rt::asyncExecuteOnAll(handle, readFileUses, args);
 
-  dataFile = argv[5];
+  dataFile = argv[4];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   shad::rt::asyncExecuteOnAll(handle, readFileCommercial, args);
 
@@ -116,6 +112,11 @@ int main(int argc, char *argv[]) {
   Servers->WaitForBufferedInsert();
   Sends->WaitForBufferedInsert();
   Uses->WaitForBufferedInsert();
+
+  uint64_t product = 8486;     // coffee market
+  Sales->AsyncForEachEntry(handle, SelectSalesMarket, product, args);
+
+  waitForCompletion(handle);
   CoffeeTraders->WaitForBufferedInsert();
   CoffeeSales->WaitForBufferedInsert();
   CoffeePurchases->WaitForBufferedInsert();
@@ -140,7 +141,7 @@ int main(int argc, char *argv[]) {
 
 /********** KERNEL 3 - Identify most influential coffee suppliers **********/
   time1 = my_timer();
-  dataFile = argv[6];
+  dataFile = argv[5];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   
   // ... weight edges of coffee market ...
@@ -155,7 +156,7 @@ int main(int argc, char *argv[]) {
   printf("Time for Kernel 3 - Identify Influencers = %lf\n", my_timer() - time1);
 
   // ... read list of influencers ...
-  dataFile = argv[7];
+  dataFile = argv[6];
   std::ifstream file(dataFile.c_str());
   if (! file.is_open()) { printf("Cannot open file %s\n", dataFile.c_str()); exit(-1); }
 
