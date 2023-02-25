@@ -42,6 +42,7 @@
 //                       under Contract DE-AC05-76RL01830
 //===----------------------------------------------------------------------===//
 
+#include "nlohmann/json.hpp"
 #include "agile/workflow4/main.h"
 #include "agile/workflow4/graph.h"
 
@@ -147,17 +148,22 @@ int main(int argc, char *argv[]) {
   for (auto loc : shad::rt::allLocalities())
     rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
 
+  printf("Time for Kernel 3 - Coffee sale weights = %lf\n", my_timer() - time1);
+  if (argc <= 6) {printf("weighted sales edge file printed ... exiting\n"); exit(0);}
+
   // ... run influence maximization kernel off line ...
-  printf("Time for Kernel 3 - Identify Influencers = %lf\n\n", my_timer() - time1);
 
   // ... read list of influencers ...
   dataFile = argv[6];
   std::ifstream file(dataFile.c_str());
   if (! file.is_open()) { printf("Cannot open file %s\n", dataFile.c_str()); exit(-1); }
 
-  std::string token;
+  std::stringstream buffer;
   std::vector<uint64_t> influencers;
-  while (getline(file, token, ',')) influencers.push_back( std::stoull(token) );
+
+  buffer << file.rdbuf();
+  auto json = nlohmann::json::parse(buffer.str());
+  for (auto influencer : json[0]["Seeds"]) influencers.push_back(influencer);
 
   printf("Number of influencers = %lu\n\n", influencers.size());
 

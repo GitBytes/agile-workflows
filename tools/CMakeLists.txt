@@ -26,4 +26,4 @@ add_executable(do-workflow3 workflow3.cc)
 target_link_libraries(do-workflow3 workflow3 CONAN_PKG::shad Threads::Threads MPI::MPI_CXX)
 
 add_executable(do-workflow4 workflow4.cc)
-target_link_libraries(do-workflow4 workflow4 CONAN_PKG::shad Threads::Threads MPI::MPI_CXX)
+target_link_libraries(do-workflow4 workflow4 CONAN_PKG::shad CONAN_PKG::nlohmann_json Threads::Threads MPI::MPI_CXX)
