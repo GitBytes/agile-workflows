@@ -41,6 +41,7 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} ${CMAKE_CXX_FLAGS
 
 find_package(MPI REQUIRED)
 find_package(Threads REQUIRED)
+find_package(Python REQUIRED COMPONENTS Development)
 
 add_subdirectory(tools)
 add_subdirectory(workflow1)
