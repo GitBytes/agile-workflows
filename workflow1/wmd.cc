@@ -62,9 +62,6 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
   auto Edges = XEdgeType::GetPtr(_edgesOID);
   auto Vertices = VertexType::GetPtr(_verticesOID);
 
-  using namespace torch::indexing;
-  auto bool_tensor = torch::TensorOptions().dtype(torch::kBool);
-
   uint64_t localID = 0;
   std::deque<uint64_t> frontier;
   std::map<uint64_t, Vertex> vertex_set;
