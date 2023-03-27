@@ -45,7 +45,9 @@
 #include "agile/wk2_partial/graph.h"
 #include "agile/wk2_partial/main.h"
 
+#include <chrono>
 
+#define DEF_ALERT 0
 
 namespace shad
 {
@@ -53,6 +55,8 @@ namespace shad
   
   std::set<std::pair<uint64_t, uint64_t>> SubPattern8; //a forumevent with jihad topic - key:forumevent id, value: forumid  
   std::mutex SP8_mutex;
+  auto start_time = std::chrono::high_resolution_clock::now();
+  auto sp_detect_strt_time = std::chrono::high_resolution_clock::now();
 
   void InsertSP8(shad::rt::Handle & handle, const std::pair<uint64_t, uint64_t>& input){
     SubPattern8.insert(input);
@@ -60,7 +64,11 @@ namespace shad
 
   void F9(shad::rt::Handle & handle, const uint64_t& forumID, std::pair<bool, uint64_t>& value, const uint64_t& personID){
     if(value.first && value.second >1){
+      auto end_time = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> diff = end_time - start_time;      
       std::cout<<"FOUND THE PATTERN FOR PERSON:"<<personID<<std::endl;
+      std::cout << "Time elapsed between the final edge of the pattern read and alert issued: " << diff.count()
+		<< std::endl; 
     }
   }
 
@@ -268,6 +276,12 @@ namespace shad
           // shad::rt::Handle nextHandle;
           // SubPattern12->AsyncInsert(nextHandle, inserter, FEV.forum, sp12tmp);
           SubPattern12->Insert(inserter, FEV.forum, sp12tmp);
+#ifdef DEF_ALERT
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-12 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
         }
         return true;
       }
@@ -316,6 +330,12 @@ namespace shad
         // shad::rt::Handle nextHandle;
         // SubPattern12->AsyncInsert(nextHandle, inserter, FEV.forum, sp12tmp);
         SubPattern12->Insert(inserter, FEV.forum, sp12tmp);
+#ifdef DEF_ALERT
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-12 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
       }
       return true;
     }
@@ -601,6 +621,7 @@ namespace shad
     shad::rt::Handle matchHandle;
     shad::rt::Handle patternHandle;
 
+    // std::vector<int64_t> pattern_count(9, 0);
 
     std::ifstream file(dataFile);
     if (!file.is_open())
@@ -616,11 +637,15 @@ namespace shad
       if (dataLine[0] == '#')
         continue; // skip comments
       counter++;
+      // if (counter == 33769810) 
       // if(! (counter % 10000)){
       //   std::cout<<counter<<" "<<rest<<std::endl;
       // }
+      sp_detect_strt_time = std::chrono::high_resolution_clock::now();
       std::vector<std::string> tokens = split(dataLine, ',', 10);
-      
+      if (tokens[2] == "1128501731262832684") {
+	start_time = std::chrono::high_resolution_clock::now(); // the line that triggers a full pattern
+      }
       if (tokens[0] == "HasTopic")
       {
         HasTopicEdge record(tokens);
@@ -630,19 +655,38 @@ namespace shad
           HasTopic->AsyncInsert(matchHandle, record.key(), record);
           InsertSP1 inserter(args, record.key(), record.topic, patternHandle);
           SubPattern1->AsyncInsert(matchHandle, inserter, record.key(), 0);
-        }
+#ifdef DEF_ALERT
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-1 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
+	  // pattern_count[0]++;
+	}
         //FORUMEVENT with Bomb, Explosion, and Williamsburg topics 
         else if ((tokens[4] != "") && ((tokens[6] == "127197") || (tokens[6] == "179057") || (tokens[6] == "771572")))
         { 
           HasTopic->AsyncInsert(matchHandle, record.key(), record);
           InsertSP2 inserter(args, record.key(), record.topic, patternHandle);
           SubPattern2->AsyncInsert(matchHandle, inserter, record.key(), 0);
+#ifdef DEF_ALERT
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-2 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
         }
         //FORUM with NYC topic
         else if ((tokens[3] != "") && (tokens[6] == "60")) {     
           HasTopic->AsyncInsert(matchHandle, record.key(), record);
           InsertSP3 inserter(args, record.key(), record.topic, patternHandle);
           SubPattern3->AsyncInsert(matchHandle, inserter, record.key(), std::pair<bool, uint64_t> (0,0));
+#ifdef DEF_ALERT
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-3 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
         }
         //FORUMEVENT with Jihad topic
         else if ((tokens[4] != "") && (tokens[6] == "44311")) 
@@ -653,6 +697,12 @@ namespace shad
           ForumEvents->Lookup(record.key(), &FEV);
           InsertSP3 inserter(args, FEV.forum, record.topic, patternHandle);
           SubPattern3->AsyncInsert(matchHandle, inserter, FEV.forum, std::pair<bool, uint64_t> (0,0));
+#ifdef DEF_ALERT
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-3 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
           shad::rt::asyncExecuteOnAll(matchHandle, InsertSP8, std::pair<uint64_t,uint64_t>(record.key(), FEV.forum));
         }
         //PUBLICATION with Electrical Engineering topic
@@ -661,6 +711,12 @@ namespace shad
           HasTopic->AsyncInsert(matchHandle, record.key(), record);
           InsertSP5 inserter (args, patternHandle);
           SubPattern5->AsyncInsert(matchHandle, inserter, record.key(), std::pair<bool, bool>(false, true));
+#ifdef DEF_ALERT
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-5 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
         }
         else //Rest of the records doesn't matter for the pattern check
         {
@@ -673,7 +729,7 @@ namespace shad
 
         //PUBLICATION close to NYC
         auto CheckProx = [](shad::rt::Handle &matchHandle, const uint64_t &org,
-                            TopicVertex &value, RF_args_t& rfargs, uint64_t& rec_key, shad::rt::Handle& patternHandle) {
+                            TopicVertex &value, RF_args_t& rfargs, uint64_t& rec_key, shad::rt::Handle& patternHandle, auto &sp_detect_strt_time) {
          
           double lon_miles = 0.91 * std::abs(-73.94 - value.lon);
           double lat_miles = 1.15 * std::abs(40.67 - value.lat);
@@ -683,18 +739,24 @@ namespace shad
             using SP5type = shad::Hashmap<uint64_t, std::pair<bool, bool>>;
             auto SubPattern5 = SP5type::GetPtr((shad::ObjectIdentifier<SP5type>)rfargs.SubPattern5_OID);
             SubPattern5->AsyncInsert(matchHandle, inserter, rec_key, std::pair<bool, bool>(true, false));
-          }
+#ifdef DEF_ALERT // TODO
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-5 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
+	  }
         };
         if( tokens[5] != "")
         {
           HasOrg->AsyncInsert(matchHandle, record.key(), record);
           auto t = record.key();
-          Topics->AsyncApply(matchHandle, record.organization, CheckProx, args, t, patternHandle);
+          Topics->AsyncApply(matchHandle, record.organization, CheckProx, args, t, patternHandle, sp_detect_strt_time);
         }
         else{//Rest of the records doesn't matter for the pattern check
           HasOrg->BufferedAsyncInsert(bufferhandle, record.key(), record);
           rest++;
-        }
+	}
       }
       else if(tokens[0] == "Sale"){
         SaleEdge sale(tokens);
@@ -705,26 +767,57 @@ namespace shad
           Purchases->AsyncInsert(matchHandle, purchase.key(), purchase);
           InsertSP6 inserter (args, patternHandle);
           SubPattern6->AsyncInsert(matchHandle, inserter, purchase.key(), std::pair<uint64_t, time_t>(purchase.product,purchase.date));
-          //waitForCompletion(matchHandle);
+#ifdef DEF_ALERT
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-6 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
+	  //waitForCompletion(matchHandle);
         }
         else if (tokens[6] == "185785") { //ammunition
           Sales->AsyncInsert(matchHandle, sale.key(), sale);
           Purchases->AsyncInsert(matchHandle, purchase.key(), purchase);
           InsertSP7 inserter (args, patternHandle);
           SubPattern7->AsyncInsert(matchHandle, inserter, sale.key(), std::pair<int64_t, time_t>(purchase.buyer, purchase.date));
-          //waitForCompletion(matchHandle);
+#ifdef DEF_ALERT
+	  std::chrono::duration<double> sp_alert_time = 
+	    std::chrono::high_resolution_clock::now() - sp_detect_strt_time;
+	  std::cout << "A subpattern-7 is detected and reported in " << sp_alert_time.count() << "s" 
+		    << std::endl;
+#endif
+	  //waitForCompletion(matchHandle);
         }
         else {//Rest of the records doesn't matter for the pattern check
           Sales->BufferedAsyncInsert(bufferhandle, sale.key(), sale);
           Purchases->BufferedAsyncInsert(bufferhandle, purchase.key(), purchase);
           rest++;
-        }  
+	}  
       }
       
       else//Rest of the records doesn't matter for the pattern check
       {
         insertToGraphBuffered(bufferhandle, dataLine, graph);
         rest++;
+      }
+      if(counter % 10000 == 0) {
+	std::cout << counter << " " << counter - rest << " " << 
+	  rest << " " << SubPattern1->Size() << " " <<
+	  SubPattern2->Size() << " " <<
+	  SubPattern12->Size() << " " <<
+	  SubPattern3->Size() << " " <<
+	  SubPattern5->Size() << " " <<
+	  SubPattern6->Size() << " " <<
+	  SubPattern7->Size() << " " << std::endl;
+	
+	// printf("Number of SP1 matches = %lu\n", SubPattern1->Size());
+	// printf("Number of SP2 matches = %lu\n", SubPattern2->Size());
+	// printf("Number of SP3 matches = %lu\n", SubPattern3->Size());
+	// printf("Number of SP5 matches = %lu\n", SubPattern5->Size());
+	// printf("Number of SP12 matches = %lu\n", SubPattern12->Size());
+	// printf("Number of SP6 matches = %lu\n", SubPattern6->Size());
+	// printf("Number of SP7 matches = %lu\n", SubPattern7->Size());
+	// printf("Number of Jihad Events = %lu\n", SubPattern8.size());
       }
     }
 
