@@ -83,7 +83,6 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
   uint64_t level = 1; // level 0 was just consumed in the previous block
   auto next = frontier.begin();
   auto end_of_level = frontier.end();
-  uint64_t added_neighbors = 0;
   uint64_t max_neighbors = levels[level - 1];
 
   std::random_device rd;
@@ -115,7 +114,6 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
       shad::rt::waitForCompletion(handle);
     }
 
-    added_neighbors = 0;
     for (uint64_t i = 0; i < neighborhood.size(); ++i) {
       uint64_t uGlbID = neighborhood[i].dst_glbid;
       Vertex U = Vertices->At(uGlbID);
@@ -124,8 +122,6 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
               (levels.size() -
                1) && // The last level is just a fake to cover a corner case.
           vertex_set.find(uGlbID) == vertex_set.end()) { // U is not visited
-        if (added_neighbors >= max_neighbors)
-          continue; // ... if no more neighbors to add, continue
 
         uint64_t U_localID = localID++; // ... get next local id
 
@@ -148,7 +144,6 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
               U_localID, V_localID)); // ... insert U-V edge into edge set
         }
       }
-      added_neighbors++;
     }
 
     if (next == end_of_level) { // go to next level
