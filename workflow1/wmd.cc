@@ -45,6 +45,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <random>
+#include <set>
 #include <torch/csrc/autograd/generated/variable_factories.h>
 
 #include "agile/workflow1/graph.h"
@@ -88,6 +89,8 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
   std::random_device rd;
   std::mt19937 g(rd());
 
+  std::vector<Edge> neighborhood;
+  neighborhood.reserve(levels[0]);
   while (level < levels.size()) {
     if (next == end_of_level)
       break; // BFS is exhausted
@@ -100,13 +103,14 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
     uint64_t endEL = startEL + V.edges;
     uint64_t num_neighbors = endEL - startEL;
 
-    std::vector<Edge> neighborhood;
-    if (num_neighbors != 0 && (level < (levels.size() - 1) ||
-                               vertex_set.find(glbID) != vertex_set.end())) {
-      neighborhood.resize(levels[level]);
+    bool not_last_level = level < (levels.size() - 1);
+    if (num_neighbors != 0 && (not_last_level || vertex_set.find(glbID) != vertex_set.end())) {
+      uint64_t edges_to_fetch =
+          std::min<uint64_t>(levels[level], num_neighbors);
+      neighborhood.resize(edges_to_fetch);
 
       std::uniform_int_distribution<int> D(0, num_neighbors - 1);
-      for (int i = 0; i < levels[level]; ++i) {
+      for (int i = 0; i < edges_to_fetch; ++i) {
         size_t v = D(g);
         Edges->AsyncAt(handle, startEL + v, &neighborhood[i]);
       }
@@ -118,10 +122,10 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
       uint64_t uGlbID = neighborhood[i].dst_glbid;
       Vertex U = Vertices->At(uGlbID);
 
-      if (level <
-              (levels.size() -
-               1) && // The last level is just a fake to cover a corner case.
-          vertex_set.find(uGlbID) == vertex_set.end()) { // U is not visited
+      // The last level is just a fake to cover a corner case.
+      bool not_visited = vertex_set.find(uGlbID) == vertex_set.end();
+      bool visited = !not_visited;
+      if (not_last_level && not_visited) { // U is not visited
 
         uint64_t U_localID = localID++; // ... get next local id
 
@@ -135,8 +139,7 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
         edges.insert(std::make_pair(
             U_localID, V_localID)); // ... insert U-V edge into edge set
       } else {                      // U is visited
-        if (level < (levels.size() - 1) ||
-            vertex_set.find(uGlbID) != vertex_set.end()) {
+        if (not_last_level || visited) {
           uint64_t U_localID = vertex_set[uGlbID].id; // ... get U's local id
           edges.insert(std::make_pair(
               V_localID, U_localID)); // ... insert V-U edge into edge set
