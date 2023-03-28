@@ -112,7 +112,7 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
       std::uniform_int_distribution<int> D(0, num_neighbors - 1);
       for (int i = 0; i < edges_to_fetch; ++i) {
         size_t v = D(g);
-        Edges->AsyncAt(handle, startEL + v, &neighborhood[i]);
+        Edges->AsyncGetElements(handle, &neighborhood[i], startEL + v, 1);
       }
 
       shad::rt::waitForCompletion(handle);
