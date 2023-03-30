@@ -32,7 +32,7 @@ void CancelCoffeePurchase(Handle & handle,
 
   if (buyer.bought > 0) {     // if buyer has not been canceled
      buyer.bought -= sale.amount;
-     CoffeePurchases->AsyncApply(handle, id, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
+     CoffeePurchases->AsyncBlockingApply(handle, id, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
      // ... TODO search for supplier to replace amount ...
 } }
 
@@ -45,7 +45,7 @@ void CancelCoffeeSale(Handle & handle,
   
   if (seller.sold > 0)  {      // if seller has not been canceled
      seller.sold -= purchase.amount;
-     CoffeeSales->AsyncApply(handle, id, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
+     CoffeeSales->AsyncBlockingApply(handle, id, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
 } }
 
 
