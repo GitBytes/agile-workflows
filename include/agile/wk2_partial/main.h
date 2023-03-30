@@ -98,6 +98,7 @@ struct RF_args_t {
   uint64_t SubPattern7_OID;
   uint64_t SubPattern13_OID;
   uint64_t SubPattern14_OID;
+  double start_time;
   char filename [120];
 };
 
