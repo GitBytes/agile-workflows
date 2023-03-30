@@ -316,10 +316,10 @@ public:
                                  NUM_FEATURES);
     }
 
+    shad::rt::waitForCompletion(handle);
+
     std::vector<float> floatFeatures(featureVectors.begin(),
                                      featureVectors.end());
-
-    shad::rt::waitForCompletion(handle);
 
     // The features tensor stores the two hop features of the ego-graph vertices
     auto features =

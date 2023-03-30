@@ -45,6 +45,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <random>
+#include <set>
 #include <torch/csrc/autograd/generated/variable_factories.h>
 
 #include "agile/workflow1/graph.h"
@@ -61,9 +62,6 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
   shad::rt::Handle handle;
   auto Edges = XEdgeType::GetPtr(_edgesOID);
   auto Vertices = VertexType::GetPtr(_verticesOID);
-
-  using namespace torch::indexing;
-  auto bool_tensor = torch::TensorOptions().dtype(torch::kBool);
 
   uint64_t localID = 0;
   std::deque<uint64_t> frontier;
@@ -86,12 +84,13 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
   uint64_t level = 1; // level 0 was just consumed in the previous block
   auto next = frontier.begin();
   auto end_of_level = frontier.end();
-  uint64_t added_neighbors = 0;
   uint64_t max_neighbors = levels[level - 1];
 
   std::random_device rd;
   std::mt19937 g(rd());
 
+  std::vector<Edge> neighborhood;
+  neighborhood.reserve(levels[0]);
   while (level < levels.size()) {
     if (next == end_of_level)
       break; // BFS is exhausted
@@ -104,31 +103,29 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
     uint64_t endEL = startEL + V.edges;
     uint64_t num_neighbors = endEL - startEL;
 
-    std::vector<Edge> neighborhood;
-    if (num_neighbors != 0 && (level < (levels.size() - 1) ||
-                               vertex_set.find(glbID) != vertex_set.end())) {
-      neighborhood.resize(levels[level]);
+    bool not_last_level = level < (levels.size() - 1);
+    if (num_neighbors != 0 && (not_last_level || vertex_set.find(glbID) != vertex_set.end())) {
+      uint64_t edges_to_fetch =
+          std::min<uint64_t>(levels[level], num_neighbors);
+      neighborhood.resize(edges_to_fetch);
 
       std::uniform_int_distribution<int> D(0, num_neighbors - 1);
-      for (int i = 0; i < levels[level]; ++i) {
+      for (int i = 0; i < edges_to_fetch; ++i) {
         size_t v = D(g);
-        Edges->AsyncAt(handle, startEL + v, &neighborhood[i]);
+        Edges->AsyncGetElements(handle, &neighborhood[i], startEL + v, 1);
       }
 
       shad::rt::waitForCompletion(handle);
     }
 
-    added_neighbors = 0;
     for (uint64_t i = 0; i < neighborhood.size(); ++i) {
       uint64_t uGlbID = neighborhood[i].dst_glbid;
       Vertex U = Vertices->At(uGlbID);
 
-      if (level <
-              (levels.size() -
-               1) && // The last level is just a fake to cover a corner case.
-          vertex_set.find(uGlbID) == vertex_set.end()) { // U is not visited
-        if (added_neighbors >= max_neighbors)
-          continue; // ... if no more neighbors to add, continue
+      // The last level is just a fake to cover a corner case.
+      bool not_visited = vertex_set.find(uGlbID) == vertex_set.end();
+      bool visited = !not_visited;
+      if (not_last_level && not_visited) { // U is not visited
 
         uint64_t U_localID = localID++; // ... get next local id
 
@@ -142,8 +139,7 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
         edges.insert(std::make_pair(
             U_localID, V_localID)); // ... insert U-V edge into edge set
       } else {                      // U is visited
-        if (level < (levels.size() - 1) ||
-            vertex_set.find(uGlbID) != vertex_set.end()) {
+        if (not_last_level || visited) {
           uint64_t U_localID = vertex_set[uGlbID].id; // ... get U's local id
           edges.insert(std::make_pair(
               V_localID, U_localID)); // ... insert V-U edge into edge set
@@ -151,7 +147,6 @@ WMDDataset::_build_ego_graph(int64_t *rootB, int64_t *rootE) {
               U_localID, V_localID)); // ... insert U-V edge into edge set
         }
       }
-      added_neighbors++;
     }
 
     if (next == end_of_level) { // go to next level
