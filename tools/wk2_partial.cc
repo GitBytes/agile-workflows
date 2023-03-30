@@ -45,22 +45,22 @@
 #include "agile/wk2_partial/graph.h"
 #include "agile/wk2_partial/main.h"
 
-
-
 namespace shad
 {
   using namespace agile::wk2_partial;
   
   std::set<std::pair<uint64_t, uint64_t>> SubPattern8; //a forumevent with jihad topic - key:forumevent id, value: forumid  
   std::mutex SP8_mutex;
-
+  
   void InsertSP8(shad::rt::Handle & handle, const std::pair<uint64_t, uint64_t>& input){
     SubPattern8.insert(input);
   }
 
-  void F9(shad::rt::Handle & handle, const uint64_t& forumID, std::pair<bool, uint64_t>& value, const uint64_t& personID){
+  void F9(shad::rt::Handle & handle, const uint64_t& forumID, std::pair<bool, uint64_t>& value, const uint64_t& personID, const RF_args_t & args){
     if(value.first && value.second >1){
+      auto time_diff = my_timer() - args.start_time;
       std::cout<<"FOUND THE PATTERN FOR PERSON:"<<personID<<std::endl;
+      std::cout << "Time elapsed between the final edge of the pattern read and alert issued: " <<  time_diff <<"s" << std::endl;
     }
   }
 
@@ -104,7 +104,7 @@ namespace shad
         //check if forum is in SP3 
         using SP3type = shad::Hashmap<uint64_t, std::pair<bool, uint64_t>>; 
         auto SubPattern3 = SP3type::GetPtr((shad::ObjectIdentifier<SP3type>)args.SubPattern3_OID);
-        SubPattern3->AsyncApply(handle, f.second, F9, personID); 
+        SubPattern3->AsyncApply(handle, f.second, F9, personID, args); 
       }
       else{
         curForum = f.second;
@@ -217,6 +217,8 @@ namespace shad
       
 
       if ((*lhs).first == 3){
+	auto time_diff = my_timer() - args.start_time;
+	std::cout<<"A SubPattern-12 match is detected and reported in "<< time_diff <<"s" << std::endl;
         shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(12, args);
       }
@@ -256,7 +258,8 @@ namespace shad
 
         if(*lhs == 3){
           //here we call upper level check sp12
-          //std::cout<<"SubPattern1 Match Found"<<std::endl;
+	  auto time_diff = my_timer() - args.start_time;
+          std::cout<<"A SubPattern-1 match is detected and reported in "<< time_diff <<"s" << std::endl;
           using SP12type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>; 
           auto SubPattern12 = SP12type::GetPtr((shad::ObjectIdentifier<SP12type>)args.SubPattern12_OID);
           auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID)args.ForumEvents_OID);
@@ -304,7 +307,8 @@ namespace shad
 
       if (*lhs == 7)
       {
-        //std::cout<<"SubPattern2 Match Found"<<std::endl;
+	auto time_diff = my_timer() - args.start_time;
+	std::cout<<"A SubPattern-2 match is detected and reported in "<< time_diff <<"s" << std::endl;
         using SP12type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>;
         auto SubPattern12 = SP12type::GetPtr( (shad::ObjectIdentifier<SP12type>) args.SubPattern12_OID);
         auto ForumEvents  = ForumEventVertexType::GetPtr( (ForumEventVertexOID) args.ForumEvents_OID);
@@ -353,7 +357,8 @@ namespace shad
       }
       
       if((*lhs).first && (*lhs).second >= 2){
-        //std::cout<<"SubPattern3 Match Found"<<std::endl;
+	auto time_diff = my_timer() - args.start_time;
+	std::cout<<"A SubPattern-3 match is detected and reported in "<< time_diff <<"s" << std::endl;
         shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(3, args);
       }
@@ -389,7 +394,8 @@ namespace shad
       }
 
       if((*lhs).first && (*lhs).second){
-        //std::cout<<"SubPattern5 Match Found"<<std::endl;
+	auto time_diff = my_timer() - args.start_time;
+	std::cout<<"A SubPattern-5 match is detected and reported in "<< time_diff <<"s" << std::endl;
         shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(5, args);
       }
@@ -430,7 +436,8 @@ namespace shad
 
       (*lhs).second = std::max((*lhs).second, rhs.second);
       if ((*lhs).first == 15){
-        //std::cout<<"SubPattern6 Match Found"<<std::endl;
+	auto time_diff = my_timer() - args.start_time;
+	std::cout<<"A SubPattern-6 match is detected and reported in "<< time_diff <<"s" << std::endl;
         shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(6, args);
       }
@@ -489,6 +496,8 @@ namespace shad
         InsertSP6 inserter (args, patternHandle);
         SubPattern6->Insert(inserter, rhs.first, std::pair<uint64_t, time_t>(ammunition,rhs.second));
       }
+      auto time_diff = my_timer() - args.start_time;
+      std::cout<<"A SubPattern-7 match is detected and reported in "<< time_diff <<"s" << std::endl;
       return true;
     }
   };
@@ -611,6 +620,7 @@ namespace shad
     std::string dataLine;
     uint64_t counter = 0;
     uint64_t rest=0;
+    
     while (getline(file, dataLine))
     {
       if (dataLine[0] == '#')
@@ -619,8 +629,8 @@ namespace shad
       // if(! (counter % 10000)){
       //   std::cout<<counter<<" "<<rest<<std::endl;
       // }
+      args.start_time = my_timer();
       std::vector<std::string> tokens = split(dataLine, ',', 10);
-      
       if (tokens[0] == "HasTopic")
       {
         HasTopicEdge record(tokens);
@@ -630,7 +640,7 @@ namespace shad
           HasTopic->AsyncInsert(matchHandle, record.key(), record);
           InsertSP1 inserter(args, record.key(), record.topic, patternHandle);
           SubPattern1->AsyncInsert(matchHandle, inserter, record.key(), 0);
-        }
+	}
         //FORUMEVENT with Bomb, Explosion, and Williamsburg topics 
         else if ((tokens[4] != "") && ((tokens[6] == "127197") || (tokens[6] == "179057") || (tokens[6] == "771572")))
         { 
@@ -683,7 +693,7 @@ namespace shad
             using SP5type = shad::Hashmap<uint64_t, std::pair<bool, bool>>;
             auto SubPattern5 = SP5type::GetPtr((shad::ObjectIdentifier<SP5type>)rfargs.SubPattern5_OID);
             SubPattern5->AsyncInsert(matchHandle, inserter, rec_key, std::pair<bool, bool>(true, false));
-          }
+	  }
         };
         if( tokens[5] != "")
         {
@@ -694,7 +704,7 @@ namespace shad
         else{//Rest of the records doesn't matter for the pattern check
           HasOrg->BufferedAsyncInsert(bufferhandle, record.key(), record);
           rest++;
-        }
+	}
       }
       else if(tokens[0] == "Sale"){
         SaleEdge sale(tokens);
@@ -705,20 +715,20 @@ namespace shad
           Purchases->AsyncInsert(matchHandle, purchase.key(), purchase);
           InsertSP6 inserter (args, patternHandle);
           SubPattern6->AsyncInsert(matchHandle, inserter, purchase.key(), std::pair<uint64_t, time_t>(purchase.product,purchase.date));
-          //waitForCompletion(matchHandle);
+	  //waitForCompletion(matchHandle);
         }
         else if (tokens[6] == "185785") { //ammunition
           Sales->AsyncInsert(matchHandle, sale.key(), sale);
           Purchases->AsyncInsert(matchHandle, purchase.key(), purchase);
           InsertSP7 inserter (args, patternHandle);
           SubPattern7->AsyncInsert(matchHandle, inserter, sale.key(), std::pair<int64_t, time_t>(purchase.buyer, purchase.date));
-          //waitForCompletion(matchHandle);
+	  //waitForCompletion(matchHandle);
         }
         else {//Rest of the records doesn't matter for the pattern check
           Sales->BufferedAsyncInsert(bufferhandle, sale.key(), sale);
           Purchases->BufferedAsyncInsert(bufferhandle, purchase.key(), purchase);
           rest++;
-        }  
+	}  
       }
       
       else//Rest of the records doesn't matter for the pattern check
@@ -726,8 +736,28 @@ namespace shad
         insertToGraphBuffered(bufferhandle, dataLine, graph);
         rest++;
       }
+#ifdef PRINT_STATS
+      if(counter % 10000 == 0) {
+	std::cout << counter << " " << counter - rest << " " << 
+	  rest << " " << SubPattern1->Size() << " " <<
+	  SubPattern2->Size() << " " <<
+	  SubPattern12->Size() << " " <<
+	  SubPattern3->Size() << " " <<
+	  SubPattern5->Size() << " " <<
+	  SubPattern6->Size() << " " <<
+	  SubPattern7->Size() << " " << std::endl;
+	
+	// printf("Number of SP1 matches = %lu\n", SubPattern1->Size());
+	// printf("Number of SP2 matches = %lu\n", SubPattern2->Size());
+	// printf("Number of SP3 matches = %lu\n", SubPattern3->Size());
+	// printf("Number of SP5 matches = %lu\n", SubPattern5->Size());
+	// printf("Number of SP12 matches = %lu\n", SubPattern12->Size());
+	// printf("Number of SP6 matches = %lu\n", SubPattern6->Size());
+	// printf("Number of SP7 matches = %lu\n", SubPattern7->Size());
+	// printf("Number of Jihad Events = %lu\n", SubPattern8.size());
+      }
+#endif
     }
-
     printf("Got out of the loop\n");
     printf("Time for ingestion = %lf\n", my_timer() - time1);
 
@@ -754,8 +784,6 @@ namespace shad
     shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
     waitForCompletion(patternHandle);
     printf("After final patterncheck %lf\n", my_timer() - time1);
-
-   
 
     printf("Time for graph construction = %lf\n", my_timer() - time1);
 
