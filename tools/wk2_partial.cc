@@ -620,6 +620,7 @@ namespace shad
     std::string dataLine;
     uint64_t counter = 0;
     uint64_t rest=0;
+    
     while (getline(file, dataLine))
     {
       if (dataLine[0] == '#')
@@ -736,6 +737,7 @@ namespace shad
         insertToGraphBuffered(bufferhandle, dataLine, graph);
         rest++;
       }
+#ifdef PRINT_STATS
       if(counter % 10000 == 0) {
 	std::cout << counter << " " << counter - rest << " " << 
 	  rest << " " << SubPattern1->Size() << " " <<
@@ -755,8 +757,8 @@ namespace shad
 	// printf("Number of SP7 matches = %lu\n", SubPattern7->Size());
 	// printf("Number of Jihad Events = %lu\n", SubPattern8.size());
       }
+#endif
     }
-
     printf("Got out of the loop\n");
     printf("Time for ingestion = %lf\n", my_timer() - time1);
 
