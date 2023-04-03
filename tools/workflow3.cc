@@ -88,6 +88,7 @@ int main(int argc, char *argv[]) {
   args.min_counts = std::stoull(argv[4]);
   memcpy(args.filename, filename.c_str(), filename.size() + 1);
 
+  printf("Reading file\n");
 //********** READ FASTA FILE AND CONSTRUCT KMER HASH MAP **********//
   shad::rt::asyncExecuteOnAll(handle, readFASTA, args);                  // read FASTA file
   rt::waitForCompletion(handle);
