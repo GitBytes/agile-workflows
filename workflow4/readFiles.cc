@@ -82,9 +82,10 @@ void SelectSalesMarket(Handle & handle, const uint64_t & id,
     CoffeeTraders->BufferedAsyncInsert(handle, tmp.buyer, TraderVertex(tmp.buyer, 0.0, tmp.amount, tmp.amount));
 } }
 
-void readFileSocial(Handle & handle, const RF_args_t & args) {
+void readFileSocial(const RF_args_t & args) {
   std::string line;
   struct stat stats;
+  Handle handle = args.handle;
   std::string filename = args.filename;
   uint64_t this_locale = (uint32_t) shad::rt::thisLocality();
   uint64_t num_locales = (uint64_t) shad::rt::numLocalities();
@@ -131,9 +132,10 @@ void readFileSocial(Handle & handle, const RF_args_t & args) {
   file.close();
 }
 
-void readFileCyber(Handle & handle, const RF_args_t & args) {
+void readFileCyber(const RF_args_t & args) {
   std::string line;
   struct stat stats;
+  Handle handle = args.handle;
   std::string filename = args.filename;
   uint64_t this_locale = (uint32_t) shad::rt::thisLocality();
   uint64_t num_locales = (uint64_t) shad::rt::numLocalities();
@@ -176,9 +178,10 @@ void readFileCyber(Handle & handle, const RF_args_t & args) {
   file.close();
 }
 
-void readFileUses(Handle & handle, const RF_args_t & args) {
+void readFileUses(const RF_args_t & args) {
   std::string line;
   struct stat stats;
+  Handle handle = args.handle;
   std::string filename = args.filename;
   uint64_t this_locale = (uint32_t) shad::rt::thisLocality();
   uint64_t num_locales = (uint64_t) shad::rt::numLocalities();
@@ -222,9 +225,10 @@ void readFileUses(Handle & handle, const RF_args_t & args) {
   file.close();
 }
 
-void readFileCommercial(Handle & handle, const RF_args_t & args) {
+void readFileCommercial(const RF_args_t & args) {
   std::string line;
   struct stat stats;
+  Handle handle = args.handle;
   std::string filename = args.filename;
   uint64_t this_locale = (uint32_t) shad::rt::thisLocality();
   uint64_t num_locales = (uint64_t) shad::rt::numLocalities();

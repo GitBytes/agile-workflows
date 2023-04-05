@@ -78,6 +78,7 @@ int main(int argc, char *argv[]) {
   graph["CoffeePurchases"] = (uint64_t) (CoffeePurchases->GetGlobalID());
 
   RF_args_t args;
+  args.handle              = handle;
   args.Persons_OID         = graph["Persons"];
   args.Purchases_OID       = graph["Purchases"];
   args.Sales_OID           = graph["Sales"];
@@ -91,19 +92,19 @@ int main(int argc, char *argv[]) {
 
   std::string dataFile = argv[1];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
-  shad::rt::asyncExecuteOnAll(handle, readFileSocial, args);
+  shad::rt::executeOnAll(readFileSocial, args);
 
   dataFile = argv[2];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
-  shad::rt::asyncExecuteOnAll(handle, readFileCyber, args);
+  shad::rt::executeOnAll(readFileCyber, args);
 
   dataFile = argv[3];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
-  shad::rt::asyncExecuteOnAll(handle, readFileUses, args);
+  shad::rt::executeOnAll(readFileUses, args);
 
   dataFile = argv[4];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
-  shad::rt::asyncExecuteOnAll(handle, readFileCommercial, args);
+  shad::rt::executeOnAll(readFileCommercial, args);
 
   waitForCompletion(handle);
   Persons->WaitForBufferedInsert();
@@ -122,18 +123,18 @@ int main(int argc, char *argv[]) {
   CoffeeSales->WaitForBufferedInsert();
   CoffeePurchases->WaitForBufferedInsert();
 
-  printf("Time for Kernel 1 - Graph Construction = %lf\n\n", my_timer() - time1);
+  fprintf(stderr, "Time for Kernel 1 - Graph Construction = %lf\n\n", my_timer() - time1);
 
-  printf("Number of persons          = %lu\n", Persons->Size());
-  printf("Number of servers          = %lu\n", Servers->Size());
-  printf("Number of purchase edges   = %lu\n", Purchases->Size());
-  printf("Number of sale edges       = %lu\n", Sales->Size());
-  printf("Number of friends edges    = %lu\n", Friends->Size());
-  printf("Number of sends edges      = %lu\n", Sends->Size());
-  printf("Number of uses edges       = %lu\n", Uses->Size());
-  printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
-  printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
-  printf("Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
+  fprintf(stderr, "Number of persons          = %lu\n", Persons->Size());
+  fprintf(stderr, "Number of servers          = %lu\n", Servers->Size());
+  fprintf(stderr, "Number of purchase edges   = %lu\n", Purchases->Size());
+  fprintf(stderr, "Number of sale edges       = %lu\n", Sales->Size());
+  fprintf(stderr, "Number of friends edges    = %lu\n", Friends->Size());
+  fprintf(stderr, "Number of sends edges      = %lu\n", Sends->Size());
+  fprintf(stderr, "Number of uses edges       = %lu\n", Uses->Size());
+  fprintf(stderr, "Number of coffee traders   = %lu\n", CoffeeTraders->Size());
+  fprintf(stderr, "Number of coffee sales     = %lu\n", CoffeeSales->Size());
+  fprintf(stderr, "Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
 
 /********** KERNEL 3 - Identify most influential coffee suppliers **********/
   time1 = my_timer();
@@ -145,10 +146,10 @@ int main(int argc, char *argv[]) {
   waitForCompletion(handle);
 
   // ... output input file for influence maximization kernel ...
-  for (auto loc : shad::rt::allLocalities())
-    rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
+  // for (auto loc : shad::rt::allLocalities())
+    // rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
 
-  printf("Time for Kernel 3 - Coffee sale weights = %lf\n", my_timer() - time1);
+  fprintf(stderr, "Time for Kernel 3 - Coffee sale weights = %lf\n", my_timer() - time1);
   if (argc <= 6) {printf("weighted sales edge file printed ... exiting\n"); exit(0);}
 
   // ... run influence maximization kernel off line ...
@@ -165,7 +166,7 @@ int main(int argc, char *argv[]) {
   auto json = nlohmann::json::parse(buffer.str());
   for (auto influencer : json[0]["Seeds"]) influencers.push_back(influencer);
 
-  printf("Number of influencers = %lu\n\n", influencers.size());
+  fprintf(stderr, "Number of influencers = %lu\n\n", influencers.size());
 
 /********** KERNEL 4 - Adjust coffee market **********/
   time1 = my_timer();
