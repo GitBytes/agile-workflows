@@ -123,18 +123,18 @@ int main(int argc, char *argv[]) {
   CoffeeSales->WaitForBufferedInsert();
   CoffeePurchases->WaitForBufferedInsert();
 
-  fprintf(stderr, "Time for Kernel 1 - Graph Construction = %lf\n\n", my_timer() - time1);
+  printf("Time for Kernel 1 - Graph Construction = %lf\n\n", my_timer() - time1);
 
-  fprintf(stderr, "Number of persons          = %lu\n", Persons->Size());
-  fprintf(stderr, "Number of servers          = %lu\n", Servers->Size());
-  fprintf(stderr, "Number of purchase edges   = %lu\n", Purchases->Size());
-  fprintf(stderr, "Number of sale edges       = %lu\n", Sales->Size());
-  fprintf(stderr, "Number of friends edges    = %lu\n", Friends->Size());
-  fprintf(stderr, "Number of sends edges      = %lu\n", Sends->Size());
-  fprintf(stderr, "Number of uses edges       = %lu\n", Uses->Size());
-  fprintf(stderr, "Number of coffee traders   = %lu\n", CoffeeTraders->Size());
-  fprintf(stderr, "Number of coffee sales     = %lu\n", CoffeeSales->Size());
-  fprintf(stderr, "Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
+  printf("Number of persons          = %lu\n", Persons->Size());
+  printf("Number of servers          = %lu\n", Servers->Size());
+  printf("Number of purchase edges   = %lu\n", Purchases->Size());
+  printf("Number of sale edges       = %lu\n", Sales->Size());
+  printf("Number of friends edges    = %lu\n", Friends->Size());
+  printf("Number of sends edges      = %lu\n", Sends->Size());
+  printf("Number of uses edges       = %lu\n", Uses->Size());
+  printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
+  printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
+  printf("Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
 
 /********** KERNEL 3 - Identify most influential coffee suppliers **********/
   time1 = my_timer();
@@ -145,14 +145,15 @@ int main(int argc, char *argv[]) {
   CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
   waitForCompletion(handle);
 
-  // ... output input file for influence maximization kernel ...
-  // for (auto loc : shad::rt::allLocalities())
-    // rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
+  printf("Time for Kernel 3 - Coffee sale weights = %lf\n", my_timer() - time1);
 
-  fprintf(stderr, "Time for Kernel 3 - Coffee sale weights = %lf\n", my_timer() - time1);
-  if (argc <= 6) {printf("weighted sales edge file printed ... exiting\n"); exit(0);}
-
-  // ... run influence maximization kernel off line ...
+  // ... output input file for influence maximization kernel ... exit ...
+  // ... and run influence maximization kernel off line ...
+  if (argc <= 6) {
+     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
+     printf("weighted sales edge file printed ... exiting\n");
+     exit(0);
+  }
 
   // ... read list of influencers ...
   dataFile = argv[6];
@@ -166,7 +167,7 @@ int main(int argc, char *argv[]) {
   auto json = nlohmann::json::parse(buffer.str());
   for (auto influencer : json[0]["Seeds"]) influencers.push_back(influencer);
 
-  fprintf(stderr, "Number of influencers = %lu\n\n", influencers.size());
+  printf("Number of influencers = %lu\n\n", influencers.size());
 
 /********** KERNEL 4 - Adjust coffee market **********/
   time1 = my_timer();
