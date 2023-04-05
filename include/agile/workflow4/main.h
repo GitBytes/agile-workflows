@@ -65,6 +65,7 @@ using Handle = shad::rt::Handle;
 using Graph_t = std::map<std::string, uint64_t>;
 
 struct RF_args_t {
+    Handle   handle;
     uint64_t Purchases_OID;
     uint64_t Sales_OID;
     uint64_t CoffeeSales_OID;
@@ -78,10 +79,10 @@ struct RF_args_t {
     char filename [120];
 };
 
-void readFileSocial(Handle & handle, const RF_args_t & args);
-void readFileCyber(Handle & handle, const RF_args_t & args);
-void readFileUses(Handle & handle, const RF_args_t & args);
-void readFileCommercial(Handle & handle, const RF_args_t & args);
+void readFileSocial(const RF_args_t & args);
+void readFileCyber(const RF_args_t & args);
+void readFileUses(const RF_args_t & args);
+void readFileCommercial(const RF_args_t & args);
 void PrintWeightedSalesEdgesToFile(const RF_args_t & args);
 
 } // namespace agile::workflow4
