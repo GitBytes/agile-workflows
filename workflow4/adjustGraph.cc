@@ -32,7 +32,7 @@ void CancelCoffeePurchase(Handle & handle,
 
   if (buyer.bought > 0) {     // if buyer has not been canceled
      buyer.bought -= sale.amount;
-     CoffeePurchases->AsyncApply(handle, id, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
+     CoffeePurchases->AsyncBlockingApply(handle, id, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
      // ... TODO search for supplier to replace amount ...
 } }
 
@@ -45,7 +45,7 @@ void CancelCoffeeSale(Handle & handle,
   
   if (seller.sold > 0)  {      // if seller has not been canceled
      seller.sold -= purchase.amount;
-     CoffeeSales->AsyncApply(handle, id, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
+     CoffeeSales->AsyncBlockingApply(handle, id, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
 } }
 
 
@@ -62,9 +62,10 @@ void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & tra
 
   CoffeeSales->Lookup(id, & sales);             // get my coffee sales
   CoffeeSales->Erase(id);                       // erase my sale edges from the graph
-  CoffeePurchases->Lookup(id, & purchases);     // get my coffee sales
+  CoffeePurchases->Lookup(id, & purchases);     // get my coffee purchases
   CoffeePurchases->Erase(id);                   // erase my purchase edges from the graph
 
+  printf("%lu %lu %lu\n", id, sales.value.size(), purchases.value.size());
   for (auto & sale : sales.value)                 // alert my customers
       CoffeeTraders->AsyncApply(handle, sale.buyer, CancelCoffeePurchase, sale, args);
   for (auto & purchase : purchases.value)         // alert my suppliers

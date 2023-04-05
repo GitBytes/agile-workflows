@@ -146,7 +146,6 @@ void readFileCyber(Handle & handle, const RF_args_t & args) {
   uint64_t num_bytes = stats.st_size / num_locales;              // file size / number of locales
   uint64_t start = this_locale * num_bytes;
   uint64_t end = start + num_bytes;
-  uint64_t num_lines = 0;
 
   if (this_locale != 0) {                                        // check for partial line
      file.seekg(start - 1);
@@ -160,7 +159,6 @@ void readFileCyber(Handle & handle, const RF_args_t & args) {
   auto Sends   = SendsEdgeType::GetPtr( (SendsEdgeOID) args.Sends_OID);
 
   while (start < end) {
-    num_lines ++;
     getline(file, line);
     start += line.size() + 1;
     if (line[0] == '#') continue;                                // skip comments

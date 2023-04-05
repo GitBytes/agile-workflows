@@ -78,7 +78,6 @@ struct RF_args_t {
     char filename [120];
 };
 
-void readFileCoffee(Handle & handle, const RF_args_t & args);
 void readFileSocial(Handle & handle, const RF_args_t & args);
 void readFileCyber(Handle & handle, const RF_args_t & args);
 void readFileUses(Handle & handle, const RF_args_t & args);
