@@ -131,13 +131,28 @@ MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 }
 
 
-void walk(Handle & handle, uint64_t key, BasePairVector & contig,
-     int64_t freq, int64_t offset_in_prefix, MacroNode & node, Args_t & args) {
-
-  auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
-  auto ContigMap = ContigMapType::GetPtr((ContigMapOID) args.ContigMap_OID);
-  ContigMap->BufferedAsyncInsert(handle, key, contig);
+std::string BPV_toString(BasePairVector & contig) {
+  return "contig XXX";     // contig --> return string
 }
+
+
+void walk(std::string cstring, int64_t freq, int64_t offset_in_prefix, MacroNode & node, Args_t & args) { }
+
+  // uint64_t node_count = 0;
+  // for (uint64_t i = 0; i < node.num_wires; ++ i) {
+    // uint64_t sid    = wireNodes[node.wire_index + i].sid;
+    // uint64_t count  = wireNodes[node.wire_index + i].count;
+    // uint64_t offset = wireNodes[node.wire_index + i].offset;
+
+    // if (node_count + count <= offset_in_prefix || node_count > offset_in_prefix + freq) continue;
+
+    
+    // node_count += count;
+  // }
+
+
+// for (int t = 0; t < node.num_wires; ++ t) {                // ... for each wire attached to the node
+// }
 
 
 void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNode> & macroNodes, Args_t & args) {
@@ -145,7 +160,6 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
   auto WireMap        = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
   auto ModifiedNodes  = ModifiedMapType::GetPtr((ModifiedMapOID) args.ModifiedNodes_OID);
   auto ProcessedNodes = IntSet::GetPtr((IntSetOID) args.ProcessedNodes_OID);
-  auto PartialContigs = ContigSetType::GetPtr((ContigSetOID) args.PartialContigs_OID);
 
   for (auto node : macroNodes) {
     if (node.isTerminal) continue;     // skip terminals
@@ -184,20 +198,27 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
        prefix_merge_info.affix = BasePairVector();
     }
 
-    for (int t = 0; t < node.num_wires; ++ t) {                 // ... for each wire attached to the node
+    for (int t = 0; t < node.num_wires; ++ t) {                // ... for each wire attached to the node
       uint64_t sid  = wireNodes[node.wire_index + t].sid;
       int64_t count = wireNodes[node.wire_index + t].count;
-      MacroNode & suffix = macroNodes[sid];                     // ... ... suffix attached
+      MacroNode & suffix = macroNodes[sid];                    // ... ... suffix attached
 
-      if (node.isTerminal && suffix.isTerminal) {               // ... ... string is terminated on both sides
-         BasePairVector contig = node.affix;                    // ... ... ... push string to partial contigs
-         contig.append( BasePairVector(key, mnLength) );
-         contig.append(suffix.affix);
-         PartialContigs->AsyncInsert(handle, contig);
+      if (node.isTerminal && suffix.isTerminal) {              // ... ... string is terminated on both sides
+         uint64_t size = node.affix.size() + mnLength + suffix.affix.size();
 
-      } else {                                                  // ... ... string is open on at least one side
+         if (size > CONTIG_LENGTH_THRESHOLD) {          // ... ... ... output contig
+            uint64_t num = IntAtomic::GetPtr((IntAtomicOID) args.numContigs_OID)->FetchAdd(1);
+            std::string name = ">contig_" + std::to_string(num) + "_l_" + std::to_string(size);
 
-         MNInfo suffix_merge_info;                              // ... ... ... get key and affix for node that
+            BasePairVector contig = node.affix;
+            contig.append( BasePairVector(key, mnLength) );
+            contig.append(suffix.affix);
+            printf("%s\n%s\n", name.c_str(), contig.to_string().c_str());
+         }
+
+      } else {                                                 // ... ... string is open on at least one side
+
+         MNInfo suffix_merge_info;                             // ... ... ... get key and affix for node that
          if ( (suffix.affix.size() > 0) && (! suffix.isTerminal) ) {                    // ... suffix modifies
             suffix_merge_info = get_suffix_merge_info(key, suffix.affix, mnLength);
          } else {
@@ -237,14 +258,16 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
 } } } }  }
 
 
-void ProcessContig(Handle & handle, const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
+void ProcessContig(const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
 
   for (auto node : value) {
-    if (! (node.isPrefix && node.isTerminal && node.count.second > 0) ) continue;
 
-    BasePairVector contig = node.affix;
-    contig.append( BasePairVector(key, args.mnLength) );
-    walk(handle, key, contig, node.count.second, 0, node, args);
-} }
+    // node is a begin kmer ==> node is the prefix terminal with frequency > 0
+    if (node.isPrefix && node.isTerminal && node.count.second > 0) {
+       BasePairVector contig = node.affix;
+       contig.append( BasePairVector(key, args.mnLength) );
+       std::string cstring = contig.to_string();
+       walk(cstring, node.count.second, 0, node, args);
+} } }
 
 } // namespace agile::workflow3

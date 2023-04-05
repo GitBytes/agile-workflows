@@ -141,6 +141,14 @@ class BasePairVector {
   }
 
 
+  std::string to_string() {
+    std::string str(size_, ' ');
+    for (uint64_t i = 0; i < size_; ++ i)
+       str[i] = EL_TO_CHAR((* this)[i]);
+    return str;
+  }
+
+
 // base pairs: AAGTCCTACG
 // stored    : AAGT CCTA __CG          (assume 4 base pairs per word)
 // position  : 0123 4567   89
@@ -301,11 +309,11 @@ using ContigMapOID    = shad::ObjectIdentifier<ContigMapType>;
 bool MN_comp(MacroNode &, MacroNode &);
 MNInfo get_suffix_merge_info(uint64_t, BasePairVector &, uint64_t);
 MNInfo get_prefix_merge_info(uint64_t, BasePairVector &, uint64_t);
+void ProcessContig(const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void WireMacroNodes(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void ProcessMacroNode(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void ModifyMacroNode(Handle &, const uint64_t &, std::vector<ModifiedNode> &, Args_t &);
 void Finish_MN_WireMaps(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
-void ProcessContig(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 
 } // namespace agile::workflow3
 

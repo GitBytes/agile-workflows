@@ -52,6 +52,7 @@
 
 #include "shad/data_structures/set.h"
 #include "shad/data_structures/array.h"
+#include "shad/data_structures/atomic.h"
 #include "shad/data_structures/vector.h"
 #include "shad/data_structures/hashmap.h"
 #include "shad/data_structures/multimap.h"
@@ -63,17 +64,20 @@
 #define LARGE  50000000
 
 #define UINT_BITS 64
-#define SIZE_BP 2          // bits per base pair
-#define SIZE_BPV 2         // size of base pair vector in 64 bit words
-#define BP_PER_WORD 32     // number of base pairs per word = 64 / 2
+#define SIZE_BP 2                       // bits per base pair
+#define SIZE_BPV 2                      // size of base pair vector in 64 bit words
+#define BP_PER_WORD 32                  // number of base pairs per word = 64 / 2
+#define CONTIG_LENGTH_THRESHOLD 400     // output contig length threshold
 
 namespace agile::workflow3 {
 
-using Handle      = shad::rt::Handle;
-using IntSet      = shad::Set<uint64_t>;
-using IntArray    = shad::Array<int64_t>;
-using IntSetOID   = shad::ObjectIdentifier<IntSet>;
-using IntArrayOID = shad::ObjectIdentifier<IntArray>;
+using Handle       = shad::rt::Handle;
+using IntSet       = shad::Set<uint64_t>;
+using IntArray     = shad::Array<int64_t>;
+using IntAtomic    = shad::Atomic<int64_t>;
+using IntSetOID    = shad::ObjectIdentifier<IntSet>;
+using IntArrayOID  = shad::ObjectIdentifier<IntArray>;
+using IntAtomicOID = shad::ObjectIdentifier<IntAtomic>;
 
 struct Args_t {
   uint64_t KMap_OID;
@@ -82,8 +86,7 @@ struct Args_t {
   uint64_t BucketCounts_OID;
   uint64_t ModifiedNodes_OID;
   uint64_t ProcessedNodes_OID;
-  uint64_t ContigMap_OID;
-  uint64_t PartialContigs_OID;
+  uint64_t numContigs_OID;
   uint64_t mnLength;
   uint64_t coverage;
   uint64_t min_index;

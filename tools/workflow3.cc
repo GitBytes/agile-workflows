@@ -67,8 +67,7 @@ int main(int argc, char *argv[]) {
   auto WireMap = WireMapType::Create(LARGE);               // wire multimap
   auto ModifiedNodes = ModifiedMapType::Create(LARGE);     // modified nodes multimap
   auto ProcessedNodes = IntSet::Create(LARGE);             // set of processed macro nodes
-  auto ContigMap = ContigMapType::Create(SMALL);           // contig map
-  auto PartialContigs = ContigSetType::Create(SMALL);      // partial contig set
+  auto numContigs = IntAtomic::Create(0);                  // number of contigs
   auto BucketCounts = IntArray::Create(min_counts, 0);     // array to count kmers appearing [1..min_count] times
 
   BucketCounts->FillPtrs();
@@ -80,8 +79,7 @@ int main(int argc, char *argv[]) {
   args.ModifiedNodes_OID = (uint64_t) (ModifiedNodes->GetGlobalID());
   args.ProcessedNodes_OID = (uint64_t) (ProcessedNodes->GetGlobalID());
   args.BucketCounts_OID = (uint64_t) (BucketCounts->GetGlobalID());
-  args.ContigMap_OID = (uint64_t) (ContigMap->GetGlobalID());
-  args.PartialContigs_OID = (uint64_t) (PartialContigs->GetGlobalID());
+  args.numContigs_OID = (uint64_t) (numContigs->GetGlobalID());
 
   args.mnLength   = std::stoull(argv[2]) - 1;
   args.coverage   = std::stoull(argv[3]);
@@ -164,32 +162,17 @@ int main(int argc, char *argv[]) {
   }
 
 //********** PRINT CONTIGS **********//
-/*
   time1 = my_timer();
-  uint64_t num_contigs = 0;
   filename = "contigs_out.fa";
   FILE * fc = fopen(filename.c_str(), "w");
   if (fc == NULL) {printf("Cannot open file %s\n", filename.c_str()); exit(-1);}
 
-  MNMap->AsyncForEachEntry(handle, ProcessContig, args);
+  memcpy(args.filename, filename.c_str(), filename.size() + 1);
+  MNMap->ForEachEntry(ProcessContig, args);
   rt::waitForCompletion(handle);
-  ContigMap->WaitForBufferedInsert();
-
-  for (auto itr = ContigMap->begin(); itr != ContigMap->end(); ++ itr) {
-    uint64_t size = (* itr).second.size();
-    // if (size <= 400) continue;
-
-    num_contigs ++; 
-    BasePairVector tmp = (* itr).second;
-    fprintf(fc, ">contig_%lu_l_%lu\n", num_contigs, size);
-
-    tmp.print(fc);
-    fprintf(fc, "\n");
-  }
 
   fclose(fc);
   printf("Time to print contigs = %lf\n", my_timer() - time1);
-*/
   return 0;
 }
 
