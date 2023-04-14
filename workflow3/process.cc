@@ -49,10 +49,8 @@ namespace agile::workflow3 {
 
 // word: __CTGTCA
 //
-// return leading base pairs in word; extract_pred(word, 2, 8), returns ______CT
+// return leading base pairs in word; extract_pred_word(word, 2, 8), returns ______CT
 uint64_t extract_pred_word(uint64_t word, uint64_t pred_size, uint64_t word_size) {
-  assert(pred_size <= word_size);                        // # BP in pred <= # BP in word;
-
   uint64_t remove = word_size - pred_size;               // remove 2 base pairs from word
   uint64_t mask   = pred_mask(pred_size, word_size);     // mask = 11110000
   return (word & mask) >> (remove * SIZE_BP);            // (CCTA & 11110000) >> 4 = __CT
@@ -63,10 +61,7 @@ uint64_t extract_pred_word(uint64_t word, uint64_t pred_size, uint64_t word_size
 //
 // return trailing base pairs in word; extract_succ(word, 2, 8), returns ______CA
 uint64_t extract_succ_word(uint64_t word, uint64_t suff_size, uint64_t word_size) {
-  assert (suff_size < word_size);
-
-  uint64_t mask = ((1UL) << (suff_size * SIZE_BP)) - 1;        // ... 1 << (3 * 2) = 1000000 - 1 = 0111111
-  return word & mask;
+  return word & succ_mask(suff_size);
 }
 
 
@@ -89,14 +84,10 @@ MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
      new_key   = affix.vec_[0];
      new_affix = BasePairVector(key, mnLength);
 
-  } else {
-     uint64_t rem = mnLength - size;                          // remainder = 7 - 4 = 3
-     uint64_t mask = ((1UL) << (size * SIZE_BP)) - 1;         // mask = 00001111
-
-// affix : ___AAGT; key = _GGTCATA
-     new_key = affix.vec_[0] << (rem * SIZE_BP);              // __AAGT << (3 * 2) = _AAGT___
-     new_key = new_key | (key >> (size * SIZE_BP));           // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
-     new_affix = BasePairVector(key & mask, size);            // _GGTCATA & 00001111 = ____CATA
+  } else {                                                         // affix : ___AAGT; key = _GGTCATA
+     new_key = affix.vec_[0] << (SIZE_BP * (mnLength - size));     // __AAGT << (3 * 2) = _AAGT___
+     new_key = new_key | (key >> (size * SIZE_BP));                // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
+     new_affix = BasePairVector(key & succ_mask(size), size);      // _GGTCATA & 00001111 = ____CATA
   }
 
   return MNInfo{new_key, new_affix};
@@ -120,7 +111,7 @@ MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 // affix : ____AAGT; key = _GGTCATA
   } else {
      uint64_t rem = mnLength - size;                                        // remainder = 7 - 4 = 3
-     new_key = key & (((1UL) << (rem * SIZE_BP)) - 1);                      // _GGTCATA & 00000111 = _____ATA
+     new_key = key & succ_mask(rem);                                        // _GGTCATA & 00000111 = _____ATA
      for (uint64_t i = 0; i < size; ++ i)                                   // _____ATA + AAGT = _ATAAAGT
        new_key = (new_key << SIZE_BP) + affix[i];
      new_affix = BasePairVector(key >> (rem * SIZE_BP), size);              // _GGTCATA >> 3 = ____GGTC
@@ -201,11 +192,11 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
 
     if (size < mnLength) {
        uint64_t rem  = mnLength - size;
-       uint64_t extract = node.affix.extract(size);
+       uint64_t extract = node.affix.extract_pred(size);
        if (node.isPrefix) kmer =  extract_pred_word(key, rem, mnLength) | (extract << (rem * 2));
        else               kmer = (extract_succ_word(key, rem, mnLength) << (size * 2)) | extract;
     } else {
-       if (node.isPrefix) kmer = node.affix.extract(mnLength);
+       if (node.isPrefix) kmer = node.affix.extract_pred(mnLength);
        else               kmer = node.affix.extract_succ(mnLength);
     }
 
