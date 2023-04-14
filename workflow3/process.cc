@@ -103,7 +103,6 @@ MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 }
 
 
-// return the new key and suffix for the macro node to be merged with this key and affix
 MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLength) {
   BasePairVector new_affix;
   uint64_t new_key, size = affix.size();
@@ -131,28 +130,63 @@ MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 }
 
 
-std::string BPV_toString(BasePairVector & contig) {
-  return "contig XXX";     // contig --> return string
-}
+void walk(std::string & cstring, int64_t freq, int64_t offset_in_prefix,
+          uint64_t key, std::vector<MacroNode> & macroNodes, MacroNode & node, const Args_t & args) {
+  auto MNMap   = MNMapType::GetPtr((MNMapOID) args.MNMap_OID);
+  auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
 
+  uint64_t offset = 0;
+  WireMapType::LookupResult wireEntry;     // get wireNodes
+  WireMap->Lookup(key, & wireEntry);
+  std::vector<WireNode> & wireNodes = wireEntry.value;
+  if (wireEntry.found == false) {printf("     no wire entry for key = %lu\n", key); return;}
 
-void walk(std::string cstring, int64_t freq, int64_t offset_in_prefix, MacroNode & node, Args_t & args) { }
+  for (uint64_t i = 0; i < node.num_wires; ++ i) {
+    uint64_t sid             = wireNodes[node.wire_index + i].sid;
+    int64_t  count           = wireNodes[node.wire_index + i].count;
+    int64_t  offset_in_suffix = wireNodes[node.wire_index + i].offset;
+   
+    if ( (offset + count <= offset_in_prefix) || (offset > offset_in_prefix + freq) ) continue;
+    int64_t offset_in_wire = (offset_in_prefix <= offset) ? 0 : offset_in_prefix - offset;
 
-  // uint64_t node_count = 0;
-  // for (uint64_t i = 0; i < node.num_wires; ++ i) {
-    // uint64_t sid    = wireNodes[node.wire_index + i].sid;
-    // uint64_t count  = wireNodes[node.wire_index + i].count;
-    // uint64_t offset = wireNodes[node.wire_index + i].offset;
+    int64_t next_offset  = offset_in_suffix + offset_in_wire;
+    int64_t freq_in_wire = std::min(freq, (count - offset_in_wire));
 
-    // if (node_count + count <= offset_in_prefix || node_count > offset_in_prefix + freq) continue;
+    std::string my_cstring = cstring;
+    my_cstring.append( macroNodes[sid].affix.to_string() );
 
-    
-    // node_count += count;
-  // }
+    if (macroNodes[sid].isTerminal) {                        // ... all done
 
+       if (my_cstring.size() > CONTIG_LENGTH_THRESHOLD) {    // ... ... output contig
+          uint64_t num = IntAtomic::GetPtr((IntAtomicOID) args.numContigs_OID)->FetchAdd(1);
+          // JTF std::string name = ">contig_" + std::to_string(num) + "_l_" + std::to_string(my_cstring.size());
+          // JTF printf("%s\n%s\n", name.c_str(), my_cstring.c_str());
+          printf("grep contig_l_%lu ~/pakman/contigs_out*\n", my_cstring.size());
+       }
 
-// for (int t = 0; t < node.num_wires; ++ t) {                // ... for each wire attached to the node
-// }
+    } else {                                                 // ... continue walk
+
+       MNInfo next_macro_node_info;                          // ... ... get key and affix for next macro node
+       next_macro_node_info = get_suffix_merge_info(key, macroNodes[sid].affix, args.mnLength);
+
+       uint64_t next_key = next_macro_node_info.key;
+       BasePairVector & next_affix = next_macro_node_info.affix;
+
+       MNMapType::LookupResult next_macroNodeEntry;     // ... ... get next macro node
+       MNMap->Lookup(next_key, & next_macroNodeEntry);
+       std::vector<MacroNode> & next_macroNodes = next_macroNodeEntry.value;
+
+       MacroNode next_node;
+       for (auto & node : next_macroNodes)
+           if (next_affix == node.affix) {next_node = node; break;}
+
+       // recursively go to next macro node in this walk
+       walk(my_cstring, freq_in_wire, next_offset, next_key, next_macroNodes, next_node, args);
+    }
+
+    freq -= freq_in_wire;
+    offset += count;
+} }
 
 
 void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNode> & macroNodes, Args_t & args) {
@@ -258,16 +292,58 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
 } } } }  }
 
 
+/* JTF
 void ProcessContig(const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
 
   for (auto node : value) {
+    // node is NOT a begin kmer ==> node is NOT the prefix terminal with frequency > 0
+    if (! (node.isPrefix && node.isTerminal && node.count.second > 0)) continue;
 
-    // node is a begin kmer ==> node is the prefix terminal with frequency > 0
-    if (node.isPrefix && node.isTerminal && node.count.second > 0) {
-       BasePairVector contig = node.affix;
-       contig.append( BasePairVector(key, args.mnLength) );
-       std::string cstring = contig.to_string();
-       walk(cstring, node.count.second, 0, node, args);
-} } }
+    std::string cstring = node.affix.to_string();
+    cstring.append( BasePairVector(key, args.mnLength).to_string() );
+
+    walk(cstring, node.count.second, 0, key, value, node, args);
+} }
+*/
+
+void ProcessContigs(Handle & handle, const Args_t & args) {
+  auto MNMap = MNMapType::GetPtr((MNMapOID) args.MNMap_OID)->GetLocalMultimap();
+
+// *** JTF
+  uint64_t locale = (uint32_t) shad::rt::thisLocality();
+  std::string str = "gg_" + std::to_string(locale);
+  std::ofstream file;
+  file.open(str.c_str());
+//  *** JTF
+
+  for (auto itr = MNMap->key_begin(); itr != MNMap->key_end(); ++ itr) {
+     uint64_t key = (* itr).first;
+     std::vector<MacroNode> value = (* itr).second;
+
+// JTF
+     std::string key_string = BasePairVector(key, args.mnLength).to_string();
+
+     for (auto node : value) {
+
+// *** JTF
+       if (strcmp(key_string.c_str(), "AACCTGATTGAAGGTATTGCCGCTGCAATGC") == 0) {
+          std::cout << "processing key AACCTGATTGAAGGTATTGCCGCTGCAATGC, affix = "
+                    << node.affix.to_string() << " count = " << node.count.second
+                    << ", prefix = " << node.isPrefix << ", terminal = "<< node.isTerminal << "\n";
+       }
+//  *** JTF
+
+       // node is NOT a begin kmer ==> node is NOT the prefix terminal with frequency > 0
+       if (! (node.isPrefix && node.isTerminal && node.count.second > 0)) continue;
+
+       std::string cstring = node.affix.to_string();
+       cstring.append( BasePairVector(key, args.mnLength).to_string() );
+
+       // walk(cstring, node.count.second, 0, key, value, node, args);
+  } }
+
+// JTF
+  file.close();
+}
 
 } // namespace agile::workflow3

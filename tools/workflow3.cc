@@ -164,15 +164,13 @@ int main(int argc, char *argv[]) {
 
 //********** PRINT CONTIGS **********//
   time1 = my_timer();
-  filename = "contigs_out.fa";
-  FILE * fc = fopen(filename.c_str(), "w");
-  if (fc == NULL) {printf("Cannot open file %s\n", filename.c_str()); exit(-1);}
+  // MNMap->ForEachEntry(ProcessContig, args);
 
-  memcpy(args.filename, filename.c_str(), filename.size() + 1);
-  MNMap->ForEachEntry(ProcessContig, args);
+  for (auto locale : rt::allLocalities())
+    rt::asyncExecuteAt(handle, locale, ProcessContigs, args);
+    // rt::asyncExecuteAt(handle, shad::rt::Locality(1), ProcessContigs, args);
+
   rt::waitForCompletion(handle);
-
-  fclose(fc);
   printf("Time to print contigs = %lf\n", my_timer() - time1);
   return 0;
 }

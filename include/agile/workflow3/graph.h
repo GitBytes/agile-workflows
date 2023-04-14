@@ -309,7 +309,6 @@ using ContigMapOID    = shad::ObjectIdentifier<ContigMapType>;
 bool MN_comp(MacroNode &, MacroNode &);
 MNInfo get_suffix_merge_info(uint64_t, BasePairVector &, uint64_t);
 MNInfo get_prefix_merge_info(uint64_t, BasePairVector &, uint64_t);
-void ProcessContig(const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void WireMacroNodes(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void ProcessMacroNode(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void ModifyMacroNode(Handle &, const uint64_t &, std::vector<ModifiedNode> &, Args_t &);
