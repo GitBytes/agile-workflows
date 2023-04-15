@@ -59,7 +59,7 @@ uint64_t extract_pred_word(uint64_t word, uint64_t pred_size, uint64_t word_size
 
 // word: __CTGTCA
 //
-// return trailing base pairs in word; extract_succ(word, 2, 8), returns ______CA
+// return trailing base pairs in word; extract_succ_word(word, 2, 8), returns ______CA
 uint64_t extract_succ_word(uint64_t word, uint64_t suff_size, uint64_t word_size) {
   return word & succ_mask(suff_size);
 }
@@ -77,9 +77,8 @@ MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
      // new_affix =                                TCCAGTCGAACTGCGAAATTAGCCAGCTGCCAGTGAAGA
      uint64_t rem = size - mnLength;
      new_key = affix.vec_[0] >> ((BP_PER_WORD - mnLength) * SIZE_BP);
-     new_affix = BasePairVector(affix.extract_succ(rem), rem);
+     new_affix.extract_succ2(affix, rem);
      new_affix.append(BasePairVector(key, mnLength));
-
   } else if (size == mnLength) {
      new_key   = affix.vec_[0];
      new_affix = BasePairVector(key, mnLength);
@@ -95,8 +94,10 @@ MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 
 
 MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLength) {
+  uint64_t new_key;
   BasePairVector new_affix;
-  uint64_t new_key, size = affix.size();
+  uint64_t size = affix.size();
+
   if (size > mnLength) {
      uint64_t rem = size - mnLength;                                        // remainder = 10 - 7 = 3
      new_key = affix.extract_succ(mnLength);                                // _TCCTACG

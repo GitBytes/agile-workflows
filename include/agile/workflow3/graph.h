@@ -110,6 +110,17 @@ class BasePairVector {
        return kmer;
   } }
 
+// base pairs: AAGTCCTACG
+// stored    : AAGT CCTA __CG
+// word      :  0    1    2
+//
+// return trailing base pairs in vector; extract_succ(3), returns _ACG
+  void extract_succ2(BasePairVector & affix, uint64_t suff_size) {
+    size_ = 0;
+    uint64_t start = affix.size() - suff_size;
+    for (uint64_t i = start; i < affix.size(); ++ i) this->push_back(affix[i]);
+  }
+
   void push_back(uint64_t val) {                    // val is a single base pair
     assert(size_ < SIZE_BPV * BP_PER_WORD);
 
