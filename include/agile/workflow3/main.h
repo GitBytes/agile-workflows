@@ -65,7 +65,7 @@
 
 #define UINT_BITS 64
 #define SIZE_BP 2                       // bits per base pair
-#define SIZE_BPV 4                      // size of base pair vector in 64 bit words
+#define SIZE_BPV 6                      // size of base pair vector in 64 bit words
 #define BP_PER_WORD 32                  // number of base pairs per word = 64 / 2
 #define CONTIG_LENGTH_THRESHOLD 400     // output contig length threshold
 
@@ -101,7 +101,6 @@ void int_fetch_add(Handle &, uint64_t, int64_t &, int64_t &);
 
 void readFASTA(Handle &, const Args_t &);
 void BucketCounts_(Handle &, const Args_t &);
-void ProcessContigs(Handle &, const Args_t &);
 void ConstructMacroNodes(Handle &, const Args_t &);
 void DeleteMacroNode(Handle &, const uint64_t &, Args_t &);
 void RewireMacroNode(Handle &, const uint64_t &, Args_t &);

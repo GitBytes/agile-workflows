@@ -132,17 +132,35 @@ int main(int argc, char *argv[]) {
   uint64_t num_iterations = 0;
   uint64_t num_macro_nodes = MNMap->NumberKeys();
   printf("Initial number of macro nodes: %7lu\n", num_macro_nodes);
-  
+
+  time1 = my_timer();
+
   while (num_macro_nodes >= node_threshold) {
-    time1 = my_timer();
     ModifiedNodes->Clear();                                                 // clear multimap of modified node
     ProcessedNodes->Clear();                                                // clear list of processed nodes
 
     MNMap->AsyncForEachEntry(handle, ProcessMacroNode, args);               // process macro nodes
     rt::waitForCompletion(handle);
 
-    ProcessedNodes->AsyncForEachElement(handle, DeleteMacroNode, args);     // delete processed macro nodes
-    rt::waitForCompletion(handle);
+    // printf("deleting macro nodes\n");
+    // ProcessedNodes->AsyncForEachElement(handle, DeleteMacroNode, args);     // delete processed macro nodes
+    // rt::waitForCompletion(handle);
+
+    uint64_t cnt = MNMap->NumberKeys();
+    for (auto itr = ProcessedNodes->begin(); itr != ProcessedNodes->end(); ++ itr) {
+      // 4017681948932143180
+      MNMap->Erase((* itr));
+      WireMap->Erase((* itr));
+
+      uint64_t tmp = MNMap->NumberKeys();
+      if (tmp != cnt - 1) {
+         MNMapType::LookupResult entry;           // ... ... get next macro node
+         MNMap->Lookup((* itr), & entry);
+         printf("key = %lu, found = %lu, size = %lu, tmp = %lu cnt = %lu\n",
+            (* itr), (uint64_t) entry.found, entry.size, tmp, cnt);
+      }
+      cnt = tmp;
+    }
 
     ModifiedNodes->AsyncForEachEntry(handle, ModifyMacroNode, args);        // modify macro nodes
     rt::waitForCompletion(handle);
@@ -153,7 +171,6 @@ int main(int argc, char *argv[]) {
     WireMap->WaitForBufferedInsert();
 
     printf("Iteration: %2lu\n", num_iterations);
-    printf("     Time for iteration %lu = %lf\n", num_iterations, my_timer() - time1);
     printf("     Number of modified nodes : %7lu\n", ModifiedNodes->NumberKeys());
     printf("     Number of processed nodes: %7lu\n", ProcessedNodes->Size());
 
@@ -162,13 +179,11 @@ int main(int argc, char *argv[]) {
     printf("     Number of macro nodes    : %7lu\n", num_macro_nodes);
   }
 
-//********** PRINT CONTIGS **********//
+  printf("Time to compress graph %lu = %lf\n", my_timer() - time1);
   time1 = my_timer();
-  // MNMap->ForEachEntry(ProcessContig, args);
 
-  for (auto locale : rt::allLocalities())
-    rt::asyncExecuteAt(handle, locale, ProcessContigs, args);
-    // rt::asyncExecuteAt(handle, shad::rt::Locality(1), ProcessContigs, args);
+//********** PRINT CONTIGS **********//
+  MNMap->ForEachEntry(ProcessContigs, args);
 
   rt::waitForCompletion(handle);
   printf("Time to print contigs = %lf\n", my_timer() - time1);

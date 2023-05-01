@@ -122,12 +122,13 @@ class BasePairVector {
   }
 
   void push_back(uint64_t val) {                    // val is a single base pair
-    assert(size_ < SIZE_BPV * BP_PER_WORD);
-
-    size_ ++;
-    uint64_t word = (size_ - 1) / BP_PER_WORD;      // new base pair is in word
-    vec_[word] = (vec_[word] << SIZE_BP) | val;     // shift word to left and OR in val
-  }
+    if (size_ == SIZE_BPV * BP_PER_WORD) {
+       printf("push back ERROR %lu\n", size_);
+    } else {
+       size_ ++;
+       uint64_t word = (size_ - 1) / BP_PER_WORD;      // new base pair is in word
+       vec_[word] = (vec_[word] << SIZE_BP) | val;     // shift word to left and OR in val
+  } }
 
   void append(const BasePairVector & bpv) {
     for (uint64_t i = 0; i < bpv.size(); ++ i) push_back(bpv[i]);
@@ -309,6 +310,7 @@ using ContigMapOID    = shad::ObjectIdentifier<ContigMapType>;
 bool MN_comp(MacroNode &, MacroNode &);
 MNInfo get_suffix_merge_info(uint64_t, BasePairVector &, uint64_t);
 MNInfo get_prefix_merge_info(uint64_t, BasePairVector &, uint64_t);
+void ProcessContigs(const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void WireMacroNodes(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void ProcessMacroNode(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void ModifyMacroNode(Handle &, const uint64_t &, std::vector<ModifiedNode> &, Args_t &);
