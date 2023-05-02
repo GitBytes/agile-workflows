@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
   printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
   printf("Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
 
-/********** KERNEL 3 - Identify most influential coffee suppliers **********/
+/********** KERNEL 2 - Identify most influential coffee suppliers **********/
   time1 = my_timer();
   dataFile = argv[5];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
   CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
   waitForCompletion(handle);
 
-  printf("Time for Kernel 3 - Coffee sale weights = %lf\n", my_timer() - time1);
+  printf("Time for Kernel 2 - Coffee sale weights = %lf\n", my_timer() - time1);
 
   // ... output input file for influence maximization kernel ... exit ...
   // ... and run influence maximization kernel off line ...
