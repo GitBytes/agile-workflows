@@ -13,7 +13,7 @@ conan create conan/waf-generator user/stable
 conan create conan/trng 4.22@user/stable
 conan install --install-folder build . --build 
 
-env CXX=CC CC=cc ./waf configure build_release
+env CXX=CC CC=cc ./waf configure --enable-mpi build_release
 
 echo $PWD
 cd $agile_WF
