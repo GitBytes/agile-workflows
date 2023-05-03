@@ -415,7 +415,7 @@ void ApproxMatching(uint64_t & LHS_OID, uint64_t & RHS_OID) {
   printf("\n ********** Match ********** \n");
 
   for (auto itr = local_LHS.begin(); itr != local_LHS.end(); ++ itr)
-    if ((* itr).second.mate.first == shad::data_types::kNullValue<uint64_t>)
+    if (! ((* itr).second.taken))
        printf("Pattern vertex %2lu matched to Data vertex **********\n", (* itr).first);
     else
        printf("Pattern vertex %2lu matched to Data vertex %lu\n", (* itr).first, (* itr).second.mate.first);

@@ -225,10 +225,10 @@ public:
 
     vertex.index_put_({0}, true); // set root's bit to true
     // vertex.index_put_({indices}, true); // set choosen vertices' bits to true
+
+    shad::rt::waitForCompletion(handle);     // wait for feature vector data to arrive
     std::vector<float> floatFeatures(featureVectors.begin(),
                                      featureVectors.end());
-
-    shad::rt::waitForCompletion(handle);
 
     // The features tensor stores the two hop features of the ego-graph vertices
     auto features =

@@ -65,7 +65,7 @@
 
 #define UINT_BITS 64
 #define SIZE_BP 2                       // bits per base pair
-#define SIZE_BPV 2                      // size of base pair vector in 64 bit words
+#define SIZE_BPV 6                      // size of base pair vector in 64 bit words
 #define BP_PER_WORD 32                  // number of base pairs per word = 64 / 2
 #define CONTIG_LENGTH_THRESHOLD 400     // output contig length threshold
 
@@ -74,10 +74,8 @@ namespace agile::workflow3 {
 using Handle       = shad::rt::Handle;
 using IntSet       = shad::Set<uint64_t>;
 using IntArray     = shad::Array<int64_t>;
-using IntAtomic    = shad::Atomic<int64_t>;
 using IntSetOID    = shad::ObjectIdentifier<IntSet>;
 using IntArrayOID  = shad::ObjectIdentifier<IntArray>;
-using IntAtomicOID = shad::ObjectIdentifier<IntAtomic>;
 
 struct Args_t {
   uint64_t KMap_OID;
@@ -86,7 +84,6 @@ struct Args_t {
   uint64_t BucketCounts_OID;
   uint64_t ModifiedNodes_OID;
   uint64_t ProcessedNodes_OID;
-  uint64_t numContigs_OID;
   uint64_t mnLength;
   uint64_t coverage;
   uint64_t min_index;

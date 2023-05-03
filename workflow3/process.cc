@@ -49,10 +49,8 @@ namespace agile::workflow3 {
 
 // word: __CTGTCA
 //
-// return leading base pairs in word; extract_pred(word, 2, 8), returns ______CT
+// return leading base pairs in word; extract_pred_word(word, 2, 8), returns ______CT
 uint64_t extract_pred_word(uint64_t word, uint64_t pred_size, uint64_t word_size) {
-  assert(pred_size <= word_size);                        // # BP in pred <= # BP in word;
-
   uint64_t remove = word_size - pred_size;               // remove 2 base pairs from word
   uint64_t mask   = pred_mask(pred_size, word_size);     // mask = 11110000
   return (word & mask) >> (remove * SIZE_BP);            // (CCTA & 11110000) >> 4 = __CT
@@ -61,12 +59,9 @@ uint64_t extract_pred_word(uint64_t word, uint64_t pred_size, uint64_t word_size
 
 // word: __CTGTCA
 //
-// return trailing base pairs in word; extract_succ(word, 2, 8), returns ______CA
+// return trailing base pairs in word; extract_succ_word(word, 2, 8), returns ______CA
 uint64_t extract_succ_word(uint64_t word, uint64_t suff_size, uint64_t word_size) {
-  assert (suff_size < word_size);
-
-  uint64_t mask = ((1UL) << (suff_size * SIZE_BP)) - 1;        // ... 1 << (3 * 2) = 1000000 - 1 = 0111111
-  return word & mask;
+  return word & succ_mask(suff_size);
 }
 
 
@@ -82,31 +77,27 @@ MNInfo get_prefix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
      // new_affix =                                TCCAGTCGAACTGCGAAATTAGCCAGCTGCCAGTGAAGA
      uint64_t rem = size - mnLength;
      new_key = affix.vec_[0] >> ((BP_PER_WORD - mnLength) * SIZE_BP);
-     new_affix = BasePairVector(affix.extract_succ(rem), rem);
+     new_affix.extract_succ2(affix, rem);
      new_affix.append(BasePairVector(key, mnLength));
-
   } else if (size == mnLength) {
      new_key   = affix.vec_[0];
      new_affix = BasePairVector(key, mnLength);
 
-  } else {
-     uint64_t rem = mnLength - size;                          // remainder = 7 - 4 = 3
-     uint64_t mask = ((1UL) << (size * SIZE_BP)) - 1;         // mask = 00001111
-
-// affix : ___AAGT; key = _GGTCATA
-     new_key = affix.vec_[0] << (rem * SIZE_BP);              // __AAGT << (3 * 2) = _AAGT___
-     new_key = new_key | (key >> (size * SIZE_BP));           // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
-     new_affix = BasePairVector(key & mask, size);            // _GGTCATA & 00001111 = ____CATA
+  } else {                                                         // affix : ___AAGT; key = _GGTCATA
+     new_key = affix.vec_[0] << (SIZE_BP * (mnLength - size));     // __AAGT << (3 * 2) = _AAGT___
+     new_key = new_key | (key >> (size * SIZE_BP));                // _AAGT___ | (_GGTCATA >> 4) = _AAGTGGT
+     new_affix = BasePairVector(key & succ_mask(size), size);      // _GGTCATA & 00001111 = ____CATA
   }
 
   return MNInfo{new_key, new_affix};
 }
 
 
-// return the new key and suffix for the macro node to be merged with this key and affix
 MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLength) {
+  uint64_t new_key;
   BasePairVector new_affix;
-  uint64_t new_key, size = affix.size();
+  uint64_t size = affix.size();
+
   if (size > mnLength) {
      uint64_t rem = size - mnLength;                                        // remainder = 10 - 7 = 3
      new_key = affix.extract_succ(mnLength);                                // _TCCTACG
@@ -121,7 +112,7 @@ MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 // affix : ____AAGT; key = _GGTCATA
   } else {
      uint64_t rem = mnLength - size;                                        // remainder = 7 - 4 = 3
-     new_key = key & (((1UL) << (rem * SIZE_BP)) - 1);                      // _GGTCATA & 00000111 = _____ATA
+     new_key = key & succ_mask(rem);                                        // _GGTCATA & 00000111 = _____ATA
      for (uint64_t i = 0; i < size; ++ i)                                   // _____ATA + AAGT = _ATAAAGT
        new_key = (new_key << SIZE_BP) + affix[i];
      new_affix = BasePairVector(key >> (rem * SIZE_BP), size);              // _GGTCATA >> 3 = ____GGTC
@@ -131,28 +122,64 @@ MNInfo get_suffix_merge_info(uint64_t key, BasePairVector & affix, uint64_t mnLe
 }
 
 
-std::string BPV_toString(BasePairVector & contig) {
-  return "contig XXX";     // contig --> return string
-}
+void walk(std::string & cstring, int64_t freq, int64_t offset_in_prefix,
+          uint64_t key, std::vector<MacroNode> & macroNodes, MacroNode & node, const Args_t & args) {
+  auto MNMap   = MNMapType::GetPtr((MNMapOID) args.MNMap_OID);
+  auto WireMap = WireMapType::GetPtr((WireMapOID) args.WireMap_OID);
 
+  uint64_t offset = 0;
+  WireMapType::LookupResult wireEntry;     // get wireNodes
+  WireMap->Lookup(key, & wireEntry);
+  std::vector<WireNode> & wireNodes = wireEntry.value;
 
-void walk(std::string cstring, int64_t freq, int64_t offset_in_prefix, MacroNode & node, Args_t & args) { }
+  for (uint64_t i = 0; i < node.num_wires; offset += wireNodes[node.wire_index + i].count, ++ i) {
+    uint64_t sid             = wireNodes[node.wire_index + i].sid;
+    int64_t  count           = wireNodes[node.wire_index + i].count;
+    int64_t  offset_in_suffix = wireNodes[node.wire_index + i].offset;
+   
+    if ( (offset + count <= offset_in_prefix) || (offset > offset_in_prefix + freq) ) continue;
+    int64_t offset_in_wire = (offset_in_prefix <= offset) ? 0 : offset_in_prefix - offset;
 
-  // uint64_t node_count = 0;
-  // for (uint64_t i = 0; i < node.num_wires; ++ i) {
-    // uint64_t sid    = wireNodes[node.wire_index + i].sid;
-    // uint64_t count  = wireNodes[node.wire_index + i].count;
-    // uint64_t offset = wireNodes[node.wire_index + i].offset;
+    int64_t next_offset  = offset_in_suffix + offset_in_wire;
+    int64_t freq_in_wire = std::min(freq, (count - offset_in_wire));
 
-    // if (node_count + count <= offset_in_prefix || node_count > offset_in_prefix + freq) continue;
+    std::string my_cstring = cstring;
+    my_cstring.append( macroNodes[sid].affix.to_string() );
 
-    
-    // node_count += count;
-  // }
+    if (my_cstring.size() > 20000) {     // ... ... output partial contig to avoid recursion limit
+       std::string name = ">contig_l_" + std::to_string(my_cstring.size());
+       printf("%s\n%s\n", name.c_str(), my_cstring.c_str());
 
+    } else if (macroNodes[sid].isTerminal) {                         // ... all done
 
-// for (int t = 0; t < node.num_wires; ++ t) {                // ... for each wire attached to the node
-// }
+       if (my_cstring.size() > CONTIG_LENGTH_THRESHOLD) {     // ... ... output contig if longer than threshold
+          std::string name = ">contig_l_" + std::to_string(my_cstring.size());
+          printf("%s\n%s\n", name.c_str(), my_cstring.c_str());
+       }
+
+    } else {                                                  // ... continue walk
+
+       MNInfo next_macro_node_info;                           // ... ... get key and affix for next macro node
+       next_macro_node_info = get_suffix_merge_info(key, macroNodes[sid].affix, args.mnLength);
+
+       uint64_t next_key = next_macro_node_info.key;
+       BasePairVector & next_affix = next_macro_node_info.affix;
+
+       MNMapType::LookupResult next_macroNodeEntry;           // ... ... get next macro node
+       MNMap->Lookup(next_key, & next_macroNodeEntry);
+       std::vector<MacroNode> & next_macroNodes = next_macroNodeEntry.value;
+
+       MacroNode next_node;
+       bool found = false;
+       for (auto & node : next_macroNodes)
+           if (next_affix == node.affix) {next_node = node; found = true; break;}
+
+       // recursively go to next macro node in this walk
+         walk(my_cstring, freq_in_wire, next_offset, next_key, next_macroNodes, next_node, args);
+    }
+
+    freq -= freq_in_wire;
+} }
 
 
 void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNode> & macroNodes, Args_t & args) {
@@ -167,11 +194,11 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
 
     if (size < mnLength) {
        uint64_t rem  = mnLength - size;
-       uint64_t extract = node.affix.extract(size);
+       uint64_t extract = node.affix.extract_pred(size);
        if (node.isPrefix) kmer =  extract_pred_word(key, rem, mnLength) | (extract << (rem * 2));
        else               kmer = (extract_succ_word(key, rem, mnLength) << (size * 2)) | extract;
     } else {
-       if (node.isPrefix) kmer = node.affix.extract(mnLength);
+       if (node.isPrefix) kmer = node.affix.extract_pred(mnLength);
        else               kmer = node.affix.extract_succ(mnLength);
     }
 
@@ -207,8 +234,7 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
          uint64_t size = node.affix.size() + mnLength + suffix.affix.size();
 
          if (size > CONTIG_LENGTH_THRESHOLD) {          // ... ... ... output contig
-            uint64_t num = IntAtomic::GetPtr((IntAtomicOID) args.numContigs_OID)->FetchAdd(1);
-            std::string name = ">contig_" + std::to_string(num) + "_l_" + std::to_string(size);
+            std::string name = ">contig_l_" + std::to_string(size);
 
             BasePairVector contig = node.affix;
             contig.append( BasePairVector(key, mnLength) );
@@ -258,16 +284,15 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
 } } } }  }
 
 
-void ProcessContig(const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
+void ProcessContigs(const uint64_t & key, std::vector<MacroNode> & value, Args_t & args) {
 
   for (auto node : value) {
+    // node is NOT a begin kmer ==> node is NOT the prefix terminal with frequency > 0
+    if (! (node.isPrefix && node.isTerminal && node.count.second > 0)) continue;
 
-    // node is a begin kmer ==> node is the prefix terminal with frequency > 0
-    if (node.isPrefix && node.isTerminal && node.count.second > 0) {
-       BasePairVector contig = node.affix;
-       contig.append( BasePairVector(key, args.mnLength) );
-       std::string cstring = contig.to_string();
-       walk(cstring, node.count.second, 0, node, args);
-} } }
+    std::string cstring = node.affix.to_string();
+    cstring.append( BasePairVector(key, args.mnLength).to_string() );
+    walk(cstring, node.count.second, 0, key, value, node, args);
+} }
 
 } // namespace agile::workflow3

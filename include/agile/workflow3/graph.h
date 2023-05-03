@@ -57,6 +57,10 @@ inline uint64_t pred_mask(uint64_t pred_size, uint64_t word_size) {
   return ((~0UL) >> shift_right) << shift_left;
 }
 
+inline uint64_t succ_mask(uint64_t succ_size) {
+  return ((~0UL) >> (SIZE_BP * (BP_PER_WORD - succ_size)));
+}
+
 namespace agile::workflow3 {
 
 class BasePairVector {
@@ -70,27 +74,15 @@ class BasePairVector {
 // base pairs: AAGTCCTACG
 // stored    : AAGT CCTA __CG
 // word      :  0    1    2
-// return leading base pairs in word; extract_pred(1, 2, 4), returns __CC
-//
-//
-  uint64_t extract_pred(uint64_t word, uint64_t pred_size, uint64_t word_size) {
-    assert(pred_size <= word_size);                        // # BP in pred <= # BP in word;
-
-    uint64_t remove = word_size - pred_size;               // remove 2 base pairs from word
-    uint64_t mask   = pred_mask(pred_size, word_size);     // mask = 11110000
-    return (word & mask) >> (remove * SIZE_BP);            // (CCTA & 11110000) >> 4 = __CC
-  }
-
-// base pairs: AAGTCCTACG
-// stored    : AAGT CCTA __CG
-// word      :  0    1    2
 //
 // return leading base pairs in vector; extract(3), returns _AAG
-  uint64_t extract(uint64_t pred_size) {
+  uint64_t extract_pred(uint64_t pred_size) {
     assert (pred_size < BP_PER_WORD);
 
     uint64_t word_size = (size_ < BP_PER_WORD) ? size_ : BP_PER_WORD;
-    return extract_pred(vec_[0], pred_size, word_size);
+    uint64_t remove    = word_size - pred_size;               // remove 2 base pairs from word
+    uint64_t mask      = pred_mask(pred_size, word_size);     // mask = 11110000
+    return (vec_[0] & mask) >> (remove * SIZE_BP);            // (CCTA & 11110000) >> 4 = __CC
   } 
 
 // base pairs: AAGTCCTACG
@@ -105,29 +97,38 @@ class BasePairVector {
     uint64_t last_word_full = (mod_size == 0);
     uint64_t num_words = (size_ / BP_PER_WORD) + ((last_word_full) ? 0 : 1);
 
-    if (last_word_full || (suff_size <= mod_size)) {                // suffix is all in last word
-       uint64_t mask = ((1UL) << (suff_size * SIZE_BP)) - 1;        // ... 1 << (3 * 2) = 1000000 - 1 = 0111111
-       return vec_[num_words - 1] & mask;
+    if (last_word_full || (suff_size <= mod_size)) {                   // suffix is all in last word
+       return vec_[num_words - 1] & succ_mask(suff_size);
 
-    } else {                                                        // suffix is partially in previous word
-       uint64_t last_word = mod_size;                               // ... last word has 2 bases
-       uint64_t prev_word = suff_size - mod_size;                   // ... prevous word has 1 base
-       uint64_t last_mask = ((1UL) << last_word * SIZE_BP) - 1;     // ... 1 << (1 * 2) = 100 - 1 = 00011
-       uint64_t prev_mask = ((1UL) << prev_word * SIZE_BP) - 1;     // ... 1 << (1 * 2) = 100 - 1 = 00011
-       uint64_t kmer = vec_[num_words - 2] & prev_mask;;            // ... suffix in previous word = __A
+    } else {                                                           // suffix is partially in previous word
+       uint64_t last_word = mod_size;                                  // ... last word has 2 bases
+       uint64_t prev_word = suff_size - mod_size;                      // ... prevous word has 1 base
+       uint64_t kmer = vec_[num_words - 2] & succ_mask(prev_word);     // ... suffix in previous word = __A
 
        // shift kmer left by # base pairs in previous word and OR in last word; __A << (1 * 2) | __CG
-       kmer = (kmer << (last_word * SIZE_BP)) | (vec_[num_words - 1] & last_mask);
+       kmer = (kmer << (last_word * SIZE_BP)) | (vec_[num_words - 1] & succ_mask(last_word));
        return kmer;
   } }
 
-  void push_back(uint64_t val) {                    // val is a single base pair
-    assert(size_ < SIZE_BPV * BP_PER_WORD);
-
-    size_ ++;
-    uint64_t word = (size_ - 1) / BP_PER_WORD;      // new base pair is in word
-    vec_[word] = (vec_[word] << SIZE_BP) | val;     // shift word to left and OR in val
+// base pairs: AAGTCCTACG
+// stored    : AAGT CCTA __CG
+// word      :  0    1    2
+//
+// return trailing base pairs in vector; extract_succ(3), returns _ACG
+  void extract_succ2(BasePairVector & affix, uint64_t suff_size) {
+    size_ = 0;
+    uint64_t start = affix.size() - suff_size;
+    for (uint64_t i = start; i < affix.size(); ++ i) this->push_back(affix[i]);
   }
+
+  void push_back(uint64_t val) {                    // val is a single base pair
+    if (size_ == SIZE_BPV * BP_PER_WORD) {
+       printf("push back ERROR %lu\n", size_);
+    } else {
+       size_ ++;
+       uint64_t word = (size_ - 1) / BP_PER_WORD;      // new base pair is in word
+       vec_[word] = (vec_[word] << SIZE_BP) | val;     // shift word to left and OR in val
+  } }
 
   void append(const BasePairVector & bpv) {
     for (uint64_t i = 0; i < bpv.size(); ++ i) push_back(bpv[i]);
@@ -309,7 +310,7 @@ using ContigMapOID    = shad::ObjectIdentifier<ContigMapType>;
 bool MN_comp(MacroNode &, MacroNode &);
 MNInfo get_suffix_merge_info(uint64_t, BasePairVector &, uint64_t);
 MNInfo get_prefix_merge_info(uint64_t, BasePairVector &, uint64_t);
-void ProcessContig(const uint64_t &, std::vector<MacroNode> &, Args_t &);
+void ProcessContigs(const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void WireMacroNodes(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void ProcessMacroNode(Handle &, const uint64_t &, std::vector<MacroNode> &, Args_t &);
 void ModifyMacroNode(Handle &, const uint64_t &, std::vector<ModifiedNode> &, Args_t &);
