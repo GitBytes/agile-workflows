@@ -186,16 +186,12 @@ bool ammunition_subpattern(uint64_t buyer, uint64_t seller, Pattern_args_t & arg
 }
 
 
-void transEvents(const uint64_t & key, PersonVertex & person, Pattern_args_t & args) {
+void PersonPattern(const uint64_t & key, std::vector<PurchaseEdge> & purchases, Pattern_args_t & args) {
   bool ESP = false;
   time_t latest_BB = 0, latest_PC = 0, latest_AMO = 0;
-  auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.PurchasesOID);
-
-  PurchaseEdgeType::LookupResult purchases;         // get person's purchases
-  Purchases->Lookup(person.id, & purchases);
 
 // ***** TRANSACTION SUBPATTERN ***** //
-  for (auto & PO : purchases.value) {               // for each purchase
+  for (auto & PO : purchases) {                     // for each purchase
 
     if (PO.product == 2869238) {                    // ... product is a bath bomb
        latest_BB = std::max(latest_BB, PO.date);
@@ -216,10 +212,16 @@ void transEvents(const uint64_t & key, PersonVertex & person, Pattern_args_t & a
   if (( trans_date == 0) || (! ESP)) return;        // person failed the transaction or electronic subpattern
 
 // ***** FORUM SUBPATTERN ***** //
-  if (forumEvent_subpattern(person.id, trans_date, args)) {
-     printf("pattern found for person %lu\n", person.id);
+  if (forumEvent_subpattern(key, trans_date, args)) {
+     printf("pattern found for person %lu\n", key);
      return;
 } };
+
+
+void transEvents(const uint64_t & key, PersonVertex & person, Pattern_args_t & args) {
+  auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.PurchasesOID);
+  Purchases->Apply(person.id, PersonPattern, args);
+}
 
 
 // Check if forum includes a forum event with topics Williamsburg, Explosion, and Bomb
