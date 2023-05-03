@@ -146,16 +146,14 @@ void walk(std::string & cstring, int64_t freq, int64_t offset_in_prefix,
     std::string my_cstring = cstring;
     my_cstring.append( macroNodes[sid].affix.to_string() );
 
-    if (my_cstring.size() > 20000) {     // ... ... output contig
-       std::string name = "contig_l_" + std::to_string(my_cstring.size());
+    if (my_cstring.size() > 20000) {     // ... ... output partial contig to avoid recursion limit
+       std::string name = ">contig_l_" + std::to_string(my_cstring.size());
        printf("%s\n%s\n", name.c_str(), my_cstring.c_str());
 
     } else if (macroNodes[sid].isTerminal) {                         // ... all done
 
-       if (my_cstring.size() > CONTIG_LENGTH_THRESHOLD) {     // ... ... output contig
-          // uint64_t num = IntAtomic::GetPtr((IntAtomicOID) args.numContigs_OID)->FetchAdd(1);
-          // std::string name = ">contig_" + std::to_string(num) + "_l_" + std::to_string(my_cstring.size());
-          std::string name = "contig_l_" + std::to_string(my_cstring.size());
+       if (my_cstring.size() > CONTIG_LENGTH_THRESHOLD) {     // ... ... output contig if longer than threshold
+          std::string name = ">contig_l_" + std::to_string(my_cstring.size());
           printf("%s\n%s\n", name.c_str(), my_cstring.c_str());
        }
 
@@ -236,8 +234,7 @@ void ProcessMacroNode(Handle & handle, const uint64_t & key, std::vector<MacroNo
          uint64_t size = node.affix.size() + mnLength + suffix.affix.size();
 
          if (size > CONTIG_LENGTH_THRESHOLD) {          // ... ... ... output contig
-            uint64_t num = IntAtomic::GetPtr((IntAtomicOID) args.numContigs_OID)->FetchAdd(1);
-            std::string name = ">contig_" + std::to_string(num) + "_l_" + std::to_string(size);
+            std::string name = ">contig_l_" + std::to_string(size);
 
             BasePairVector contig = node.affix;
             contig.append( BasePairVector(key, mnLength) );

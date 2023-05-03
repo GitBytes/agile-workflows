@@ -67,7 +67,6 @@ int main(int argc, char *argv[]) {
   auto WireMap = WireMapType::Create(LARGE);               // wire multimap
   auto ModifiedNodes = ModifiedMapType::Create(LARGE);     // modified nodes multimap
   auto ProcessedNodes = IntSet::Create(LARGE);             // set of processed macro nodes
-  auto numContigs = IntAtomic::Create(0);                  // number of contigs
   auto BucketCounts = IntArray::Create(min_counts, 0);     // array to count kmers appearing [1..min_count] times
 
   BucketCounts->FillPtrs();
@@ -79,7 +78,6 @@ int main(int argc, char *argv[]) {
   args.ModifiedNodes_OID = (uint64_t) (ModifiedNodes->GetGlobalID());
   args.ProcessedNodes_OID = (uint64_t) (ProcessedNodes->GetGlobalID());
   args.BucketCounts_OID = (uint64_t) (BucketCounts->GetGlobalID());
-  args.numContigs_OID = (uint64_t) (numContigs->GetGlobalID());
 
   args.mnLength   = std::stoull(argv[2]) - 1;
   args.coverage   = std::stoull(argv[3]);

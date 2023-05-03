@@ -74,10 +74,8 @@ namespace agile::workflow3 {
 using Handle       = shad::rt::Handle;
 using IntSet       = shad::Set<uint64_t>;
 using IntArray     = shad::Array<int64_t>;
-using IntAtomic    = shad::Atomic<int64_t>;
 using IntSetOID    = shad::ObjectIdentifier<IntSet>;
 using IntArrayOID  = shad::ObjectIdentifier<IntArray>;
-using IntAtomicOID = shad::ObjectIdentifier<IntAtomic>;
 
 struct Args_t {
   uint64_t KMap_OID;
@@ -86,7 +84,6 @@ struct Args_t {
   uint64_t BucketCounts_OID;
   uint64_t ModifiedNodes_OID;
   uint64_t ProcessedNodes_OID;
-  uint64_t numContigs_OID;
   uint64_t mnLength;
   uint64_t coverage;
   uint64_t min_index;
