@@ -8,7 +8,7 @@ if [ ! -f ~/.conan/settings.yml ]; then
     conan config init
 fi
 conan profile new default --detect &> /dev/null
-conan profile update settings.compiler.libcxx=libstdc++ default
+conan profile update settings.compiler.libcxx=libstdc++11 default
 # For unknown reasons conan detects the wrong version from
 # the Cray Compiler wrapper version string.
 conan profile update settings.compiler.version=11.2 default
