@@ -140,25 +140,8 @@ int main(int argc, char *argv[]) {
     MNMap->AsyncForEachEntry(handle, ProcessMacroNode, args);               // process macro nodes
     rt::waitForCompletion(handle);
 
-    // printf("deleting macro nodes\n");
-    // ProcessedNodes->AsyncForEachElement(handle, DeleteMacroNode, args);     // delete processed macro nodes
-    // rt::waitForCompletion(handle);
-
-    uint64_t cnt = MNMap->NumberKeys();
-    for (auto itr = ProcessedNodes->begin(); itr != ProcessedNodes->end(); ++ itr) {
-      // 4017681948932143180
-      MNMap->Erase((* itr));
-      WireMap->Erase((* itr));
-
-      uint64_t tmp = MNMap->NumberKeys();
-      if (tmp != cnt - 1) {
-         MNMapType::LookupResult entry;           // ... ... get next macro node
-         MNMap->Lookup((* itr), & entry);
-         printf("key = %lu, found = %lu, size = %lu, tmp = %lu cnt = %lu\n",
-            (* itr), (uint64_t) entry.found, entry.size, tmp, cnt);
-      }
-      cnt = tmp;
-    }
+    ProcessedNodes->AsyncForEachElement(handle, DeleteMacroNode, args);     // delete processed macro nodes
+    rt::waitForCompletion(handle);
 
     ModifiedNodes->AsyncForEachEntry(handle, ModifyMacroNode, args);        // modify macro nodes
     rt::waitForCompletion(handle);
