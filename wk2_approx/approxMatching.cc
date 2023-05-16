@@ -93,34 +93,34 @@ void PersonVertex_(Handle & handle, const uint64_t & key, PersonVertex & vertex,
   v.id     = vertex.id;
   v.type   = TYPES::PERSON;
 
-  SaleEdgeType::LookupResult sales;
-  AuthorEdgeType::LookupResult authors;
-  PurchaseEdgeType::LookupResult purchases;
+  auto Sales_ = [] (const uint64_t & key, std::vector<SaleEdge> & value, Vertex & v) {
+    for (auto & edge : value) {
+      if      (edge.product == 2869238) v.triples[(uint64_t) TRIPLES::PERSON_SALE_PERSON_BOMB_BATH] ++;
+      else if (edge.product == 271997)  v.triples[(uint64_t) TRIPLES::PERSON_SALE_PERSON_PRESSURE_COOKER] ++;
+      else if (edge.product == 185785)  v.triples[(uint64_t) TRIPLES::PERSON_SALE_PERSON_AMMUNITION] ++;
+      else if (edge.product == 11650)   v.triples[(uint64_t) TRIPLES::PERSON_SALE_PERSON_ELECTRONICS] ++;
+    }
+  };
 
-  SaleEdgeType::GetPtr((SaleEdgeOID) Sales_OID)->Lookup(key, & sales);                     // get vertex's sales
-  AuthorEdgeType::GetPtr((AuthorEdgeOID) Authors_OID)->Lookup(key, & authors);             // get vertex's authors
-  PurchaseEdgeType::GetPtr((PurchaseEdgeOID) Purchases_OID)->Lookup(key, & purchases);     // get vertex's purchases
+  auto Purchases_ = [] (const uint64_t & key, std::vector<PurchaseEdge> & value, Vertex & v) {
+    for (auto & edge : value) {
+      if      (edge.product == 2869238) v.triples[(uint64_t) TRIPLES::PERSON_PURCHASE_PERSON_BOMB_BATH] ++;
+      else if (edge.product == 271997)  v.triples[(uint64_t) TRIPLES::PERSON_PURCHASE_PERSON_PRESSURE_COOKER] ++;
+      else if (edge.product == 185785)  v.triples[(uint64_t) TRIPLES::PERSON_PURCHASE_PERSON_AMMUNITION] ++;
+      else if (edge.product == 11650)   v.triples[(uint64_t) TRIPLES::PERSON_PURCHASE_PERSON_ELECTRONICS] ++;
+    }
+  };
 
-// Accumulte vertex's SPO histogram
-  for (auto & S1 : sales.value) {
-    if      (S1.product == 2869238) v.triples[(uint64_t) TRIPLES::PERSON_SALE_PERSON_BOMB_BATH] ++;
-    else if (S1.product == 271997)  v.triples[(uint64_t) TRIPLES::PERSON_SALE_PERSON_PRESSURE_COOKER] ++;
-    else if (S1.product == 185785)  v.triples[(uint64_t) TRIPLES::PERSON_SALE_PERSON_AMMUNITION] ++;
-    else if (S1.product == 11650)   v.triples[(uint64_t) TRIPLES::PERSON_SALE_PERSON_ELECTRONICS] ++;
-  }
+  auto Authors_ = [] (const uint64_t & key, std::vector<AuthorEdge> & value, Vertex & v) {
+    for (auto & edge : value) {
+      if      (edge.dst_type == TYPES::FORUMEVENT)  v.triples[(uint64_t) TRIPLES::PERSON_AUTHOR_FORUMEVENT] ++;
+      else if (edge.dst_type == TYPES::PUBLICATION) v.triples[(uint64_t) TRIPLES::PERSON_AUTHOR_PUBLICATION] ++;
+    }
+  };
 
-  for (auto & P1 : purchases.value) {
-    if      (P1.product == 2869238) v.triples[(uint64_t) TRIPLES::PERSON_PURCHASE_PERSON_BOMB_BATH] ++;
-    else if (P1.product == 271997)  v.triples[(uint64_t) TRIPLES::PERSON_PURCHASE_PERSON_PRESSURE_COOKER] ++;
-    else if (P1.product == 185785)  v.triples[(uint64_t) TRIPLES::PERSON_PURCHASE_PERSON_AMMUNITION] ++;
-    else if (P1.product == 11650)   v.triples[(uint64_t) TRIPLES::PERSON_PURCHASE_PERSON_ELECTRONICS] ++;
-  }
-
-  for (auto & A1 : authors.value) {
-    if      (A1.dst_type == TYPES::FORUMEVENT)  v.triples[(uint64_t) TRIPLES::PERSON_AUTHOR_FORUMEVENT] ++;
-    else if (A1.dst_type == TYPES::PUBLICATION) v.triples[(uint64_t) TRIPLES::PERSON_AUTHOR_PUBLICATION] ++;
-  }
-
+  SaleEdgeType::GetPtr((SaleEdgeOID) Sales_OID)->Apply(key, Sales_, v);
+  PurchaseEdgeType::GetPtr((PurchaseEdgeOID) Purchases_OID)->Apply(key, Purchases_, v);
+  AuthorEdgeType::GetPtr((AuthorEdgeOID) Authors_OID)->Apply(key, Authors_, v);
   VertexType::GetPtr((VertexOID) V_OID)->BufferedAsyncInsert(handle, v.id, v);
 }
 
@@ -132,19 +132,18 @@ void ForumEventVertex_(Handle & handle, const uint64_t & key,
   v.id     = vertex.id;
   v.type   = TYPES::FORUMEVENT;
 
-  HasTopicEdgeType::LookupResult topics;
-  HasTopicEdgeType::GetPtr((HasTopicEdgeOID) HasTopic_OID)->Lookup(key, & topics);     // get vertex's topics
+  auto Topics_ = [] (const uint64_t & key, std::vector<HasTopicEdge> & value, Vertex & v) {
+    for (auto & edge : value) {
+      if      (edge.topic == 127197)   v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_BOMB] ++;
+      else if (edge.topic == 179057)   v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_EXPLOSION] ++;
+      else if (edge.topic == 771572)   v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_WILLIAMSBURG] ++;
+      else if (edge.topic == 1049632)  v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_PROSPECT_PARK] ++;
+      else if (edge.topic == 69871376) v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_OUTDOORS] ++;
+      else if (edge.topic == 44311)    v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_JIHAD] ++;
+    }
+  };
 
-// Accumulte vertex's SPO histogram
-  for (auto & T1 : topics.value) {
-    if      (T1.topic == 127197)   v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_BOMB] ++;
-    else if (T1.topic == 179057)   v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_EXPLOSION] ++;
-    else if (T1.topic == 771572)   v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_WILLIAMSBURG] ++;
-    else if (T1.topic == 1049632)  v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_PROSPECT_PARK] ++;
-    else if (T1.topic == 69871376) v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_OUTDOORS] ++;
-    else if (T1.topic == 44311)    v.triples[(uint64_t) TRIPLES::FORUMEVENT_HASTOPIC_TOPIC_JIHAD] ++;
-  }
-
+  HasTopicEdgeType::GetPtr((HasTopicEdgeOID) HasTopic_OID)->Apply(key, Topics_, v);
   VertexType::GetPtr((VertexOID) V_OID)->BufferedAsyncInsert(handle, v.id, v);
 }
 
@@ -156,17 +155,17 @@ void ForumVertex_(Handle & handle, const uint64_t & key, ForumVertex & vertex,
   v.id     = vertex.id;
   v.type   = TYPES::FORUM;
 
-  IncludesEdgeType::LookupResult events;
-  HasTopicEdgeType::LookupResult topics;
+  auto Events_ = [] (const uint64_t & key, std::vector<IncludesEdge> & value, Vertex & v) {
+    v.triples[(uint64_t) TRIPLES::FORUM_INCLUDES_FORUMEVENT] += value.size();
+  };
 
-  IncludesEdgeType::GetPtr((IncludesEdgeOID) Includes_OID)->Lookup(key, & events);     // get vertex's events
-  HasTopicEdgeType::GetPtr((HasTopicEdgeOID) HasTopic_OID)->Lookup(key, & topics);     // get vertex's topics
+  auto Topics_ = [] (const uint64_t & key, std::vector<HasTopicEdge> & value, Vertex & v) {
+    for (auto & edge : value)
+      if (edge.topic == 60) v.triples[(uint64_t) TRIPLES::FORUM_HASTOPIC_TOPIC_NYC] ++;
+  };
 
-// Accumulte vertex's SPO histogram
-  for (auto & T1 : topics.value)
-    if (T1.topic == 60) v.triples[(uint64_t) TRIPLES::FORUM_HASTOPIC_TOPIC_NYC] ++;
-
-  v.triples[(uint64_t) TRIPLES::FORUM_INCLUDES_FORUMEVENT] += events.value.size();
+  IncludesEdgeType::GetPtr((IncludesEdgeOID) Includes_OID)->Apply(key, Events_, v);
+  HasTopicEdgeType::GetPtr((HasTopicEdgeOID) HasTopic_OID)->Apply(key, Topics_, v);
   VertexType::GetPtr((VertexOID) V_OID)->BufferedAsyncInsert(handle, v.id, v);
 }
 
@@ -178,22 +177,23 @@ void PublicationVertex_(Handle & handle, const uint64_t & key, PublicationVertex
   v.id     = vertex.id;
   v.type   = TYPES::PUBLICATION;
 
-  HasOrgEdgeType::LookupResult orgs;
-  HasTopicEdgeType::LookupResult topics;
-
-  HasOrgEdgeType::GetPtr((HasOrgEdgeOID) HasOrg_OID)->Lookup(key, & orgs);             // get vertex's orgs
-  HasTopicEdgeType::GetPtr((HasTopicEdgeOID) HasTopic_OID)->Lookup(key, & topics);     // get vertex's topics
-
 // Accumulte vertex's SPO histogram
-  for (auto & PO : orgs.value) {
-    TopicVertex org;
-    TopicVertexType::GetPtr((TopicVertexOID) Topics_OID)->Lookup(PO.organization, & org);
-    v.triples[(uint64_t) TRIPLES::PUBLICATION_HASORG_TOPIC_NEAR_NYC] += proximity(org, NYC);
-  }
+  auto OrgsProximity_ = [] (const uint64_t & key,
+       std::vector<HasOrgEdge> & value, TopicVertex & NYC, uint64_t & Topics_OID, Vertex & v) {
+    for (auto & edge : value) {
+      TopicVertex org;
+      TopicVertexType::GetPtr((TopicVertexOID) Topics_OID)->Lookup(edge.organization, & org);
+      v.triples[(uint64_t) TRIPLES::PUBLICATION_HASORG_TOPIC_NEAR_NYC] += proximity(org, NYC);
+    }
+  };
 
-  for (auto & T1 : topics.value)
-    if (T1.topic == 43035) v.triples[(uint64_t) TRIPLES::PUBLICATION_HASTOPIC_TOPIC_ELECTRICAL_ENG] ++;
+  auto Topics_ = [] (const uint64_t & key, std::vector<HasTopicEdge> & value, Vertex & v) {
+    for (auto & edge : value)
+      if (edge.topic == 43035) v.triples[(uint64_t) TRIPLES::PUBLICATION_HASTOPIC_TOPIC_ELECTRICAL_ENG] ++;
+  };
 
+  HasOrgEdgeType::GetPtr((HasOrgEdgeOID) HasOrg_OID)->Apply(key, OrgsProximity_, NYC, Topics_OID, v);
+  HasTopicEdgeType::GetPtr((HasTopicEdgeOID) HasTopic_OID)->Apply(key, Topics_, v);
   VertexType::GetPtr((VertexOID) V_OID)->BufferedAsyncInsert(handle, v.id, v);
 }
 
@@ -360,8 +360,6 @@ void createBipartite(Graph_t & A, Graph_t & B, uint64_t & LHS_OID, uint64_t & RH
   auto B_Forums       = ForumVertexType::GetPtr((ForumVertexOID) B["Forums"]);
   auto B_Publications = PublicationVertexType::GetPtr((PublicationVertexOID) B["Publications"]);
   auto B_Topics       = TopicVertexType::GetPtr((TopicVertexOID) B["Topics"]);
-
-  double time1 = my_timer();
 
   TopicVertex NYC;
   B_Topics->Lookup(60, & NYC);

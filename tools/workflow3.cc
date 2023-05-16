@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
     printf("     Number of macro nodes    : %7lu\n", num_macro_nodes);
   }
 
-  printf("Time to compress graph %lu = %lf\n", my_timer() - time1);
+  printf("Time to compress graph = %lf\n", my_timer() - time1);
   time1 = my_timer();
 
 //********** PRINT CONTIGS **********//

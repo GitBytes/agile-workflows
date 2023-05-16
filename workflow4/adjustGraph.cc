@@ -13,7 +13,7 @@ void EraseSaleEdge(Handle & handle, const uint64_t & seller,
 } }
 
 
-void ErasePurchaseEdge(Handle & handle, const uint64_t & buyer,
+void ErasePurchaseEdge(const uint64_t & buyer,
      std::vector<PurchaseEdge> & purchases, uint64_t & seller, double & amount, time_t & date) { 
 
   for (auto itr = purchases.begin(); itr != purchases.end(); ++ itr) {
@@ -32,9 +32,17 @@ void CancelCoffeePurchase(Handle & handle,
 
   if (buyer.bought > 0) {     // if buyer has not been canceled
      buyer.bought -= sale.amount;
-     CoffeePurchases->AsyncBlockingApply(handle, id, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
-     // ... TODO search for supplier to replace amount ...
-} }
+     CoffeePurchases->BlockingApply(id, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
+
+     PurchaseEdgeType::LookupResult purchases;
+     CoffeePurchases->Lookup(id, & purchases);
+
+     for (auto itr = purchases.value.begin(); itr != purchases.value.end(); ++ itr) {
+     // ask if supplier can replace amount
+     // ... adjust amount
+     // ... add purchase edge
+     // if amount == 0 break
+} }  }
 
 
 // Initiated by the purchaser at the site of the seller, this routine adjusts the seller's sold amount
