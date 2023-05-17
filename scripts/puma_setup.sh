@@ -9,7 +9,7 @@ if [ ! -f ~/.conan/settings.yml ]; then
     conan config init
 fi
 conan profile new default --detect &> /dev/null
-conan profile update settings.compiler.libcxx=libstdc++11 default
+conan profile update settings.compiler.libcxx=libstdc++ default
 
 if grep riscv $HOME/.conan/settings.yml; then
     echo RISCV support already added. Skipping.
