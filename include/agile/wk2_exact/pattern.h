@@ -72,6 +72,25 @@ struct intTimeInserter {
        
     return true;
   }
+  bool operator()(shad::rt::Handle&, T * const lhs, const T & rhs, bool same_key) {
+    if (same_key) {     // entry in hashmap, value = min(current value, new value)
+       if (* lhs > rhs) * lhs = rhs;
+    } else {            // entry not in hashmap, value = new value
+       * lhs = rhs;
+    }
+
+    return true;
+  }
+
+  bool Insert(shad::rt::Handle&, T *const lhs, const T &rhs, bool same_key) {
+    if (same_key) {     // entry in hashmap, value = minimum(current value, new value)
+       if (* lhs > rhs) * lhs = rhs;
+    } else {            // entry not in hashmap, value = new value
+       * lhs = rhs;
+    }
+       
+    return true;
+  }
 };
 
 using intTimeMap = shad::Hashmap<uint64_t, time_t, shad::MemCmp<uint64_t>, intTimeInserter<time_t> >;

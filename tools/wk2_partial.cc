@@ -217,8 +217,27 @@ namespace shad
       
 
       if ((*lhs).first == 3){
-	auto time_diff = my_timer() - args.start_time;
-	std::cout<<"A SubPattern-12 match is detected and reported in "<< time_diff <<"s" << std::endl;
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-12 match is detected and reported in "<< time_diff <<"s" << std::endl;
+        shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
+        //PatternCheck(12, args);
+      }
+      return true;
+    }
+    bool operator() (shad::rt::Handle&, std::pair<uint64_t, time_t> *const lhs, const std::pair<uint64_t, time_t> &rhs, bool same_key) {
+      if(!same_key){ //if the entry isn't in the table yet, initialize it
+          (*lhs).first = rhs.first;
+          (*lhs).second = rhs.second;
+      }
+      else {
+        (*lhs).first |= rhs.first;
+        (*lhs).second = std::min((*lhs).second, rhs.second);
+      }
+      
+
+      if ((*lhs).first == 3){
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-12 match is detected and reported in "<< time_diff <<"s" << std::endl;
         shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(12, args);
       }
@@ -258,7 +277,36 @@ namespace shad
 
         if(*lhs == 3){
           //here we call upper level check sp12
-	  auto time_diff = my_timer() - args.start_time;
+	        auto time_diff = my_timer() - args.start_time;
+          std::cout<<"A SubPattern-1 match is detected and reported in "<< time_diff <<"s" << std::endl;
+          using SP12type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>; 
+          auto SubPattern12 = SP12type::GetPtr((shad::ObjectIdentifier<SP12type>)args.SubPattern12_OID);
+          auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID)args.ForumEvents_OID);
+          ForumEventVertex FEV;
+          ForumEvents->Lookup(key, &FEV);
+
+          std::pair<uint64_t, time_t> sp12tmp(1, FEV.date);
+          InsertSP12 inserter(args, patternHandle);
+          // shad::rt::Handle nextHandle;
+          // SubPattern12->AsyncInsert(nextHandle, inserter, FEV.forum, sp12tmp);
+          SubPattern12->Insert(inserter, FEV.forum, sp12tmp);
+        }
+        return true;
+      }
+      
+      bool operator() (shad::rt::Handle&, uint64_t *const lhs, const uint64_t &rhs, bool same_key) {
+        if(!same_key){ //if the entry isn't in the table yet initialize it as 0
+          *lhs=0;
+          //*lhs = std::move(rhs);
+        }
+        if (topic == 1049632)
+          *lhs |= 2; // Prospect Park
+        else if (topic == 69871376)
+          *lhs |= 1; // Outdoors
+
+        if(*lhs == 3){
+          //here we call upper level check sp12
+	        auto time_diff = my_timer() - args.start_time;
           std::cout<<"A SubPattern-1 match is detected and reported in "<< time_diff <<"s" << std::endl;
           using SP12type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>; 
           auto SubPattern12 = SP12type::GetPtr((shad::ObjectIdentifier<SP12type>)args.SubPattern12_OID);
@@ -307,8 +355,38 @@ namespace shad
 
       if (*lhs == 7)
       {
-	auto time_diff = my_timer() - args.start_time;
-	std::cout<<"A SubPattern-2 match is detected and reported in "<< time_diff <<"s" << std::endl;
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-2 match is detected and reported in "<< time_diff <<"s" << std::endl;
+        using SP12type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>;
+        auto SubPattern12 = SP12type::GetPtr( (shad::ObjectIdentifier<SP12type>) args.SubPattern12_OID);
+        auto ForumEvents  = ForumEventVertexType::GetPtr( (ForumEventVertexOID) args.ForumEvents_OID);
+
+        ForumEventVertex FEV;
+        ForumEvents->Lookup(key, &FEV);
+        std::pair<uint64_t, time_t> sp12tmp(2, FEV.date);
+        InsertSP12 inserter(args, patternHandle);
+        // shad::rt::Handle nextHandle;
+        // SubPattern12->AsyncInsert(nextHandle, inserter, FEV.forum, sp12tmp);
+        SubPattern12->Insert(inserter, FEV.forum, sp12tmp);
+      }
+      return true;
+    }
+    bool operator() (shad::rt::Handle&, uint64_t *const lhs, const uint64_t &rhs, bool same_key) {
+      if(!same_key){ //if the entry isn't in the table yet initialize it as 0
+          *lhs=0;
+      }
+      
+      if (topic == 127197)
+        *lhs |= 4; // Bomb
+      else if (topic == 179057)
+        *lhs |= 2; // Explosion
+      else if (topic == 771572)
+        *lhs |= 1; // Williamsburg  
+
+      if (*lhs == 7)
+      {
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-2 match is detected and reported in "<< time_diff <<"s" << std::endl;
         using SP12type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>;
         auto SubPattern12 = SP12type::GetPtr( (shad::ObjectIdentifier<SP12type>) args.SubPattern12_OID);
         auto ForumEvents  = ForumEventVertexType::GetPtr( (ForumEventVertexOID) args.ForumEvents_OID);
@@ -357,8 +435,30 @@ namespace shad
       }
       
       if((*lhs).first && (*lhs).second >= 2){
-	auto time_diff = my_timer() - args.start_time;
-	std::cout<<"A SubPattern-3 match is detected and reported in "<< time_diff <<"s" << std::endl;
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-3 match is detected and reported in "<< time_diff <<"s" << std::endl;
+        shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
+        //PatternCheck(3, args);
+      }
+      return true;
+    }
+
+    bool operator() (shad::rt::Handle&, std::pair<bool, uint64_t> *const lhs, const std::pair<bool, uint64_t> &rhs, bool same_key) {
+      if(!same_key){ //if the entry isn't in the table yet initialize it as 0
+          (*lhs).first = false;
+          (*lhs).second = 0;
+      }
+
+      if(topic == 60){ //NYC
+        (*lhs).first = true;
+      }
+      else if(topic == 44311) { //Jihad
+        (*lhs).second ++;
+      }
+      
+      if((*lhs).first && (*lhs).second >= 2){
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-3 match is detected and reported in "<< time_diff <<"s" << std::endl;
         shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(3, args);
       }
@@ -394,14 +494,34 @@ namespace shad
       }
 
       if((*lhs).first && (*lhs).second){
-	auto time_diff = my_timer() - args.start_time;
-	std::cout<<"A SubPattern-5 match is detected and reported in "<< time_diff <<"s" << std::endl;
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-5 match is detected and reported in "<< time_diff <<"s" << std::endl;
         shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(5, args);
       }
       return true;
     }
+    bool operator() (shad::rt::Handle&, std::pair<bool, bool> *const lhs, const std::pair<bool, bool> &rhs, bool same_key) {
+      if(!same_key){ //if the entry isn't in the table yet initialize it as 0
+          (*lhs).first = false;
+          (*lhs).second = false;
+      }
 
+      if( rhs.first ){
+        (*lhs).first = true;
+      }
+      else if (rhs.second) {
+        (*lhs).second = true;
+      }
+
+      if((*lhs).first && (*lhs).second){
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-5 match is detected and reported in "<< time_diff <<"s" << std::endl;
+        shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
+        //PatternCheck(5, args);
+      }
+      return true;
+    }
   };
 
   class InsertSP6
@@ -436,8 +556,33 @@ namespace shad
 
       (*lhs).second = std::max((*lhs).second, rhs.second);
       if ((*lhs).first == 15){
-	auto time_diff = my_timer() - args.start_time;
-	std::cout<<"A SubPattern-6 match is detected and reported in "<< time_diff <<"s" << std::endl;
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-6 match is detected and reported in "<< time_diff <<"s" << std::endl;
+        shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
+        //PatternCheck(6, args);
+      }
+      return true;
+    }
+    bool operator() (shad::rt::Handle&, std::pair<uint64_t, time_t> *const lhs, const std::pair<uint64_t, time_t> &rhs, bool same_key) {
+      if(!same_key){ //if the entry isn't in the table yet initialize it as 0
+          (*lhs).first = 0;
+          (*lhs).second = 0;
+      }
+
+      if (rhs.first == 2869238) 
+        (*lhs).first |= 8;     // Bath Bomb
+      else if (rhs.first == 271997)  
+        (*lhs).first |= 4;     // Pressure Cooker
+      else if (rhs.first == 11650)   
+        (*lhs).first |= 2;     // Electronics
+      else if (rhs.first == 185785)  
+        (*lhs).first |= 1;     // Ammunition
+
+
+      (*lhs).second = std::max((*lhs).second, rhs.second);
+      if ((*lhs).first == 15){
+	      auto time_diff = my_timer() - args.start_time;
+	      std::cout<<"A SubPattern-6 match is detected and reported in "<< time_diff <<"s" << std::endl;
         shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(6, args);
       }
@@ -460,6 +605,47 @@ namespace shad
     }
 
     bool operator() (std::pair<int64_t, time_t> *const lhs, const std::pair<int64_t, time_t> &rhs, bool same_key) {
+      if(!same_key){ //if the entry isn't in the table yet initialize it as 0
+          (*lhs).first = shad::data_types::kNullValue<uint64_t>;
+          (*lhs).second = shad::data_types::kNullValue<time_t>;
+      }
+
+      if ((*lhs).first == shad::data_types::kNullValue<uint64_t>) {   // first sell record for seller (first buyer)
+        (*lhs).first = rhs.first;
+        (*lhs).second = rhs.second;
+      }
+
+      else if((*lhs).first >= 0){ //not the first sell record , check if two separate buyers 
+        if ((*lhs).first == rhs.first) {  //same buyer, we update the date if necessary  
+          (*lhs).second = std::max((*lhs).second, rhs.second); //BURCU check this 
+        }
+        else{ //we have 2 separate buyers , seller is now a distributor
+
+          using SP6type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>;
+          auto SubPattern6 = SP6type::GetPtr( (shad::ObjectIdentifier<SP6type>) args.SubPattern6_OID);
+          uint64_t ammunition = 185785;
+          InsertSP6 inserter (args, patternHandle);
+
+          //update SP6 for first buyer
+          SubPattern6->Insert(inserter, (*lhs).first, std::pair<uint64_t, time_t>(ammunition,(*lhs).second));
+          //update SP6 for second buyer
+          SubPattern6->Insert(inserter, rhs.first, std::pair<uint64_t, time_t>(ammunition,rhs.second));
+
+          (*lhs).first = -1 * (*lhs).first;
+        }
+      }
+      else{ //seller is a known distributor
+        using SP6type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>;
+        auto SubPattern6 = SP6type::GetPtr( (shad::ObjectIdentifier<SP6type>) args.SubPattern6_OID);
+        uint64_t ammunition = 185785;
+        InsertSP6 inserter (args, patternHandle);
+        SubPattern6->Insert(inserter, rhs.first, std::pair<uint64_t, time_t>(ammunition,rhs.second));
+      }
+      auto time_diff = my_timer() - args.start_time;
+      std::cout<<"A SubPattern-7 match is detected and reported in "<< time_diff <<"s" << std::endl;
+      return true;
+    }
+    bool operator() (shad::rt::Handle&, std::pair<int64_t, time_t> *const lhs, const std::pair<int64_t, time_t> &rhs, bool same_key) {
       if(!same_key){ //if the entry isn't in the table yet initialize it as 0
           (*lhs).first = shad::data_types::kNullValue<uint64_t>;
           (*lhs).second = shad::data_types::kNullValue<time_t>;
