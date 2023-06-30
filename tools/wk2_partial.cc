@@ -718,18 +718,18 @@ namespace shad
     std::string dataFile = argv[1];
     uint64_t num_edges, num_vertices;
 
-    auto Persons = PersonVertexType::Create(MEDIUM);
-    auto ForumEvents = ForumEventVertexType::Create(MEDIUM);
-    auto Forums = ForumVertexType::Create(SMALL);
-    auto Publications = PublicationVertexType::Create(SMALL);
-    auto Topics = TopicVertexType::Create(SMALL);
+    auto Persons = PersonVertexType::Create(AGILE_MEDIUM);
+    auto ForumEvents = ForumEventVertexType::Create(AGILE_MEDIUM);
+    auto Forums = ForumVertexType::Create(AGILE_SMALL);
+    auto Publications = PublicationVertexType::Create(AGILE_SMALL);
+    auto Topics = TopicVertexType::Create(AGILE_SMALL);
 
-    auto Purchases = PurchaseEdgeType::Create(MEDIUM);
-    auto Sales = SaleEdgeType::Create(MEDIUM);
-    auto Authors = AuthorEdgeType::Create(LARGE);
-    auto Includes = IncludesEdgeType::Create(LARGE);
-    auto HasTopic = HasTopicEdgeType::Create(LARGE);
-    auto HasOrg = HasOrgEdgeType::Create(MEDIUM);
+    auto Purchases = PurchaseEdgeType::Create(AGILE_MEDIUM);
+    auto Sales = SaleEdgeType::Create(AGILE_MEDIUM);
+    auto Authors = AuthorEdgeType::Create(AGILE_LARGE);
+    auto Includes = IncludesEdgeType::Create(AGILE_LARGE);
+    auto HasTopic = HasTopicEdgeType::Create(AGILE_LARGE);
+    auto HasOrg = HasOrgEdgeType::Create(AGILE_MEDIUM);
     
     // Partial match subpattern scoreboards
     // Level1
@@ -743,13 +743,13 @@ namespace shad
     
     // Level2
     // SubPattern12 : A FORUM that has forumevents that satisfy both SP1 and SP2
-    auto SubPattern1 = shad::Hashmap<uint64_t, uint64_t>::Create(TINY);
-    auto SubPattern2 = shad::Hashmap<uint64_t, uint64_t>::Create(TINY);
-    auto SubPattern12 = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>::Create(TINY);
-    auto SubPattern3 = shad::Hashmap<uint64_t, std::pair<bool, uint64_t>>::Create(TINY);
-    auto SubPattern5 = shad::Hashmap<uint64_t, std::pair<bool, bool>>::Create(SMALL);
-    auto SubPattern6 = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>::Create(SMALL);
-    auto SubPattern7 = shad::Hashmap<uint64_t, std::pair<int64_t, time_t>>::Create(SMALL);
+    auto SubPattern1 = shad::Hashmap<uint64_t, uint64_t>::Create(AGILE_TINY);
+    auto SubPattern2 = shad::Hashmap<uint64_t, uint64_t>::Create(AGILE_TINY);
+    auto SubPattern12 = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>::Create(AGILE_TINY);
+    auto SubPattern3 = shad::Hashmap<uint64_t, std::pair<bool, uint64_t>>::Create(AGILE_TINY);
+    auto SubPattern5 = shad::Hashmap<uint64_t, std::pair<bool, bool>>::Create(AGILE_SMALL);
+    auto SubPattern6 = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>::Create(AGILE_SMALL);
+    auto SubPattern7 = shad::Hashmap<uint64_t, std::pair<int64_t, time_t>>::Create(AGILE_SMALL);
 
     graph["Persons"] = (uint64_t)(Persons->GetGlobalID());
     graph["ForumEvents"] = (uint64_t)(ForumEvents->GetGlobalID());

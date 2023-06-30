@@ -25,7 +25,7 @@ class PyTorchSparseConan(ConanFile):
             del self.options.fPIC
 
     def requirements(self):
-        self.requires('libtorch/1.11.0@user/stable')
+        self.requires('libtorch/1.13.1@user/stable')
 
     def source(self):
         tools.replace_in_file("pytorch_sparse/CMakeLists.txt", "set(TORCHSPARSE_VERSION 0.6.11)",

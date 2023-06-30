@@ -5,7 +5,7 @@ import os
 
 class LibTorchConan(ConanFile):
     name = "libtorch"
-    version = "1.11.0"
+    version = "1.13.1"
     license = "BSD 3"
     author = "<Put your name here> <And your email here>"
     url = "<Package recipe repository url here, for issues about the package>"
@@ -20,9 +20,9 @@ class LibTorchConan(ConanFile):
             raise Exception("Operating System not supported by the recipe.")
 
         if self.settings.compiler.libcxx == 'libstdc++11':
-            url = 'https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-1.11.0%2Bcpu.zip'
+            url = 'https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-1.13.1%2Bcpu.zip'
         else:
-            url = 'https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-1.11.0%2Bcpu.zip'
+            url = 'https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-1.13.1%2Bcpu.zip'
 
         tools.download(url, 'libtorch-linux-cpu')
         tools.unzip('libtorch-linux-cpu')

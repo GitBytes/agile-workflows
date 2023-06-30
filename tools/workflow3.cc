@@ -62,11 +62,11 @@ int main(int argc, char *argv[]) {
 
 //********** CREATE DATA STRUCTURES AND ARGS **********//
   rt:: Handle handle;
-  auto KMap = KMapType::Create(LARGE);                     // distinct kmer hashmap
-  auto MNMap = MNMapType::Create(LARGE);                   // macro node multimap
-  auto WireMap = WireMapType::Create(LARGE);               // wire multimap
-  auto ModifiedNodes = ModifiedMapType::Create(LARGE);     // modified nodes multimap
-  auto ProcessedNodes = IntSet::Create(LARGE);             // set of processed macro nodes
+  auto KMap = KMapType::Create(AGILE_LARGE);                     // distinct kmer hashmap
+  auto MNMap = MNMapType::Create(AGILE_LARGE);                   // macro node multimap
+  auto WireMap = WireMapType::Create(AGILE_LARGE);               // wire multimap
+  auto ModifiedNodes = ModifiedMapType::Create(AGILE_LARGE);     // modified nodes multimap
+  auto ProcessedNodes = IntSet::Create(AGILE_LARGE);             // set of processed macro nodes
   auto BucketCounts = IntArray::Create(min_counts, 0);     // array to count kmers appearing [1..min_count] times
 
   BucketCounts->FillPtrs();

@@ -25,7 +25,7 @@ class PyTorchScatterConan(ConanFile):
             del self.options.fPIC
 
     def requirements(self):
-        self.requires('libtorch/1.11.0@user/stable')
+        self.requires('libtorch/1.13.1@user/stable')
 
     def source(self):
         tools.replace_in_file("pytorch_scatter/CMakeLists.txt", "set(TORCHSCATTER_VERSION 2.0.9)",

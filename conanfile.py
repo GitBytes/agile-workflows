@@ -29,7 +29,7 @@ class AgileWorkflowsConan(ConanFile):
         self.requires('shad/1.0.0@user/stable')
         self.requires('gtest/1.11.0')
         self.requires('rapidcheck/cci.20210702')
-        self.requires('libtorch/1.11.0@user/stable')
+        self.requires('libtorch/1.13.1@user/stable')
         self.requires('pytorch_scatter/2.0.9@user/stable')
         self.requires('pytorch_sparse/0.6.11@user/stable')
 

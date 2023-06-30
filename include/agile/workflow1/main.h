@@ -57,10 +57,10 @@
 #include "shad/core/algorithm.h"
 #include "shad/core/numeric.h"
 
-#define TINY   5000
-#define SMALL  500000
-#define MEDIUM 5000000
-#define LARGE  50000000
+#define AGILE_TINY   5000
+#define AGILE_SMALL  500000
+#define AGILE_MEDIUM 5000000
+#define AGILE_LARGE  50000000
 
 namespace agile::workflow1 {
 using Handle = shad::rt::Handle;

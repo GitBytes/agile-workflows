@@ -58,10 +58,10 @@
 #include "shad/data_structures/multimap.h"
 #include "shad/extensions/data_types/data_types.h"
 
-#define TINY   5000
-#define SMALL  500000
-#define MEDIUM 5000000
-#define LARGE  50000000
+#define AGILE_TINY   5000
+#define AGILE_SMALL  500000
+#define AGILE_MEDIUM 5000000
+#define AGILE_LARGE  50000000
 
 #define UINT_BITS 64
 #define SIZE_BP 2                       // bits per base pair

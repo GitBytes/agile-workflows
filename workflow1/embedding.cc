@@ -255,6 +255,9 @@ LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 
   std::cout << "Embeddings created" << std::endl;
 
+  auto [observedGraph, trainSet, validationSet, testSet] = GenerateLinkPredictionDataSet(Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"], 0.85, 0.05);
+
+  std::cout << "heyo" << std::endl;
   size_t parallelThreads = shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
   lpTrainingState<LinkPredictionWMDDataset> initState;
   auto TSs = shad::Array<lpTrainingState<LinkPredictionWMDDataset>>::Create(
@@ -270,7 +273,7 @@ LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
           ->GetGlobalID();
   lpSetUpTrainingContext<LinkPredictionWMDDataset> setup(
       Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"],
-      Embeddings->GetGlobalID(), reducerArrayOID, localSamplesProcessedOID,
+      Embeddings->GetGlobalID(), trainSet, testSet, validationSet, reducerArrayOID, localSamplesProcessedOID,
       localSamplesCorrectOID, modelFileName);
 
   TSs->ForEach([](size_t tid, lpTrainingState<LinkPredictionWMDDataset> & TS,

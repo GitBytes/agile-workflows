@@ -57,17 +57,17 @@ int main(int argc, char *argv[]) {
   Graph_t graph;
   std::string dataFile = argv[1];
 
-  auto Persons      = PersonVertexType::Create(MEDIUM);
-  auto ForumEvents  = ForumEventVertexType::Create(MEDIUM);
-  auto Forums       = ForumVertexType::Create(SMALL);
-  auto Publications = PublicationVertexType::Create(SMALL);
-  auto Topics       = TopicVertexType::Create(SMALL);
-  auto Purchases    = PurchaseEdgeType::Create(MEDIUM);
-  auto Sales        = SaleEdgeType::Create(MEDIUM);
-  auto Authors      = AuthorEdgeType::Create(LARGE);
-  auto Includes     = IncludesEdgeType::Create(LARGE);
-  auto HasTopic     = HasTopicEdgeType::Create(LARGE);
-  auto HasOrg       = HasOrgEdgeType::Create(MEDIUM);
+  auto Persons      = PersonVertexType::Create(AGILE_MEDIUM);
+  auto ForumEvents  = ForumEventVertexType::Create(AGILE_MEDIUM);
+  auto Forums       = ForumVertexType::Create(AGILE_SMALL);
+  auto Publications = PublicationVertexType::Create(AGILE_SMALL);
+  auto Topics       = TopicVertexType::Create(AGILE_SMALL);
+  auto Purchases    = PurchaseEdgeType::Create(AGILE_MEDIUM);
+  auto Sales        = SaleEdgeType::Create(AGILE_MEDIUM);
+  auto Authors      = AuthorEdgeType::Create(AGILE_LARGE);
+  auto Includes     = IncludesEdgeType::Create(AGILE_LARGE);
+  auto HasTopic     = HasTopicEdgeType::Create(AGILE_LARGE);
+  auto HasOrg       = HasOrgEdgeType::Create(AGILE_MEDIUM);
 
   graph["Persons"]      = (uint64_t) (Persons->GetGlobalID());
   graph["ForumEvents"]  = (uint64_t) (ForumEvents->GetGlobalID());

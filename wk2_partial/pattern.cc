@@ -289,7 +289,7 @@ void forumPattern_2A(const uint64_t & forum, std::vector<IncludesEdge> & include
 
 void WMD_pattern(Graph_t & graph) {
   Pattern_args_t args;
-  auto Forums_2 = intTimeMap::Create(TINY);     // for each forum, the earliest date of a included FE4 vertex
+  auto Forums_2 = intTimeMap::Create(AGILE_TINY);     // for each forum, the earliest date of a included FE4 vertex
   auto Persons  = PersonVertexType::GetPtr((PersonVertexOID) graph["Persons"]);
   auto Includes = IncludesEdgeType::GetPtr((IncludesEdgeOID) graph["Includes"]);
 

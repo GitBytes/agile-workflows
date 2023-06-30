@@ -55,16 +55,16 @@ int main(int argc, char *argv[]) {
   double time1 = my_timer();
 
 /********** KERNEL 1 - Graph Construction **********/
-  auto Persons         = PersonVertexType::Create(MEDIUM);
-  auto Purchases       = PurchaseEdgeType::Create(MEDIUM);
-  auto Sales           = SaleEdgeType::Create(MEDIUM);
-  auto Friends         = FriendOfEdgeType::Create(MEDIUM);
-  auto Servers         = ServerVertexType::Create(MEDIUM);
-  auto Sends           = SendsEdgeType::Create(MEDIUM);
-  auto Uses            = UsesEdgeType::Create(MEDIUM);
-  auto CoffeeTraders   = TraderVertexType::Create(MEDIUM);
-  auto CoffeeSales     = SaleEdgeType::Create(MEDIUM);
-  auto CoffeePurchases = PurchaseEdgeType::Create(MEDIUM);
+  auto Persons         = PersonVertexType::Create(AGILE_MEDIUM);
+  auto Purchases       = PurchaseEdgeType::Create(AGILE_MEDIUM);
+  auto Sales           = SaleEdgeType::Create(AGILE_MEDIUM);
+  auto Friends         = FriendOfEdgeType::Create(AGILE_MEDIUM);
+  auto Servers         = ServerVertexType::Create(AGILE_MEDIUM);
+  auto Sends           = SendsEdgeType::Create(AGILE_MEDIUM);
+  auto Uses            = UsesEdgeType::Create(AGILE_MEDIUM);
+  auto CoffeeTraders   = TraderVertexType::Create(AGILE_MEDIUM);
+  auto CoffeeSales     = SaleEdgeType::Create(AGILE_MEDIUM);
+  auto CoffeePurchases = PurchaseEdgeType::Create(AGILE_MEDIUM);
 
   graph["Persons"]         = (uint64_t) (Persons->GetGlobalID());
   graph["Purchases"]       = (uint64_t) (Purchases->GetGlobalID());

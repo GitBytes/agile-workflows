@@ -65,10 +65,10 @@
 #include "shad/extensions/data_types/data_types.h"
 #include "agile/wk2_partial/graphTypes.h"
 
-#define TINY   5000
-#define SMALL  500000
-#define MEDIUM 5000000
-#define LARGE  50000000
+#define AGILE_TINY   5000
+#define AGILE_SMALL  500000
+#define AGILE_MEDIUM 5000000
+#define AGILE_LARGE  50000000
 
 namespace agile::wk2_partial {
 using Graph_t     = std::map<std::string, uint64_t>;

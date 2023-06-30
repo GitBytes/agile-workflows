@@ -62,18 +62,18 @@ int main(int argc, char *argv[]) {
 
 // CONSTRUCT PATTERN GRAPH
   Graph_t A;
-  auto Persons      = PersonVertexType::Create(MEDIUM);
-  auto ForumEvents  = ForumEventVertexType::Create(MEDIUM);
-  auto Forums       = ForumVertexType::Create(SMALL);
-  auto Publications = PublicationVertexType::Create(SMALL);
-  auto Topics       = TopicVertexType::Create(SMALL);
+  auto Persons      = PersonVertexType::Create(AGILE_MEDIUM);
+  auto ForumEvents  = ForumEventVertexType::Create(AGILE_MEDIUM);
+  auto Forums       = ForumVertexType::Create(AGILE_SMALL);
+  auto Publications = PublicationVertexType::Create(AGILE_SMALL);
+  auto Topics       = TopicVertexType::Create(AGILE_SMALL);
 
-  auto Purchases    = PurchaseEdgeType::Create(MEDIUM);
-  auto Sales        = SaleEdgeType::Create(MEDIUM);
-  auto Authors      = AuthorEdgeType::Create(LARGE);
-  auto Includes     = IncludesEdgeType::Create(LARGE);
-  auto HasTopic     = HasTopicEdgeType::Create(LARGE);
-  auto HasOrg       = HasOrgEdgeType::Create(MEDIUM);
+  auto Purchases    = PurchaseEdgeType::Create(AGILE_MEDIUM);
+  auto Sales        = SaleEdgeType::Create(AGILE_MEDIUM);
+  auto Authors      = AuthorEdgeType::Create(AGILE_LARGE);
+  auto Includes     = IncludesEdgeType::Create(AGILE_LARGE);
+  auto HasTopic     = HasTopicEdgeType::Create(AGILE_LARGE);
+  auto HasOrg       = HasOrgEdgeType::Create(AGILE_MEDIUM);
 
   A["Persons"]      = (uint64_t) (Persons->GetGlobalID());
   A["ForumEvents"]  = (uint64_t) (ForumEvents->GetGlobalID());
@@ -132,18 +132,18 @@ int main(int argc, char *argv[]) {
 
 // CONSTRUCT DATA GRAPH
   Graph_t B;
-  Persons      = PersonVertexType::Create(MEDIUM);
-  ForumEvents  = ForumEventVertexType::Create(MEDIUM);
-  Forums       = ForumVertexType::Create(SMALL);
-  Publications = PublicationVertexType::Create(SMALL);
-  Topics       = TopicVertexType::Create(SMALL);
+  Persons      = PersonVertexType::Create(AGILE_MEDIUM);
+  ForumEvents  = ForumEventVertexType::Create(AGILE_MEDIUM);
+  Forums       = ForumVertexType::Create(AGILE_SMALL);
+  Publications = PublicationVertexType::Create(AGILE_SMALL);
+  Topics       = TopicVertexType::Create(AGILE_SMALL);
 
-  Purchases    = PurchaseEdgeType::Create(MEDIUM);
-  Sales        = SaleEdgeType::Create(MEDIUM);
-  Authors      = AuthorEdgeType::Create(LARGE);
-  Includes     = IncludesEdgeType::Create(LARGE);
-  HasTopic     = HasTopicEdgeType::Create(LARGE);
-  HasOrg       = HasOrgEdgeType::Create(MEDIUM);
+  Purchases    = PurchaseEdgeType::Create(AGILE_MEDIUM);
+  Sales        = SaleEdgeType::Create(AGILE_MEDIUM);
+  Authors      = AuthorEdgeType::Create(AGILE_LARGE);
+  Includes     = IncludesEdgeType::Create(AGILE_LARGE);
+  HasTopic     = HasTopicEdgeType::Create(AGILE_LARGE);
+  HasOrg       = HasOrgEdgeType::Create(AGILE_MEDIUM);
 
   B["Persons"]      = (uint64_t) (Persons->GetGlobalID());
   B["ForumEvents"]  = (uint64_t) (ForumEvents->GetGlobalID());
@@ -201,8 +201,8 @@ int main(int argc, char *argv[]) {
   time1 = my_timer();
 
 // CONSTRUCT BIPARTITE VERTICES WITH EDGES
-  auto LHS = VertexType::Create(TINY);
-  auto RHS = VertexType::Create(LARGE);
+  auto LHS = VertexType::Create(AGILE_TINY);
+  auto RHS = VertexType::Create(AGILE_LARGE);
   uint64_t LHS_OID = (uint64_t) (LHS->GetGlobalID());
   uint64_t RHS_OID = (uint64_t) (RHS->GetGlobalID());
   createBipartite(A, B, LHS_OID, RHS_OID);

@@ -55,8 +55,8 @@ int main(int argc, char *argv[]) {
   Handle handle;
   Graph_t graph;
   std::string dataFile = argv[1];
-  auto Edges  = EdgeType::Create(LARGE);
-  auto GlobalIDS = GlobalIDType::Create(MEDIUM);
+  auto Edges  = EdgeType::Create(AGILE_LARGE);
+  auto GlobalIDS = GlobalIDType::Create(AGILE_MEDIUM);
   graph["Edges"] = (uint64_t) (Edges->GetGlobalID());
   graph["GlobalIDS"] = (uint64_t) (GlobalIDS->GetGlobalID());
 
