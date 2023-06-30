@@ -307,10 +307,10 @@ typename shad::Array<
 GCN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
     std::string modelFileName);
 
-typename shad::Array<
-    agile::workflow1::TrainingState<LinkPredictionWMDDataset>>::ObjectID
-LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
-              std::string modelFileName);
+// typename shad::Array<
+//     agile::workflow1::TrainingState<LinkPredictionWMDDataset>>::ObjectID
+// LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
+//               std::string modelFileName);
 } // namespace agile::workflow1
 
 #endif

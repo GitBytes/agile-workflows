@@ -46,6 +46,7 @@
 #include "agile/workflow1/graph.h"
 #include "agile/workflow1/main.h"
 #include "agile/workflow1/wmd.h"
+#include "agile/workflow1/linkPrediction.h"
 
 namespace agile::workflow1 {
 using Emb_t = shad::Array<uint64_t>;
@@ -229,9 +230,15 @@ GCN(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 }
 
 typename shad::Array<
-    agile::workflow1::TrainingState<LinkPredictionWMDDataset>>::ObjectID
+    agile::workflow1::lpTrainingState<LinkPredictionWMDDataset>>::ObjectID
 LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
               std::string modelFileName) {
+
+  std::cout << "PyTorch version: "
+    << TORCH_VERSION_MAJOR << "."
+    << TORCH_VERSION_MINOR << "."
+    << TORCH_VERSION_PATCH << std::endl;
+
   Handle handle;
   auto Vertices = VertexType::GetPtr((VertexOID)graph["Vertices"]);
   auto Embeddings = EmbeddingType::Create(num_vertices * NUM_FEATURES, 0);
@@ -248,11 +255,29 @@ LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 
   std::cout << "Embeddings created" << std::endl;
 
-  size_t parallelThreads =
-      shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
-  TrainingState<LinkPredictionWMDDataset> initState;
-  auto TSs = shad::Array<TrainingState<LinkPredictionWMDDataset>>::Create(
+  size_t parallelThreads = shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
+  lpTrainingState<LinkPredictionWMDDataset> initState;
+  auto TSs = shad::Array<lpTrainingState<LinkPredictionWMDDataset>>::Create(
       parallelThreads, initState);
+  auto reducerArrayOID =
+      shad::Array<uint64_t>::Create(parallelThreads, 0ul)
+          ->GetGlobalID();
+  auto localSamplesProcessedOID =
+      shad::Array<uint64_t>::Create(parallelThreads, 0ul)
+          ->GetGlobalID();
+  auto localSamplesCorrectOID =
+      shad::Array<uint64_t>::Create(parallelThreads, 0ul)
+          ->GetGlobalID();
+  lpSetUpTrainingContext<LinkPredictionWMDDataset> setup(
+      Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"],
+      Embeddings->GetGlobalID(), reducerArrayOID, localSamplesProcessedOID,
+      localSamplesCorrectOID, modelFileName);
+
+  TSs->ForEach([](size_t tid, lpTrainingState<LinkPredictionWMDDataset> & TS,
+                  lpSetUpTrainingContext<LinkPredictionWMDDataset> &setup) {
+    setup(tid, TS);
+  }, setup);
+  std::cout << "Initialized Training State" << std::endl;
 
   return TSs->GetGlobalID();
 }

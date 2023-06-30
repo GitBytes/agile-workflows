@@ -44,7 +44,7 @@
 
 #include "agile/workflow1/main.h"
 #include "agile/workflow1/graph.h"
-#include "agile/workflow1/gnn.h"
+#include "agile/workflow1/linkPrediction.h"
 
 namespace shad {
   using namespace agile::workflow1;
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
 
   time1 = my_timer();
 
-  // auto trainedModel = LinkPredictor(num_edges, num_vertices, graph, argv[2]);
+  auto trainedModel = LinkPredictor(num_edges, num_vertices, graph, argv[2]);
   printf("Time for wk1_linkpred = %lf\n", my_timer() - time1);
 
   return 0;
