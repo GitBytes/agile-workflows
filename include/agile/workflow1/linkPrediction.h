@@ -411,18 +411,21 @@ template <typename lpTrainingState> void lpTrainLoop(lpTrainingState &TS) {
   for (auto &batch : *TS.TrainDataLoader) {
     TS.Inputs[0] = batch.Features;
     TS.Inputs[1] = batch.EdgeIndex;
-    TS.Inputs[2] = //edge mask;
-    TS.Inputs[3] = //batch;
+    TS.Inputs[2] = batch.Mask;
+    TS.Inputs[3] = torch::ones({batch.Fetures.sizes()[0]});
+    
     train_size += torch::sum(batch.Mask).template item<int64_t>();
     auto groundTruth = batch.Labels;
 
     TS.Module.train();
     auto output = TS.Module.forward(TS.Inputs).toTensor();
 
-    auto loss = torch::nn::functional::nll_loss(
-        output.index({batch.Mask}), groundTruth.index({batch.Mask}));
-
+    auto criterion = torch::nn::BCEWithLogitsLoss();
+    auto loss = criterion(output.index({batch.Mask}), groundTruth.index({batch.Mask}));
+    TS.Adam->zero_grad();
     loss.backward();
+    TS.Adam->step();
+    
     TS.Module.eval();
     auto prediction = std::get<1>(output.max(1));
     auto equal = prediction.eq(groundTruth);
