@@ -63,8 +63,9 @@
 namespace agile::workflow1 {
 struct EndPointsEdgeCompare {
   bool operator()(const Edge *e1, const Edge *e2) const {
-    return (e1->src_glbid == e2->src_glbid && e1->dst_glbid == e2->dst_glbid) ||
-           (e1->src_glbid == e2->dst_glbid && e1->dst_glbid == e2->src_glbid);
+    // This is because SHAD uses memcmp convention instead of the C++ comparator convention.
+    return !((e1->src_glbid == e2->src_glbid && e1->dst_glbid == e2->dst_glbid) ||
+             (e1->src_glbid == e2->dst_glbid && e1->dst_glbid == e2->src_glbid));
   }
 };
 
@@ -77,25 +78,21 @@ inline auto GenerateFalseEdges(
   auto EdgesOID = Edges->GetGlobalID();
 
   shad::generate(
-      shad::distributed_parallel_tag{}, result->begin(), result->end()-1, [=]() {
+      shad::distributed_parallel_tag{}, result->begin(), result->end(), [=]() {
         auto Edges = shad::Set<Edge, EndPointsEdgeCompare>::GetPtr(EdgesOID);
-        // std::cout << static_cast<uint64_t>(EdgesOID) << std::endl;
-        // std::cout<<Edges<<std::endl;
         std::random_device rd;
         std::default_random_engine G(rd());
-        std::uniform_int_distribution<uint64_t> dist(0,
-                                                     (numVertices * numVertices) - 1);
+        std::uniform_int_distribution<uint64_t> dist(0, numVertices - 1);
 
         Edge e;
         do {
           // throw a dart in the matrix
-          uint64_t idx = dist(G);
-          e.src_glbid = idx / numVertices;
-          e.dst_glbid = idx % numVertices;
-          // std::cout<<e.src_glbid<<" "<<e.dst_glbid<<std::endl;
+          e.src_glbid = dist(G);
+          e.dst_glbid = dist(G);
           if (e.src_glbid > e.dst_glbid)
             std::swap(e.src_glbid, e.dst_glbid);
-        } while (false && Edges->Find(e)); //TODO : fix issue with Find crashinbg
+
+        } while (Edges->Find(e));
         // found a missing edge
         return e;
       });
@@ -126,16 +123,16 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
       },
       EdgeSetOID);
   shad::rt::waitForCompletion(h);
-  std::cout << "heyo1" << std::endl;
+
   auto Edges = XEdgeType::Create(EdgeSet->Size(), Edge());
   copy(shad::distributed_parallel_tag{}, EdgeSet->begin(), EdgeSet->end(),
        Edges->begin());
-  std::cout << "heyo2" << std::endl;
+
   size_t trueTrainEdgesNum = std::floor(Edges->Size() * train);
   size_t trueValidationEdgesNum = std::floor(Edges->Size() * validation);
   size_t trueTestEdgesNum =
       Edges->Size() - trueTrainEdgesNum - trueValidationEdgesNum;
-  std::cout << "heyo3" << std::endl;
+
   size_t falseEdgesTotal =
       std::min((Vertices->Size() - 1) * (Vertices->Size() - 1), Edges->Size());
   size_t falseTrainEdgesNum = std::floor(falseEdgesTotal * train);
@@ -158,32 +155,27 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
   auto falseTrainItrB =
       copy(shad::distributed_parallel_tag{}, begin, end, trainingSet->begin());
 
-  begin = end;
-  end += trueValidationEdgesNum;
+  begin = Edges->begin() + trueTrainEdgesNum;
+  end = begin + trueValidationEdgesNum;
   auto falseValItrB = copy(shad::distributed_parallel_tag{}, begin, end,
                            validationSet->begin());
 
-  begin = end;
-  end += trueTestEdgesNum;
+  begin = Edges->begin() + trueTrainEdgesNum + trueValidationEdgesNum;
+  end = begin + trueTestEdgesNum;
   auto falseTestItrB =
       copy(shad::distributed_parallel_tag{}, begin, end, testSet->begin());
-  std::cout << "let's go1" << std::endl;
+
   // Generate False Edges
   begin = falseEdgeArray->begin();
   end = begin + falseTrainEdgesNum;
   copy(shad::distributed_parallel_tag{}, begin, end, falseTrainItrB);
-  std::cout << "let's go2" << std::endl;
-  begin = end;
-  end += falseValidationEdgesNum;
-  std::cout<<begin<<" "<<end<< " " <<falseEdgeArray->Size()<<std::endl;
+  begin = falseEdgeArray->begin() + falseTrainEdgesNum;
+  end = begin + falseValidationEdgesNum;
   copy(shad::distributed_parallel_tag{}, begin, end, falseValItrB);
-  std::cout << "let's go3" << std::endl;
-  begin = end;
-  end += falseTestEdgesNum;
-  
-  std::cout<<begin<<" "<<end<< " " <<falseEdgeArray->Size()<<std::endl;
+  begin = falseEdgeArray->begin() + falseTrainEdgesNum + falseValidationEdgesNum;
+  end = falseEdgeArray->end();
+
   copy(shad::distributed_parallel_tag{}, begin, end, falseTestItrB);
-  std::cout << "let's go4" << std::endl;
   // Create Observed Graph
   Graph_t observedGraph;
   auto observedGraphVertices = VertexType::Create(Vertices->Size(), Vertex());
@@ -222,7 +214,6 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
                     out.edges = res.size;
                     return out;
                   });
-  std::cout << "let's go5" << std::endl;
   // 2 - compute prefix scan of the neighboorhoods size
   exclusiveScanVertices<Vertex>(
       observedGraph["Vertices"]); // convert # edges to start location
@@ -244,14 +235,17 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
   //                    ++pos;
   //                  }
   //                });
+
   observedEdges->AsyncForEachEntry(
       h,
-      [](shad::rt::Handle &h, const auto &key, auto &edges,
+      [](shad::rt::Handle &h, const auto key, auto &edges,
          auto &observedXEdgesOID, auto &observedGraphVerticesOID) {
+
+        if (edges.empty()) return;
+
         auto XEdges = XEdgeType::GetPtr(observedXEdgesOID);
         auto Vertices = VertexType::GetPtr(observedGraphVerticesOID);
-
-        auto pos = Vertices->At(key).start;
+        auto pos = Vertices->At(edges[0].src_glbid).start;
         for (auto &e : edges) {
           XEdges->AsyncInsertAt(h, pos, e);
           ++pos;
@@ -343,13 +337,11 @@ public:
     TS.Module = torch::jit::load(modelFileName_);
     // // Load Dataset
     // TS.DataSet = Dataset(_verticesOID, _edgesOID, _featuresOID);
-  
-    //auto [observedGraph, trainSet, validationSet, testSet] = GenerateLinkPredictionDataSet(_verticesOID, _edgesOID, 0.85, 0.05);
+
     TS.TrainDataset = Dataset(_verticesOID,  _edgesOID,_featuresOID, _edgesOIDTrain);
     TS.TestDataset = Dataset(_verticesOID,  _edgesOID,_featuresOID, _edgesOIDTest);
     TS.ValidationDataset = Dataset(_verticesOID,  _edgesOID,_featuresOID, _edgesOIDValidation);
 
-    std::cout<<"hey"<<std::endl;
     // Number threads
     size_t total_ranks =
         shad::rt::numLocalities() * shad::rt::impl::getConcurrency();

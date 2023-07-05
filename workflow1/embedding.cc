@@ -257,7 +257,6 @@ LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 
   auto [observedGraph, trainSet, validationSet, testSet] = GenerateLinkPredictionDataSet(Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"], 0.85, 0.05);
 
-  std::cout << "heyo" << std::endl;
   size_t parallelThreads = shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
   lpTrainingState<LinkPredictionWMDDataset> initState;
   auto TSs = shad::Array<lpTrainingState<LinkPredictionWMDDataset>>::Create(
