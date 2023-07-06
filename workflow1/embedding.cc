@@ -268,7 +268,7 @@ LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
       shad::Array<uint64_t>::Create(parallelThreads, 0ul)
           ->GetGlobalID();
   auto localSamplesCorrectOID =
-      shad::Array<uint64_t>::Create(parallelThreads, 0ul)
+      shad::Array<float>::Create(parallelThreads, 0ul)
           ->GetGlobalID();
   lpSetUpTrainingContext<LinkPredictionWMDDataset> setup(
       Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"],
@@ -281,6 +281,79 @@ LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
   }, setup);
   std::cout << "Initialized Training State" << std::endl;
 
+  const size_t numEpochs = 10;
+  auto localSamplesProcessedPtr =
+      shad::Array<uint64_t>::GetPtr(localSamplesProcessedOID);
+  auto localSamplesCorrectPtr =
+      shad::Array<float>::GetPtr(localSamplesCorrectOID);
+
+  for (size_t epoch = 0; epoch < numEpochs; ++epoch) {
+    std::cout << "-- Epoch " << epoch + 1
+              << " ------------------------------------------------------------"
+                 "--------"
+              << std::endl;
+    auto start = std::chrono::high_resolution_clock::now();
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+                   agile::workflow1::lpTrainLoop<
+                       lpTrainingState<LinkPredictionWMDDataset>>);
+    auto train_size = shad::reduce(shad::distributed_parallel_tag{},
+                                   localSamplesProcessedPtr->begin(),
+                                   localSamplesProcessedPtr->end());
+    auto train_correct = shad::reduce(shad::distributed_parallel_tag{},
+                                      localSamplesCorrectPtr->begin(),
+                                      localSamplesCorrectPtr->end());
+
+    std::cout << "Train Accuracy: " << train_correct << "/" << train_size
+              << " = " << static_cast<float>(train_correct) / train_size
+              << std::endl;
+    //TODO fix for LP?
+    if (shad::rt::numLocalities() > 1) {
+      vcReduceGradients<lpTrainingState<LinkPredictionWMDDataset>>(
+          TSs->begin(), TSs->end());
+    }
+//END OF TRAINING
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+                   agile::workflow1::lpValidateLoop<
+                       lpTrainingState<LinkPredictionWMDDataset>>);
+
+    auto val_size = shad::reduce(shad::distributed_parallel_tag{},
+                                  localSamplesProcessedPtr->begin(),
+                                  localSamplesProcessedPtr->end());
+
+    auto val_correct = shad::reduce(shad::distributed_parallel_tag{},
+                                     localSamplesCorrectPtr->begin(),
+                                     localSamplesCorrectPtr->end());
+
+    std::cout << "Validation Accuracy: " << val_correct << "/" << val_size << " = "
+              << static_cast<float>(val_correct) / val_size << std::endl;
+
+//END OF VALIDATION
+
+    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+                   agile::workflow1::lpTestLoop<
+                       lpTrainingState<LinkPredictionWMDDataset>>);
+
+    auto test_size = shad::reduce(shad::distributed_parallel_tag{},
+                                  localSamplesProcessedPtr->begin(),
+                                  localSamplesProcessedPtr->end());
+
+    auto test_correct = shad::reduce(shad::distributed_parallel_tag{},
+                                     localSamplesCorrectPtr->begin(),
+                                     localSamplesCorrectPtr->end());
+
+    std::cout << "Test Accuracy: " << test_correct << "/" << test_size << " = "
+              << static_cast<float>(test_correct) / test_size << std::endl;
+//END OF TEST
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::cout << shad::rt::thisLocality() << " Time (s) : "
+              << std::chrono::duration_cast<std::chrono::duration<double>>(
+                     end - start)
+                     .count()
+              << std::endl;
+  }
+
+  std::cout << "Model Trained" << std::endl;
   return TSs->GetGlobalID();
 }
 } // namespace agile::workflow1

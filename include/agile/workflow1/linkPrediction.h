@@ -266,6 +266,7 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
 template <typename Dataset> struct lpTrainingState {
 public:
   using ArrayOID = typename shad::Array<uint64_t>::ObjectID;
+  using ArrayOIDfloat = typename shad::Array<float>::ObjectID;
   using sampler_type = torch::data::samplers::DistributedRandomSampler;
   using dataset_type = torch::data::datasets::MapDataset<
       Dataset, torch::data::transforms::Stack<typename Dataset::Data>>;
@@ -290,12 +291,13 @@ public:
   std::vector<torch::jit::IValue> Inputs;
   ArrayOID ReducerLocalPtrOID{ArrayOID::kNullID};
   ArrayOID LocalSamplesProcessedOID{ArrayOID::kNullID};
-  ArrayOID LocalSamplesCorrectOID{ArrayOID::kNullID};
+  ArrayOIDfloat LocalSamplesCorrectOID{ArrayOIDfloat::kNullID};
   size_t TID{0};
 };
 
 template <typename Dataset> class lpSetUpTrainingContext {
   using ArrayOID = typename shad::Array<uint64_t>::ObjectID;
+  using ArrayOIDfloat = typename shad::Array<float>::ObjectID;
 
   char modelFileName_[256];
   VertexOID _verticesOID;
@@ -306,7 +308,7 @@ template <typename Dataset> class lpSetUpTrainingContext {
   ArrayOID _featuresOID;
   ArrayOID _reducerArrayOID;
   ArrayOID _localSamplesProcessedOID;
-  ArrayOID _localSamplesCorrectOID;
+  ArrayOIDfloat _localSamplesCorrectOID;
 
 public:
   lpSetUpTrainingContext(const VertexOID &VertexArrayID,
@@ -317,7 +319,7 @@ public:
                        const XEdgeOID &EdgeArrayOIDValidation,
                        const ArrayOID &ReducerArrayOID,
                        const ArrayOID &LocalSamplesProcessedOID,
-                       const ArrayOID &LocalSamplesCorrectOID,
+                       const ArrayOIDfloat &LocalSamplesCorrectOID,
                        std::string modelFileName)
       : _verticesOID(VertexArrayID), _edgesOID(EdgeArrayOID),
         _featuresOID(FeaturesArrayID), _edgesOIDTrain(EdgeArrayOIDTrain), 
@@ -414,40 +416,101 @@ public:
 
 
 template <typename lpTrainingState> void lpTrainLoop(lpTrainingState &TS) {
-  size_t train_correct = 0;
+  float train_correct = 0;
   size_t train_size = 0;
 
+  TS.Module.train();
   for (auto &batch : *TS.TrainDataLoader) {
+    std::cout << "begining training" << std::endl;
     TS.Inputs[0] = batch.Features;
     TS.Inputs[1] = batch.EdgeIndex;
     TS.Inputs[2] = batch.Mask;
-    TS.Inputs[3] = torch::ones({batch.Fetures.sizes()[0]});
-    
-    train_size += torch::sum(batch.Mask).template item<int64_t>();
+    TS.Inputs[3] = batch.Batch_Mask;
+    std::cout<< "gathered inputs" << std::endl;
+    std::cout << TS.Inputs[3] << std::endl;
+    train_size += 1;
     auto groundTruth = batch.Labels;
 
-    TS.Module.train();
     auto output = TS.Module.forward(TS.Inputs).toTensor();
 
     auto criterion = torch::nn::BCEWithLogitsLoss();
-    auto loss = criterion(output.index({batch.Mask}), groundTruth.index({batch.Mask}));
+    auto loss = criterion(output.view(-1), groundTruth);
     TS.Adam->zero_grad();
     loss.backward();
     TS.Adam->step();
     
-    TS.Module.eval();
     auto prediction = std::get<1>(output.max(1));
     auto equal = prediction.eq(groundTruth);
-    train_correct += equal.index({batch.Mask}).sum().template item<int64_t>();
+    train_correct += loss.template item<float>();
   }
 
   auto localSamplesProcessedPtr =
       shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
   auto localSamplesCorrectPtr =
-      shad::Array<uint64_t>::GetPtr(TS.LocalSamplesCorrectOID);
+      shad::Array<float>::GetPtr(TS.LocalSamplesCorrectOID);
   localSamplesProcessedPtr->InsertAt(TS.TID, train_size);
   localSamplesCorrectPtr->InsertAt(TS.TID, train_correct);
 }
+
+template <typename lpTrainingState> void lpTestLoop(lpTrainingState &TS) {
+  float test_correct = 0;
+  size_t test_size = 0;
+  
+  TS.Module.eval();
+  torch::NoGradGuard no_grad;
+  for (auto &batch :  *TS.TestDataLoader) {
+    test_size += 1;
+
+    TS.Inputs[0] = batch.Features;
+    TS.Inputs[1] = batch.EdgeIndex;
+    TS.Inputs[2] = batch.Mask;
+    TS.Inputs[3] = batch.Batch_Mask;
+    auto groundTruth = batch.Labels;
+    auto output = TS.Module.forward(TS.Inputs).toTensor();
+    auto criterion = torch::nn::BCEWithLogitsLoss();
+    auto loss = criterion(output.view(-1), groundTruth);
+
+    test_correct += loss.template item<float>();
+  }
+
+  auto localSamplesProcessedPtr =
+      shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
+  auto localSamplesCorrectPtr =
+      shad::Array<float>::GetPtr(TS.LocalSamplesCorrectOID);
+  localSamplesProcessedPtr->InsertAt(TS.TID , test_size);
+  localSamplesCorrectPtr->InsertAt(TS.TID, test_correct);
+}
+
+template <typename lpTrainingState> void lpValidateLoop(lpTrainingState &TS) {
+  float test_correct = 0;
+  size_t test_size = 0;
+  
+  TS.Module.eval();
+  torch::NoGradGuard no_grad;
+  for (auto &batch :  *TS.ValidationDataLoader) {
+    test_size +=1;
+
+    TS.Inputs[0] = batch.Features;
+    TS.Inputs[1] = batch.EdgeIndex;
+    TS.Inputs[2] = batch.Mask;
+    TS.Inputs[3] = batch.Batch_Mask;
+    auto groundTruth = batch.Labels;
+    auto output = TS.Module.forward(TS.Inputs).toTensor();
+    auto criterion = torch::nn::BCEWithLogitsLoss();
+    auto loss = criterion(output.view(-1), groundTruth);
+    test_correct += loss.template item<float>();
+  }
+
+  auto localSamplesProcessedPtr =
+      shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
+  auto localSamplesCorrectPtr =
+      shad::Array<float>::GetPtr(TS.LocalSamplesCorrectOID);
+  localSamplesProcessedPtr->InsertAt(TS.TID , test_size);
+  localSamplesCorrectPtr->InsertAt(TS.TID, test_correct);
+}
+
+
+
 
 typename shad::Array<
     agile::workflow1::lpTrainingState<LinkPredictionWMDDataset>>::ObjectID

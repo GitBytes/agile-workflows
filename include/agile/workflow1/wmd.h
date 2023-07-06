@@ -66,14 +66,15 @@ struct WMDData {
   using mask_type = MaskType;
 
   WMDData() = default;
-  WMDData(edge_index_type ei, features_type fs, labels_type ls, mask_type mask)
+  WMDData(edge_index_type ei, features_type fs, labels_type ls, mask_type mask, mask_type bm=torch::Tensor())
       : EdgeIndex(std::move(ei)), Features(std::move(fs)),
-        Labels(std::move(ls)), Mask(std::move(mask)) {}
+        Labels(std::move(ls)), Mask(std::move(mask)), Batch_Mask(std::move(bm)) {}
 
   edge_index_type EdgeIndex;
   features_type Features;
   labels_type Labels;
   mask_type Mask;
+  mask_type Batch_Mask;
 };
 } // namespace agile::workflow1
 
@@ -85,19 +86,19 @@ struct Stack<agile::workflow1::WMDData<>>
   apply_batch(std::vector<agile::workflow1::WMDData<>> examples) override {
     int64_t offset = 0;
 
-    std::vector<torch::Tensor> ei, fs, ls, ms;
+    std::vector<torch::Tensor> ei, fs, ls, ms, bm;
 
     for (size_t i = 0; i < examples.size(); ++i) {
       ei.push_back(examples[i].EdgeIndex.add(offset));
       fs.push_back(examples[i].Features);
       ls.push_back(examples[i].Labels);
       ms.push_back(examples[i].Mask);
-
+      bm.push_back(torch::full({examples[i].Features.size(0)},int(i)));
       offset += examples[i].Features.size(0);
     }
-
+    std::cout<< "in stack " << std::endl;
     return {torch::cat(ei, 1).to(torch::kLong), torch::cat(fs), torch::cat(ls),
-            torch::cat(ms)};
+            torch::cat(ms), torch::cat(bm)};
   }
 };
 } // namespace torch::data::transforms
