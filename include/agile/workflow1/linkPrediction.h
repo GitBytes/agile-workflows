@@ -350,7 +350,7 @@ public:
     const int64_t trainingSetSize = TS.TrainDataset.size().value() / int64_t(4);
     const int64_t testSetSize = TS.TestDataset.size().value();
     const int64_t validationSetSize = TS.ValidationDataset.size().value();
-    const size_t batchSize = std::min<size_t>(128, trainingSetSize / total_ranks);
+    const size_t batchSize = std::min<size_t>(32, trainingSetSize / total_ranks);
 
     //size_t numVertices = TS.DataSet.size().value();
     // Partition in Training/Test Set
@@ -421,13 +421,10 @@ template <typename lpTrainingState> void lpTrainLoop(lpTrainingState &TS) {
 
   TS.Module.train();
   for (auto &batch : *TS.TrainDataLoader) {
-    std::cout << "begining training" << std::endl;
     TS.Inputs[0] = batch.Features;
     TS.Inputs[1] = batch.EdgeIndex;
     TS.Inputs[2] = batch.Mask;
     TS.Inputs[3] = batch.Batch_Mask;
-    std::cout<< "gathered inputs" << std::endl;
-    std::cout << TS.Inputs[3] << std::endl;
     train_size += 1;
     auto groundTruth = batch.Labels;
 
@@ -438,9 +435,7 @@ template <typename lpTrainingState> void lpTrainLoop(lpTrainingState &TS) {
     TS.Adam->zero_grad();
     loss.backward();
     TS.Adam->step();
-    
-    auto prediction = std::get<1>(output.max(1));
-    auto equal = prediction.eq(groundTruth);
+
     train_correct += loss.template item<float>();
   }
 

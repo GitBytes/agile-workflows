@@ -96,9 +96,8 @@ struct Stack<agile::workflow1::WMDData<>>
       bm.push_back(torch::full({examples[i].Features.size(0)},int(i)));
       offset += examples[i].Features.size(0);
     }
-    std::cout<< "in stack " << std::endl;
     return {torch::cat(ei, 1).to(torch::kLong), torch::cat(fs), torch::cat(ls),
-            torch::cat(ms), torch::cat(bm)};
+      torch::cat(ms), torch::cat(bm)};
   }
 };
 } // namespace torch::data::transforms
@@ -329,9 +328,12 @@ public:
             .clone();
 
     // The labels tensor stores the type of the ego-graph vertices
-    int edgeExists = idx > (edges->Size() / 2) ? 0 : 1;
+    float edgeExists = idx > (edges->Size() / 2) ? 0.0 : 1.0;
     auto label = torch::tensor({edgeExists});
-    return {graph, features, label, torch::Tensor()};
+    auto mask = torch::full({graph.size(1)},1);
+    mask[0] = 0;
+    mask[1] = 0;
+    return {graph, features, label, mask};
   }
 
   torch::optional<size_t> size() const override {
