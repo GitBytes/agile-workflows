@@ -331,9 +331,42 @@ public:
     float edgeExists = idx > (edges->Size() / 2) ? 0.0 : 1.0;
     auto label = torch::tensor({edgeExists});
     auto mask = torch::full({graph.size(1)},1);
-    mask[0] = 0;
-    mask[1] = 0;
-    return {graph, features, label, mask};
+    bool ij_exist = false;
+
+    int64_t i_local = vertex_set[i].id;
+    int64_t j_local = vertex_set[j].id;
+
+    
+    //loop to find if (i,j) edge is in the graph --> edgeexist actually tells that to us! 
+    for(int r=0; r<graph.size(1); r++){
+      int64_t v_src = graph[0][r].item<int>();
+      int64_t v_dest = graph[1][r].item<int>();;
+
+      if((v_src == i_local && v_dest == j_local) || (v_src == j_local && v_dest == i_local)){
+        mask[r] = 0;
+        ij_exist=true;
+      }
+    }
+
+    if(!ij_exist){
+        //add 2 new columns to the graph for 2 directional i - j edges
+        int64_t datarow1[] = {i_local,j_local};
+        int64_t datarow2[] = {j_local,i_local};
+
+        auto t = torch::zeros({2,2});
+        t[0][0] = i_local; 
+        t[1][0] = j_local; 
+        t[0][1] = j_local;
+        t[1][1] = i_local;
+        graph = torch::cat({ t,graph }, 1);
+        mask = torch::full({graph.size(1)},1);
+        mask[0] = 0;
+        mask[1] = 0;
+    }
+
+    float vertexCount = VertexType::GetPtr(_verticesOID)->Size() - 1;
+    auto normalizedFeatures = features/vertexCount;
+    return {graph, normalizedFeatures, label, mask};
   }
 
   torch::optional<size_t> size() const override {

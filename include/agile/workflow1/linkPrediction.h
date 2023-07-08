@@ -134,11 +134,11 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
       Edges->Size() - trueTrainEdgesNum - trueValidationEdgesNum;
 
   size_t falseEdgesTotal =
-      std::min((Vertices->Size() - 1) * (Vertices->Size() - 1), Edges->Size());
+      std::min(((Vertices->Size() - 1) * (Vertices->Size() - 1)) - Edges->Size(), Edges->Size());
   size_t falseTrainEdgesNum = std::floor(falseEdgesTotal * train);
   size_t falseValidationEdgesNum = std::floor(falseEdgesTotal * validation);
   size_t falseTestEdgesNum =
-      falseEdgesTotal - falseTestEdgesNum - falseValidationEdgesNum;
+      falseEdgesTotal - falseTrainEdgesNum - falseValidationEdgesNum;
 
   auto trainingSet =
       XEdgeType::Create(trueTrainEdgesNum + falseTrainEdgesNum, Edge());
@@ -420,25 +420,24 @@ template <typename lpTrainingState> void lpTrainLoop(lpTrainingState &TS) {
   size_t train_size = 0;
 
   TS.Module.train();
+  auto tempTensor = torch::Tensor();
+  auto criterion = torch::nn::BCEWithLogitsLoss();
   for (auto &batch : *TS.TrainDataLoader) {
     TS.Inputs[0] = batch.Features;
     TS.Inputs[1] = batch.EdgeIndex;
     TS.Inputs[2] = batch.Mask;
     TS.Inputs[3] = batch.Batch_Mask;
+
     train_size += 1;
     auto groundTruth = batch.Labels;
-
     auto output = TS.Module.forward(TS.Inputs).toTensor();
-
-    auto criterion = torch::nn::BCEWithLogitsLoss();
     auto loss = criterion(output.view(-1), groundTruth);
     TS.Adam->zero_grad();
     loss.backward();
     TS.Adam->step();
-
+    
     train_correct += loss.template item<float>();
   }
-
   auto localSamplesProcessedPtr =
       shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
   auto localSamplesCorrectPtr =
@@ -450,24 +449,22 @@ template <typename lpTrainingState> void lpTrainLoop(lpTrainingState &TS) {
 template <typename lpTrainingState> void lpTestLoop(lpTrainingState &TS) {
   float test_correct = 0;
   size_t test_size = 0;
-  
   TS.Module.eval();
-  torch::NoGradGuard no_grad;
+  auto criterion = torch::nn::BCEWithLogitsLoss();
+  //torch::NoGradGuard no_grad;
+  
   for (auto &batch :  *TS.TestDataLoader) {
     test_size += 1;
-
     TS.Inputs[0] = batch.Features;
     TS.Inputs[1] = batch.EdgeIndex;
     TS.Inputs[2] = batch.Mask;
     TS.Inputs[3] = batch.Batch_Mask;
     auto groundTruth = batch.Labels;
     auto output = TS.Module.forward(TS.Inputs).toTensor();
-    auto criterion = torch::nn::BCEWithLogitsLoss();
     auto loss = criterion(output.view(-1), groundTruth);
 
     test_correct += loss.template item<float>();
   }
-
   auto localSamplesProcessedPtr =
       shad::Array<uint64_t>::GetPtr(TS.LocalSamplesProcessedOID);
   auto localSamplesCorrectPtr =
@@ -481,7 +478,8 @@ template <typename lpTrainingState> void lpValidateLoop(lpTrainingState &TS) {
   size_t test_size = 0;
   
   TS.Module.eval();
-  torch::NoGradGuard no_grad;
+  auto criterion = torch::nn::BCEWithLogitsLoss();
+  //torch::NoGradGuard no_grad;
   for (auto &batch :  *TS.ValidationDataLoader) {
     test_size +=1;
 
@@ -491,7 +489,6 @@ template <typename lpTrainingState> void lpValidateLoop(lpTrainingState &TS) {
     TS.Inputs[3] = batch.Batch_Mask;
     auto groundTruth = batch.Labels;
     auto output = TS.Module.forward(TS.Inputs).toTensor();
-    auto criterion = torch::nn::BCEWithLogitsLoss();
     auto loss = criterion(output.view(-1), groundTruth);
     test_correct += loss.template item<float>();
   }
