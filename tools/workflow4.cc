@@ -55,16 +55,16 @@ int main(int argc, char *argv[]) {
   double time1 = my_timer();
 
 /********** KERNEL 1 - Graph Construction **********/
-  auto Persons         = PersonVertexType::Create(AGILE_MEDIUM);
-  auto Purchases       = PurchaseEdgeType::Create(AGILE_MEDIUM);
-  auto Sales           = SaleEdgeType::Create(AGILE_MEDIUM);
-  auto Friends         = FriendOfEdgeType::Create(AGILE_MEDIUM);
-  auto Servers         = ServerVertexType::Create(AGILE_MEDIUM);
-  auto Sends           = SendsEdgeType::Create(AGILE_MEDIUM);
-  auto Uses            = UsesEdgeType::Create(AGILE_MEDIUM);
-  auto CoffeeTraders   = TraderVertexType::Create(AGILE_MEDIUM);
-  auto CoffeeSales     = SaleEdgeType::Create(AGILE_MEDIUM);
-  auto CoffeePurchases = PurchaseEdgeType::Create(AGILE_MEDIUM);
+  auto Persons         = PersonVertexType::Create(MEDIUM);
+  auto Purchases       = PurchaseEdgeType::Create(MEDIUM);
+  auto Sales           = SaleEdgeType::Create(MEDIUM);
+  auto Friends         = FriendOfEdgeType::Create(MEDIUM);
+  auto Servers         = ServerVertexType::Create(MEDIUM);
+  auto Sends           = SendsEdgeType::Create(MEDIUM);
+  auto Uses            = UsesEdgeType::Create(MEDIUM);
+  auto CoffeeTraders   = TraderVertexType::Create(MEDIUM);
+  auto CoffeeSales     = SaleEdgeType::Create(MEDIUM);
+  auto CoffeePurchases = PurchaseEdgeType::Create(MEDIUM);
 
   graph["Persons"]         = (uint64_t) (Persons->GetGlobalID());
   graph["Purchases"]       = (uint64_t) (Purchases->GetGlobalID());
@@ -86,9 +86,6 @@ int main(int argc, char *argv[]) {
   args.Servers_OID         = graph["Servers"];
   args.Sends_OID           = graph["Sends"];
   args.Uses_OID            = graph["Uses"];
-  args.CoffeeTraders_OID   = graph["CoffeeTraders"];
-  args.CoffeeSales_OID     = graph["CoffeeSales"];
-  args.CoffeePurchases_OID = graph["CoffeePurchases"];
 
   std::string dataFile = argv[1];
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
@@ -115,14 +112,6 @@ int main(int argc, char *argv[]) {
   Sends->WaitForBufferedInsert();
   Uses->WaitForBufferedInsert();
 
-  uint64_t product = 8486;     // coffee market
-  Sales->AsyncForEachEntry(handle, SelectSalesMarket, product, args);
-
-  waitForCompletion(handle);
-  CoffeeTraders->WaitForBufferedInsert();
-  CoffeeSales->WaitForBufferedInsert();
-  CoffeePurchases->WaitForBufferedInsert();
-
   printf("Time for Kernel 1 - Graph Construction = %lf\n\n", my_timer() - time1);
 
   printf("Number of persons          = %lu\n", Persons->Size());
@@ -138,18 +127,31 @@ int main(int argc, char *argv[]) {
 
 /********** KERNEL 2 - Identify most influential coffee suppliers **********/
   time1 = my_timer();
-  dataFile = argv[5];
-  memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
-  
+
+  uint64_t product = 8486;     // coffee market
+  args.CoffeeTraders_OID   = graph["CoffeeTraders"];
+  args.CoffeeSales_OID     = graph["CoffeeSales"];
+  args.CoffeePurchases_OID = graph["CoffeePurchases"];
+
+  Sales->AsyncForEachEntry(handle, SelectSalesMarket, product, args);
+
+  waitForCompletion(handle);
+  CoffeeTraders->WaitForBufferedInsert();
+  CoffeeSales->WaitForBufferedInsert();
+  CoffeePurchases->WaitForBufferedInsert();
+
   // ... weight edges of coffee market ...
   CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
   waitForCompletion(handle);
 
-  printf("Time for Kernel 2 - Coffee sale weights = %lf\n", my_timer() - time1);
+  printf("Time for Kernel 2 - Coffee subgraph and sale weights = %lf\n", my_timer() - time1);
 
   // ... output input file for influence maximization kernel ... exit ...
   // ... and run influence maximization kernel off line ...
   if (argc <= 6) {
+     dataFile = argv[5];
+     memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
+
      for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
      printf("weighted sales edge file printed ... exiting\n");
      exit(0);

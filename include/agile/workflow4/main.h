@@ -54,10 +54,10 @@
 #include "shad/data_structures/hashmap.h"
 #include "shad/data_structures/multimap.h"
 
-#define AGILE_TINY   5000
-#define AGILE_SMALL  500000
-#define AGILE_MEDIUM 5000000
-#define AGILE_LARGE  50000000
+#define TINY   5000
+#define SMALL  500000
+#define MEDIUM 5000000
+#define LARGE  50000000
 
 namespace agile::workflow4 {
 
@@ -65,7 +65,10 @@ using Handle = shad::rt::Handle;
 using Graph_t = std::map<std::string, uint64_t>;
 
 struct RF_args_t {
-    Handle   handle;
+    Handle handle;
+    double to_buy;
+    uint64_t buyer;;
+    char filename [120];
     uint64_t Purchases_OID;
     uint64_t Sales_OID;
     uint64_t CoffeeSales_OID;
@@ -76,7 +79,6 @@ struct RF_args_t {
     uint64_t Servers_OID;
     uint64_t Sends_OID;
     uint64_t Uses_OID;
-    char filename [120];
 };
 
 void readFileSocial(const RF_args_t & args);
