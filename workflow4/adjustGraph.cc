@@ -13,7 +13,7 @@ void EraseSaleEdge(Handle & handle, const uint64_t & seller,
 } }
 
 
-void ErasePurchaseEdge(const uint64_t & buyer,
+void ErasePurchaseEdge(Handle & handle, const uint64_t & buyer,
      std::vector<PurchaseEdge> & purchases, uint64_t & seller, double & amount, time_t & date) { 
 
   for (auto itr = purchases.begin(); itr != purchases.end(); ++ itr) {
@@ -47,28 +47,40 @@ void BuyProduct(const uint64_t & id, TraderVertex & seller, uint8_t * result, ui
        //      }
 
 
+// Initiated by the purchaser at the site of the seller, this routine adjusts the seller's sold amount
+// and removes the sale edge from the seller to the purchaser.
+void CancelCoffeeSale(Handle & handle,
+     const uint64_t & seller, TraderVertex & sellerVertex, PurchaseEdge & purchase, RF_args_t & args) {
+  auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
+  
+  if (sellerVertex.sold > 0)  {      // if seller has not been canceled
+     sellerVertex.sold -= purchase.amount;
+     CoffeeSales->AsyncBlockingApply(handle, seller, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
+} }
+
+
 // Initiated by the seller at the site of the buyer, this routine adjusts the buyer's purchase amount,
 // removes the purchase edge from the buyer to the seller and searches for one or more suppliers that
 // can replace the lost purchase.
 void CancelCoffeePurchase(Handle & handle,
-     const uint64_t & id, TraderVertex & buyer, SaleEdge & sale, RF_args_t & args) {
+     const uint64_t & buyer, TraderVertex & buyerVertex, SaleEdge & sale, RF_args_t & args) {
   auto CoffeeTraders = TraderVertexType::GetPtr((TraderVertexType::ObjectID) args.CoffeeTraders_OID);
   auto CoffeePurchases = PurchaseEdgeType::GetPtr((PurchaseEdgeType::ObjectID) args.CoffeePurchases_OID);
 
-  if (buyer.bought > 0) {                            // if buyer has not been canceled
-     buyer.bought -= sale.amount;                    // ...  reduce amount of coffee being purchased
-     CoffeePurchases->BlockingApply(id, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
+  if (buyerVertex.bought > 0) {                                  // if buyer has not been canceled
+     buyerVertex.bought -= sale.amount;                          // ... reduce amount of coffee being purchased
+     CoffeePurchases->AsyncBlockingApply(handle, buyer, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
 
-     PurchaseEdgeType::LookupResult purchases;       // ... lookup coffee suppliers for this buyer
-     CoffeePurchases->Lookup(id, & purchases);
-     if (! purchases.found) return;                  // ... this buyer has no other suppliers
+     PurchaseEdgeType::LookupResult purchases;                   // ... lookup coffee suppliers for this buyer
+     CoffeePurchases->Lookup(buyer, & purchases);
+     if (! purchases.found) return;                              // ... this buyer has no other suppliers
 
-     args.buyer  = id;
+     args.buyer  = buyer;
      args.handle = handle;
-     args.to_buy = buyer.desired - buyer.bought;     // ... amount of coffee to be bought
+     args.to_buy = buyerVertex.desired - buyerVertex.bought;     // ... amount of coffee to be bought
 
      PurchaseEdge edge;
-     edge.buyer    = id;
+     edge.buyer    = buyer;
      edge.product  = 8486;
      edge.date     = shad::data_types::kNullValue<time_t>;
      edge.weight   = shad::data_types::kNullValue<double>;
@@ -80,31 +92,17 @@ void CancelCoffeePurchase(Handle & handle,
        uint32_t resultSize;
        uint64_t seller = (* itr).seller;
 
-       printf("buyer %lu checking with seller %lu\n", id, seller);
        CoffeeTraders->TryBlockingApplyWithRetBuff(seller, BuyProduct, (uint8_t *) (& result), & resultSize, args);
 
-       if (result > 0.0) {                              // ... if seller had coffee to sell
-          printf("buyer is buying coffee\n");
-          // edge.seller  = seller;
-          // edge.amount  = result;
-          // args.to_buy -= result;
-          // CoffeePurchases->BufferedAsyncInsert(handle, id, edge);
+       if (result > 0.0) {                                       // ... if seller had coffee to sell
+          edge.seller  = seller;
+          edge.amount  = result;
+          args.to_buy -= result;
+          CoffeePurchases->BufferedAsyncInsert(handle, buyer, edge);
        }
 
-       // if (args.to_buy == 0.0) break;                // ... no more coffee to buy
+       if (args.to_buy == 0.0) break;                            // ... no more coffee to buy
 } } }
-
-
-// Initiated by the purchaser at the site of the seller, this routine adjusts the seller's sold amount
-// and removes the sale edge from the seller to the purchaser.
-void CancelCoffeeSale(Handle & handle,
-     const uint64_t & id, TraderVertex & seller, PurchaseEdge & purchase, RF_args_t & args) {
-  auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
-  
-  if (seller.sold > 0)  {      // if seller has not been canceled
-     seller.sold -= purchase.amount;
-     CoffeeSales->AsyncBlockingApply(handle, id, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
-} }
 
 
 void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & trader, RF_args_t & args) {
@@ -123,10 +121,10 @@ void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & tra
   CoffeePurchases->Lookup(id, & purchases);     // get my coffee purchases
   CoffeePurchases->Erase(id);                   // erase my purchase edges from the graph
 
-  for (auto & sale : sales.value)                 // alert my customers
-      CoffeeTraders->AsyncApply(handle, sale.buyer, CancelCoffeePurchase, sale, args);
   for (auto & purchase : purchases.value)         // alert my suppliers
       CoffeeTraders->AsyncApply(handle, purchase.seller, CancelCoffeeSale, purchase, args);
+  for (auto & sale : sales.value)                 // alert my customers
+      CoffeeTraders->AsyncApply(handle, sale.buyer, CancelCoffeePurchase, sale, args);
 }
 
 

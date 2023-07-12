@@ -121,9 +121,6 @@ int main(int argc, char *argv[]) {
   printf("Number of friends edges    = %lu\n", Friends->Size());
   printf("Number of sends edges      = %lu\n", Sends->Size());
   printf("Number of uses edges       = %lu\n", Uses->Size());
-  printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
-  printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
-  printf("Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
 
 /********** KERNEL 2 - Identify most influential coffee suppliers **********/
   time1 = my_timer();
@@ -144,7 +141,10 @@ int main(int argc, char *argv[]) {
   CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
   waitForCompletion(handle);
 
-  printf("Time for Kernel 2 - Coffee subgraph and sale weights = %lf\n", my_timer() - time1);
+  printf("/nTime for Kernel 2 - Coffee subgraph and sale weights = %lf\n", my_timer() - time1);
+  printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
+  printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
+  printf("Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
 
   // ... output input file for influence maximization kernel ... exit ...
   // ... and run influence maximization kernel off line ...
@@ -183,7 +183,6 @@ int main(int argc, char *argv[]) {
   CoffeePurchases->WaitForBufferedInsert();
 
   printf("Time for Kernel 4 - Graph Adjustment = %lf\n\n", my_timer() - time1);
-
   printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
   printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
   printf("Number of coffee purchases = %lu\n", CoffeePurchases->Size());
