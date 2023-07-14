@@ -110,8 +110,10 @@ static void exclusiveRecursiveScan(Handle & handle, uint64_t pos, VTYPE & elem, 
      uint64_t my_offset = offset + (*data)[nelems - 1].start + (*data)[nelems - 1].edges;
      arrayPtr->AsyncApply(handle, pos + nelems, exclusiveRecursiveScan<VTYPE>, my_offset, oid);
   }
-
-  for (uint64_t i = 0; i < nelems; ++ i) (*data)[i].start += offset;
+  
+  for (uint64_t i = 0; i < nelems; ++ i) {
+    (*data)[i].start += offset;
+  }
 }
 
 
@@ -124,9 +126,10 @@ void exclusiveScanVertices(uint64_t oid) {
     auto arrayPtr = shad::Array<VTYPE>::GetPtr((arrayOID) oid);
     std::vector<VTYPE> * data = arrayPtr->getData();
     uint64_t nelems = arrayPtr->getNElems();
-
-    for (uint64_t i = 1; i < nelems; ++ i)
-      (*data)[i].start = (*data)[i - 1].start + (*data)[i - 1].edges;
+    
+    for (uint64_t i = 1; i < nelems; ++ i) {
+      (*data)[i].start = (*data)[i - 1].start + (*data)[i - 1].edges;    
+    }
   };
 
   Handle handle;

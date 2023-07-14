@@ -111,7 +111,7 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
   using EdgeSetType = shad::Set<Edge, EndPointsEdgeCompare>;
   auto EdgeSet = EdgeSetType::Create(allEdges->Size() / 2);
   auto EdgeSetOID = EdgeSet->GetGlobalID();
-
+  std::cout << "A" << std::endl;
   allEdges->AsyncForEach(
       h,
       [](shad::rt::Handle &h, size_t i, Edge &e,
@@ -123,47 +123,46 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
       },
       EdgeSetOID);
   shad::rt::waitForCompletion(h);
+  std::cout << "B" << std::endl;
+  auto EdgeSetSize = EdgeSet->Size();
+  auto VerticesArraySize = Vertices->Size();
+  auto Edges = XEdgeType::Create(EdgeSetSize, Edge());
+  auto setCopyBegin = my_timer();
+  copy(shad::distributed_parallel_tag{}, EdgeSet->begin(), EdgeSet->end(), Edges->begin());
+  auto setCopyEnd = my_timer();
+  std::cout << "Set copy time: " << setCopyEnd - setCopyBegin << std::endl; 
+  std::cout << "C" << std::endl;
 
-  auto Edges = XEdgeType::Create(EdgeSet->Size(), Edge());
-  copy(shad::distributed_parallel_tag{}, EdgeSet->begin(), EdgeSet->end(),
-       Edges->begin());
+  size_t trueTrainEdgesNum = std::floor(EdgeSetSize * train);
+  size_t trueValidationEdgesNum = std::floor(EdgeSetSize * validation);
+  size_t trueTestEdgesNum = EdgeSetSize - trueTrainEdgesNum - trueValidationEdgesNum;
 
-  size_t trueTrainEdgesNum = std::floor(Edges->Size() * train);
-  size_t trueValidationEdgesNum = std::floor(Edges->Size() * validation);
-  size_t trueTestEdgesNum =
-      Edges->Size() - trueTrainEdgesNum - trueValidationEdgesNum;
-
-  size_t falseEdgesTotal =
-      std::min(((Vertices->Size() - 1) * (Vertices->Size() - 1)) - Edges->Size(), Edges->Size());
+  size_t falseEdgesTotal = std::min(((VerticesArraySize - 1) * (VerticesArraySize - 1)) - EdgeSetSize, EdgeSetSize);
   size_t falseTrainEdgesNum = std::floor(falseEdgesTotal * train);
   size_t falseValidationEdgesNum = std::floor(falseEdgesTotal * validation);
-  size_t falseTestEdgesNum =
-      falseEdgesTotal - falseTrainEdgesNum - falseValidationEdgesNum;
+  size_t falseTestEdgesNum = falseEdgesTotal - falseTrainEdgesNum - falseValidationEdgesNum;
 
-  auto trainingSet =
-      XEdgeType::Create(trueTrainEdgesNum + falseTrainEdgesNum, Edge());
-  auto validationSet = XEdgeType::Create(
-      trueValidationEdgesNum + falseValidationEdgesNum, Edge());
-  auto testSet =
-      XEdgeType::Create(trueTestEdgesNum + falseTestEdgesNum, Edge());
-
-  auto falseEdgeArray =
-      GenerateFalseEdges(falseEdgesTotal, EdgeSet, Vertices->Size() - 1);
+  auto trainingSet = XEdgeType::Create(trueTrainEdgesNum + falseTrainEdgesNum, Edge());
+  auto validationSet = XEdgeType::Create(trueValidationEdgesNum + falseValidationEdgesNum, Edge());
+  auto testSet = XEdgeType::Create(trueTestEdgesNum + falseTestEdgesNum, Edge());
+  std::cout << "D" << std::endl;
+  auto ranGenBegin = my_timer();
+  std::cout << "Random false edge started " << ranGenBegin << std::endl; 
+  auto falseEdgeArray = GenerateFalseEdges(falseEdgesTotal, EdgeSet, Vertices->Size() - 1);
+  auto ranGenEnd = my_timer();
+  std::cout << "Random False edge creation : " << ranGenEnd - ranGenBegin << std::endl; 
 
   auto begin = Edges->begin();
   auto end = begin + trueTrainEdgesNum;
-  auto falseTrainItrB =
-      copy(shad::distributed_parallel_tag{}, begin, end, trainingSet->begin());
+  auto falseTrainItrB = copy(shad::distributed_parallel_tag{}, begin, end, trainingSet->begin());
 
   begin = Edges->begin() + trueTrainEdgesNum;
   end = begin + trueValidationEdgesNum;
-  auto falseValItrB = copy(shad::distributed_parallel_tag{}, begin, end,
-                           validationSet->begin());
-
+  auto falseValItrB = copy(shad::distributed_parallel_tag{}, begin, end, validationSet->begin());
+ 
   begin = Edges->begin() + trueTrainEdgesNum + trueValidationEdgesNum;
   end = begin + trueTestEdgesNum;
-  auto falseTestItrB =
-      copy(shad::distributed_parallel_tag{}, begin, end, testSet->begin());
+  auto falseTestItrB = copy(shad::distributed_parallel_tag{}, begin, end, testSet->begin());
 
   // Generate False Edges
   begin = falseEdgeArray->begin();
@@ -174,18 +173,20 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
   copy(shad::distributed_parallel_tag{}, begin, end, falseValItrB);
   begin = falseEdgeArray->begin() + falseTrainEdgesNum + falseValidationEdgesNum;
   end = falseEdgeArray->end();
-
   copy(shad::distributed_parallel_tag{}, begin, end, falseTestItrB);
+
   // Create Observed Graph
   Graph_t observedGraph;
+
   auto observedGraphVertices = VertexType::Create(Vertices->Size(), Vertex());
   auto observedGraphVerticesOID = observedGraphVertices->GetGlobalID();
   observedGraph["Vertices"] = static_cast<uint64_t>(observedGraphVerticesOID);
+
   auto observedEdges = EdgeType::Create(AGILE_LARGE);
-  observedGraph["Edges"] = static_cast<uint64_t>(observedEdges->GetGlobalID());
-  auto observedXEdgesOID =
-      XEdgeType::Create(trueTrainEdgesNum + trueValidationEdgesNum, Edge())
-          ->GetGlobalID();
+  auto observedEdgesOID = observedEdges->GetGlobalID();
+  observedGraph["Edges"] = static_cast<uint64_t>(observedEdgesOID);
+
+  auto observedXEdgesOID = XEdgeType::Create(trueTrainEdgesNum + trueValidationEdgesNum, Edge())->GetGlobalID();
   observedGraph["XEdges"] = static_cast<uint64_t>(observedXEdgesOID);
 
   auto edgeInserter = [](shad::rt::Handle &h, size_t i, Edge &e,
@@ -197,12 +198,13 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
   // 1 - Insert all the edges in Train+Validation in an hashmap
   trainingSet->AsyncForEachInRange(h, 0, trueTrainEdgesNum, edgeInserter,
                                    observedGraph["Edges"]);
+
+     
   validationSet->AsyncForEachInRange(h, 0, trueValidationEdgesNum, edgeInserter,
                                      observedGraph["Edges"]);
   shad::rt::waitForCompletion(h);
   observedEdges->WaitForBufferedInsert();
 
-  auto observedEdgesOID = observedEdges->GetGlobalID();
 
   shad::transform(shad::distributed_parallel_tag{}, Vertices->begin(),
                   Vertices->end(), observedGraphVertices->begin(),
@@ -210,13 +212,20 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
                     auto edges = EdgeType::GetPtr(observedEdgesOID);
                     Vertex out = v;
                     typename EdgeType::LookupResult res;
+                    out.start=0;
                     edges->Lookup(out.id, &res);
-                    out.edges = res.size;
+                    if (res.found) {
+                      out.edges = res.size;
+                    } else {
+                      out.edges = 0;
+                    }
                     return out;
                   });
+  
   // 2 - compute prefix scan of the neighboorhoods size
   exclusiveScanVertices<Vertex>(
       observedGraph["Vertices"]); // convert # edges to start location
+
 
   // 3 - copy the content of the hashmap into the CSR
   // shad::for_each(shad::distributed_parallel_tag{},
@@ -339,7 +348,6 @@ public:
     TS.Module = torch::jit::load(modelFileName_);
     // // Load Dataset
     // TS.DataSet = Dataset(_verticesOID, _edgesOID, _featuresOID);
-
     TS.TrainDataset = Dataset(_verticesOID,  _edgesOID,_featuresOID, _edgesOIDTrain);
     TS.TestDataset = Dataset(_verticesOID,  _edgesOID,_featuresOID, _edgesOIDTest);
     TS.ValidationDataset = Dataset(_verticesOID,  _edgesOID,_featuresOID, _edgesOIDValidation);
@@ -366,7 +374,7 @@ public:
         testSetSize, total_ranks, tid, false);
     auto validation_sampler = torch::data::samplers::DistributedRandomSampler(
         validationSetSize, total_ranks, tid, false);
-    
+
     auto stackedDataSetTrain = TS.TrainDataset.map(
         torch::data::transforms::Stack<typename Dataset::Data>());
 
