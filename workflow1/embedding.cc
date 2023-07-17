@@ -255,12 +255,17 @@ LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 
   std::cout << "Embeddings created" << std::endl;
 
+  auto timeGenerateStart = my_timer();
   auto [observedGraph, trainSet, validationSet, testSet] = GenerateLinkPredictionDataSet(Vertices->GetGlobalID(), (XEdgeOID)graph["XEdges"], 0.85, 0.05);
+  auto timeGenerateEnd = my_timer(); 
+  std::cout<<"GenerateLinkPredictionDataSet time: " <<  timeGenerateEnd - timeGenerateStart << std::endl;
 
   size_t parallelThreads = shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
   lpTrainingState<LinkPredictionWMDDataset> initState;
+
   auto TSs = shad::Array<lpTrainingState<LinkPredictionWMDDataset>>::Create(
       parallelThreads, initState);
+
   auto reducerArrayOID =
       shad::Array<uint64_t>::Create(parallelThreads, 0ul)
           ->GetGlobalID();
@@ -329,20 +334,20 @@ LinkPredictor(uint64_t &num_edges, uint64_t &num_vertices, Graph_t &graph,
 
 //END OF VALIDATION
 
-    shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
-                   agile::workflow1::lpTestLoop<
-                       lpTrainingState<LinkPredictionWMDDataset>>);
+    // shad::for_each(shad::distributed_parallel_tag{}, TSs->begin(), TSs->end(),
+    //                agile::workflow1::lpTestLoop<
+    //                    lpTrainingState<LinkPredictionWMDDataset>>);
 
-    auto test_size = shad::reduce(shad::distributed_parallel_tag{},
-                                  localSamplesProcessedPtr->begin(),
-                                  localSamplesProcessedPtr->end());
+    // auto test_size = shad::reduce(shad::distributed_parallel_tag{},
+    //                               localSamplesProcessedPtr->begin(),
+    //                               localSamplesProcessedPtr->end());
 
-    auto test_correct = shad::reduce(shad::distributed_parallel_tag{},
-                                     localSamplesCorrectPtr->begin(),
-                                     localSamplesCorrectPtr->end());
+    // auto test_correct = shad::reduce(shad::distributed_parallel_tag{},
+    //                                  localSamplesCorrectPtr->begin(),
+    //                                  localSamplesCorrectPtr->end());
 
-    std::cout << "Test Accuracy: " << test_correct << "/" << test_size << " = "
-              << static_cast<float>(test_correct) / test_size << std::endl;
+    // std::cout << "Test Accuracy: " << test_correct << "/" << test_size << " = "
+    //           << static_cast<float>(test_correct) / test_size << std::endl;
 //END OF TEST
     auto end = std::chrono::high_resolution_clock::now();
 
