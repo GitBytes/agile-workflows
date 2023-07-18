@@ -27,24 +27,6 @@ void BuyProduct(const uint64_t & id, TraderVertex & seller, uint8_t * result, ui
   * ((uint64_t *) result) = 0.0;
   * resSize = sizeof(double);
 }
-       //      * result = 0.0;
-       //      resultSize = size_of(double);
-       //      double amount = min(seller.bought - seller.sold, args.to_buy);;
-       //
-       //      if (amount > 0 {
-       //         * result = amount;
-       //         seller.sold += amount;
-       //
-       //         SaleEdge edge;
-       //         edge.seller   = id;
-       //         wdge.buyer    = args.buyer;
-       //         edge.product  = 8486;
-       //         edge.date     = shad::data_types::kNullValue<time_t>;
-       //         edge.amount   = amount;
-       //         edge.weight   = shad::data_types::kNullValue<double>;
-       //         edge.src_type = TYPES::NONE;
-       //         CoffeeSales->Insert(seller, edge);
-       //      }
 
 
 // Initiated by the purchaser at the site of the seller, this routine adjusts the seller's sold amount
