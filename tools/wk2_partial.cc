@@ -224,7 +224,7 @@ namespace shad
       }
       return true;
     }
-    bool operator() (shad::rt::Handle&, std::pair<uint64_t, time_t> *const lhs, const std::pair<uint64_t, time_t> &rhs, bool same_key) {
+    bool operator() (shad::rt::Handle& handle, std::pair<uint64_t, time_t> *const lhs, const std::pair<uint64_t, time_t> &rhs, bool same_key) {
       if(!same_key){ //if the entry isn't in the table yet, initialize it
           (*lhs).first = rhs.first;
           (*lhs).second = rhs.second;
@@ -238,7 +238,7 @@ namespace shad
       if ((*lhs).first == 3){
 	      auto time_diff = my_timer() - args.start_time;
 	      std::cout<<"A SubPattern-12 match is detected and reported in "<< time_diff <<"s" << std::endl;
-        shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
+        shad::rt::asyncExecuteAt(handle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(12, args);
       }
       return true;
@@ -294,7 +294,7 @@ namespace shad
         return true;
       }
       
-      bool operator() (shad::rt::Handle&, uint64_t *const lhs, const uint64_t &rhs, bool same_key) {
+      bool operator() (shad::rt::Handle& handle, uint64_t *const lhs, const uint64_t &rhs, bool same_key) {
         if(!same_key){ //if the entry isn't in the table yet initialize it as 0
           *lhs=0;
           //*lhs = std::move(rhs);
@@ -315,10 +315,10 @@ namespace shad
           ForumEvents->Lookup(key, &FEV);
 
           std::pair<uint64_t, time_t> sp12tmp(1, FEV.date);
-          InsertSP12 inserter(args, patternHandle);
+          InsertSP12 inserter(args, handle);
           // shad::rt::Handle nextHandle;
-          // SubPattern12->AsyncInsert(nextHandle, inserter, FEV.forum, sp12tmp);
-          SubPattern12->Insert(inserter, FEV.forum, sp12tmp);
+          SubPattern12->AsyncInsert(handle, inserter, FEV.forum, sp12tmp);
+          //SubPattern12->Insert(inserter, FEV.forum, sp12tmp);
         }
         return true;
       }
@@ -371,7 +371,7 @@ namespace shad
       }
       return true;
     }
-    bool operator() (shad::rt::Handle&, uint64_t *const lhs, const uint64_t &rhs, bool same_key) {
+    bool operator() (shad::rt::Handle& handle, uint64_t *const lhs, const uint64_t &rhs, bool same_key) {
       if(!same_key){ //if the entry isn't in the table yet initialize it as 0
           *lhs=0;
       }
@@ -394,10 +394,10 @@ namespace shad
         ForumEventVertex FEV;
         ForumEvents->Lookup(key, &FEV);
         std::pair<uint64_t, time_t> sp12tmp(2, FEV.date);
-        InsertSP12 inserter(args, patternHandle);
+        InsertSP12 inserter(args, handle);
         // shad::rt::Handle nextHandle;
-        // SubPattern12->AsyncInsert(nextHandle, inserter, FEV.forum, sp12tmp);
-        SubPattern12->Insert(inserter, FEV.forum, sp12tmp);
+        SubPattern12->AsyncInsert(handle, inserter, FEV.forum, sp12tmp);
+        //SubPattern12->Insert(inserter, FEV.forum, sp12tmp);
       }
       return true;
     }
@@ -443,7 +443,7 @@ namespace shad
       return true;
     }
 
-    bool operator() (shad::rt::Handle&, std::pair<bool, uint64_t> *const lhs, const std::pair<bool, uint64_t> &rhs, bool same_key) {
+    bool operator() (shad::rt::Handle& handle, std::pair<bool, uint64_t> *const lhs, const std::pair<bool, uint64_t> &rhs, bool same_key) {
       if(!same_key){ //if the entry isn't in the table yet initialize it as 0
           (*lhs).first = false;
           (*lhs).second = 0;
@@ -459,7 +459,7 @@ namespace shad
       if((*lhs).first && (*lhs).second >= 2){
 	      auto time_diff = my_timer() - args.start_time;
 	      std::cout<<"A SubPattern-3 match is detected and reported in "<< time_diff <<"s" << std::endl;
-        shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
+        shad::rt::asyncExecuteAt(handle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(3, args);
       }
       return true;
@@ -501,7 +501,7 @@ namespace shad
       }
       return true;
     }
-    bool operator() (shad::rt::Handle&, std::pair<bool, bool> *const lhs, const std::pair<bool, bool> &rhs, bool same_key) {
+    bool operator() (shad::rt::Handle& handle, std::pair<bool, bool> *const lhs, const std::pair<bool, bool> &rhs, bool same_key) {
       if(!same_key){ //if the entry isn't in the table yet initialize it as 0
           (*lhs).first = false;
           (*lhs).second = false;
@@ -517,7 +517,7 @@ namespace shad
       if((*lhs).first && (*lhs).second){
 	      auto time_diff = my_timer() - args.start_time;
 	      std::cout<<"A SubPattern-5 match is detected and reported in "<< time_diff <<"s" << std::endl;
-        shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
+        shad::rt::asyncExecuteAt(handle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(5, args);
       }
       return true;
@@ -563,7 +563,7 @@ namespace shad
       }
       return true;
     }
-    bool operator() (shad::rt::Handle&, std::pair<uint64_t, time_t> *const lhs, const std::pair<uint64_t, time_t> &rhs, bool same_key) {
+    bool operator() (shad::rt::Handle& handle, std::pair<uint64_t, time_t> *const lhs, const std::pair<uint64_t, time_t> &rhs, bool same_key) {
       if(!same_key){ //if the entry isn't in the table yet initialize it as 0
           (*lhs).first = 0;
           (*lhs).second = 0;
@@ -583,7 +583,7 @@ namespace shad
       if ((*lhs).first == 15){
 	      auto time_diff = my_timer() - args.start_time;
 	      std::cout<<"A SubPattern-6 match is detected and reported in "<< time_diff <<"s" << std::endl;
-        shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
+        shad::rt::asyncExecuteAt(handle, shad::rt::thisLocality(), PatternCheck, args);
         //PatternCheck(6, args);
       }
       return true;
@@ -645,7 +645,7 @@ namespace shad
       std::cout<<"A SubPattern-7 match is detected and reported in "<< time_diff <<"s" << std::endl;
       return true;
     }
-    bool operator() (shad::rt::Handle&, std::pair<int64_t, time_t> *const lhs, const std::pair<int64_t, time_t> &rhs, bool same_key) {
+    bool operator() (shad::rt::Handle& handle, std::pair<int64_t, time_t> *const lhs, const std::pair<int64_t, time_t> &rhs, bool same_key) {
       if(!same_key){ //if the entry isn't in the table yet initialize it as 0
           (*lhs).first = shad::data_types::kNullValue<uint64_t>;
           (*lhs).second = shad::data_types::kNullValue<time_t>;
@@ -665,12 +665,14 @@ namespace shad
           using SP6type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>;
           auto SubPattern6 = SP6type::GetPtr( (shad::ObjectIdentifier<SP6type>) args.SubPattern6_OID);
           uint64_t ammunition = 185785;
-          InsertSP6 inserter (args, patternHandle);
+          InsertSP6 inserter (args, handle);
 
           //update SP6 for first buyer
-          SubPattern6->Insert(inserter, (*lhs).first, std::pair<uint64_t, time_t>(ammunition,(*lhs).second));
+          //SubPattern6->Insert(inserter, (*lhs).first, std::pair<uint64_t, time_t>(ammunition,(*lhs).second));
+          SubPattern6->AsyncInsert(handle, inserter, (*lhs).first, std::pair<uint64_t, time_t>(ammunition,(*lhs).second));
           //update SP6 for second buyer
-          SubPattern6->Insert(inserter, rhs.first, std::pair<uint64_t, time_t>(ammunition,rhs.second));
+          //SubPattern6->Insert(inserter, rhs.first, std::pair<uint64_t, time_t>(ammunition,rhs.second));
+          SubPattern6->AsyncInsert(handle, inserter, rhs.first, std::pair<uint64_t, time_t>(ammunition,rhs.second));
 
           (*lhs).first = -1 * (*lhs).first;
         }
@@ -679,8 +681,10 @@ namespace shad
         using SP6type = shad::Hashmap<uint64_t, std::pair<uint64_t, time_t>>;
         auto SubPattern6 = SP6type::GetPtr( (shad::ObjectIdentifier<SP6type>) args.SubPattern6_OID);
         uint64_t ammunition = 185785;
-        InsertSP6 inserter (args, patternHandle);
-        SubPattern6->Insert(inserter, rhs.first, std::pair<uint64_t, time_t>(ammunition,rhs.second));
+        InsertSP6 inserter (args, handle);
+        //SubPattern6->Insert(inserter, rhs.first, std::pair<uint64_t, time_t>(ammunition,rhs.second));
+        SubPattern6->AsyncInsert(handle, inserter, rhs.first, std::pair<uint64_t, time_t>(ammunition,rhs.second));
+      
       }
       auto time_diff = my_timer() - args.start_time;
       std::cout<<"A SubPattern-7 match is detected and reported in "<< time_diff <<"s" << std::endl;
@@ -954,18 +958,21 @@ namespace shad
     printf("Insert handles returned %lf\n", my_timer() - time1);
  
     waitForCompletion(bufferhandle);
-    Persons->WaitForBufferedInsert();
-    ForumEvents->WaitForBufferedInsert();
-    Forums->WaitForBufferedInsert();
-    Publications->WaitForBufferedInsert();
-    Topics->WaitForBufferedInsert();
+    Persons->AsyncWaitForBufferedInsert(bufferhandle);
+    ForumEvents->AsyncWaitForBufferedInsert(bufferhandle);
+    Forums->AsyncWaitForBufferedInsert(bufferhandle);
+    Publications->AsyncWaitForBufferedInsert(bufferhandle);
+    Topics->AsyncWaitForBufferedInsert(bufferhandle);
 
-    Purchases->WaitForBufferedInsert();
-    Sales->WaitForBufferedInsert();
-    Authors->WaitForBufferedInsert();
-    Includes->WaitForBufferedInsert();
-    HasTopic->WaitForBufferedInsert();
-    HasOrg->WaitForBufferedInsert();
+    Purchases->AsyncWaitForBufferedInsert(bufferhandle);
+    Sales->AsyncWaitForBufferedInsert(bufferhandle);
+    Authors->AsyncWaitForBufferedInsert(bufferhandle);
+    Includes->AsyncWaitForBufferedInsert(bufferhandle);
+    HasTopic->AsyncWaitForBufferedInsert(bufferhandle);
+    HasOrg->AsyncWaitForBufferedInsert(bufferhandle);
+
+    waitForCompletion(bufferhandle);
+
     printf("handle waits returned\n");
     // one last check after finishing all handles
     shad::rt::asyncExecuteAt(patternHandle, shad::rt::thisLocality(), PatternCheck, args);
