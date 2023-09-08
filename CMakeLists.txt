@@ -50,6 +50,7 @@ add_subdirectory(wk2_exact)
 add_subdirectory(wk2_partial)
 add_subdirectory(workflow3)
 add_subdirectory(workflow4)
+add_subdirectory(wk_multihop)
 
 enable_testing()
 include(CTest)
