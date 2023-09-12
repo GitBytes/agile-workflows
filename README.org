@@ -109,6 +109,11 @@ cd agile-workflows
 mpiexec -n 4 --npernode 2 --bind-to socket ./build/bin/do-workflow1 ../wmd-dataset/data.001.csv pytorch-models/workflow1-GNN.pt
 #+END_SRC
 
+#+BEGIN_SRC: bash
+cd agile-workflows
+mpiexec -n 16  --npernode 2 --bind-to socket ./build/bin/do-wk_multihop $PATH_TO_DATA/train_data.csv $PATH_TO_DATA/entity_features.csv $PATH_TO_DATA/relation_features.csv --gmt_num_workers 7 gmt_num_helpers 2
+#+END_SRC
+
 *** Workflow 2
 
 **** Exact Matching
