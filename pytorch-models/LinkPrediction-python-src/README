@@ -1,0 +1,7 @@
+This code is adapted from https://github.com/DaDaCheng/WalkPooling to use in our AGILE repository. 
+
+The WalkPooling repository is a repository for the method explained in the paper:
+
+"Neural Link Prediction with Walk Pooling" by Liming Pan, Cheng Shi, Ivan Dokmanić, ICLR 2022 
+https://paperswithcode.com/paper/neural-link-prediction-with-walk-pooling-1
+
