@@ -100,6 +100,64 @@ inline auto GenerateFalseEdges(
   return result;
 }
 
+using EdgeSetType = shad::Set<Edge, EndPointsEdgeCompare>;
+using cp_args_t = std::tuple<size_t, XEdgeType::ObjectID, EdgeSetType::ObjectID>;
+
+
+static void copy_fn(shad::rt::Handle& h, const cp_args_t& args) {
+  auto xoid = std::get<1>(args);
+  auto soid = std::get<2>(args);
+  auto set = EdgeSetType::GetPtr(soid);
+  auto xptr = XEdgeType::GetPtr(xoid);
+  auto lset = set->GetLocalSet();
+  auto start_idx = std::get<0>(args);
+  size_t next_idx = start_idx + lset->Size();
+  uint32_t next_loc = static_cast<uint32_t>(shad::rt::thisLocality()) + 1;
+  //std::cout << shad::rt::thisLocality() << " start_idx " << start_idx << std::endl;
+  auto fel = [](shad::rt::Handle & h, const Edge &entry,
+                XEdgeType::SharedPtr &ptr,
+                size_t *&cntPtr) {
+    auto idx = __sync_fetch_and_add(cntPtr, 1);
+    ptr->AsyncInsertAt(h, idx, entry);
+  };
+  if (next_loc < shad::rt::numLocalities()) {
+    cp_args_t cpargs(next_idx, xoid, soid);
+    shad::rt::asyncExecuteAt(h, shad::rt::Locality(next_loc), copy_fn, cpargs);
+  }
+  size_t* cntPtr = &start_idx;
+  shad::rt::Handle h2;
+  lset->AsyncForEachElement(h2, fel, xptr, cntPtr);
+  shad::rt::waitForCompletion(h2);
+  //std::cout << shad::rt::thisLocality() << " cnt " << start_idx << std::endl;
+}
+
+// static void copy_fn(shad::rt::Handle& h, const cp_args_t& args) {
+//   auto xoid = std::get<1>(args);
+//   auto soid = std::get<2>(args);
+//   auto set = EdgeSetType::GetPtr(soid);
+//   auto lset = set->GetLocalSet();
+//   auto start_idx = std::get<0>(args);
+//   size_t next_idx = start_idx + lset->Size();
+//   uint32_t next_loc = static_cast<uint32_t>(shad::rt::thisLocality()) + 1;
+//   std::cout << shad::rt::thisLocality() << " start_idx " << start_idx << std::endl;
+//   auto fel = [](shad::rt::Handle &, const Edge &entry,
+//                 XEdgeType::SharedPtr& arrayPtr,
+//                 size_t *&cntPtr) {
+//     arrayPtr->AsyncInsertAt(h, *cntPtr, entry);
+//     __sync_fetch_and_add(cntPtr, 1);
+//   };
+//   if (next_loc < shad::rt::numLocalities()) {
+//     cp_args_t cpargs(next_idx, xoid, soid);
+//     shad::rt::asyncExecuteAt(h, shad::rt::Locality(next_loc), copy_fn, cpargs);
+//   }
+//   size_t* cntPtr = &start_idx;
+//   uint64_t magicValue = 42;
+//   shad::rt::Handle h2;
+//   lset->AsyncForEachElement(h2, fel, cntPtr);
+//   shad::rt::waitForCompletion(h2);
+//   std::cout << shad::rt::thisLocality() << " cnt " << start_idx << std::endl;
+// }
+
 inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID EdgeArrayOID, 
                                   float train,float validation) {
 
@@ -108,10 +166,10 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
 
   // Get lower triangular part
   shad::rt::Handle h = shad::rt::impl::createHandle();
-  using EdgeSetType = shad::Set<Edge, EndPointsEdgeCompare>;
+  // using EdgeSetType = shad::Set<Edge, EndPointsEdgeCompare>;
   auto EdgeSet = EdgeSetType::Create(allEdges->Size() / 2);
   auto EdgeSetOID = EdgeSet->GetGlobalID();
-  std::cout << "A" << std::endl;
+
   allEdges->AsyncForEach(
       h,
       [](shad::rt::Handle &h, size_t i, Edge &e,
@@ -123,15 +181,25 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
       },
       EdgeSetOID);
   shad::rt::waitForCompletion(h);
-  std::cout << "B" << std::endl;
+
   auto EdgeSetSize = EdgeSet->Size();
   auto VerticesArraySize = Vertices->Size();
   auto Edges = XEdgeType::Create(EdgeSetSize, Edge());
-  auto setCopyBegin = my_timer();
-  copy(shad::distributed_parallel_tag{}, EdgeSet->begin(), EdgeSet->end(), Edges->begin());
-  auto setCopyEnd = my_timer();
-  std::cout << "Set copy time: " << setCopyEnd - setCopyBegin << std::endl; 
-  std::cout << "C" << std::endl;
+
+  //auto setCopyBegin = my_timer();
+//  copy(shad::distributed_parallel_tag{}, EdgeSet->begin(), EdgeSet->end(), Edges->begin());
+ 
+  auto xgid = Edges->GetGlobalID();
+ 
+  cp_args_t cpargs(0, xgid, EdgeSetOID);
+  shad::rt::asyncExecuteAt(h, shad::rt::thisLocality(), copy_fn, cpargs);
+  shad::rt::waitForCompletion(h);
+ 
+ 
+  //auto setCopyEnd = my_timer();
+
+  //std::cout << "Set copy time: " << setCopyEnd - setCopyBegin << std::endl; 
+
 
   size_t trueTrainEdgesNum = std::floor(EdgeSetSize * train);
   size_t trueValidationEdgesNum = std::floor(EdgeSetSize * validation);
@@ -145,13 +213,9 @@ inline auto GenerateLinkPredictionDataSet(VertexOID VertexArrayID, XEdgeOID Edge
   auto trainingSet = XEdgeType::Create(trueTrainEdgesNum + falseTrainEdgesNum, Edge());
   auto validationSet = XEdgeType::Create(trueValidationEdgesNum + falseValidationEdgesNum, Edge());
   auto testSet = XEdgeType::Create(trueTestEdgesNum + falseTestEdgesNum, Edge());
-  std::cout << "D" << std::endl;
-  auto ranGenBegin = my_timer();
-  std::cout << "Random false edge started " << ranGenBegin << std::endl; 
-  auto falseEdgeArray = GenerateFalseEdges(falseEdgesTotal, EdgeSet, Vertices->Size() - 1);
-  auto ranGenEnd = my_timer();
-  std::cout << "Random False edge creation : " << ranGenEnd - ranGenBegin << std::endl; 
 
+  auto falseEdgeArray = GenerateFalseEdges(falseEdgesTotal, EdgeSet, Vertices->Size() - 1);
+  
   auto begin = Edges->begin();
   auto end = begin + trueTrainEdgesNum;
   auto falseTrainItrB = copy(shad::distributed_parallel_tag{}, begin, end, trainingSet->begin());
@@ -290,6 +354,7 @@ public:
   lpTrainingState &operator=(lpTrainingState &&) = default;
 
   torch::jit::script::Module Module;
+  //torch::nn::BCEWithLogitsLoss criterion;
   Dataset TrainDataset;
   Dataset TestDataset;
   Dataset ValidationDataset;
@@ -355,7 +420,7 @@ public:
     // Number threads
     size_t total_ranks =
         shad::rt::numLocalities() * shad::rt::impl::getConcurrency();
-    const int64_t trainingSetSize = TS.TrainDataset.size().value() / int64_t(4);
+    const int64_t trainingSetSize = TS.TrainDataset.size().value();
     const int64_t testSetSize = TS.TestDataset.size().value();
     const int64_t validationSetSize = TS.ValidationDataset.size().value();
     const size_t batchSize = std::min<size_t>(32, trainingSetSize / total_ranks);
@@ -412,21 +477,10 @@ public:
   }
 };
 
-// struct InplaceFunctor {
-//   void *operator()() {
-//     auto ptr = shad::Array<uint64_t>::GetPtr(oid_);
-//     uint64_t address = ptr->At(static_cast<uint32_t>(shad::rt::thisLocality()));
-//     return reinterpret_cast<void *>(address);
-//   }
-
-//   shad::Array<uint64_t>::ObjectID oid_;
-// };
-
-
 template <typename lpTrainingState> void lpTrainLoop(lpTrainingState &TS) {
   float train_correct = 0;
   size_t train_size = 0;
-
+  //torch::AutoGradMode enable_grad(true);
   TS.Module.train();
   auto tempTensor = torch::Tensor();
   auto criterion = torch::nn::BCEWithLogitsLoss();
@@ -484,21 +538,28 @@ template <typename lpTrainingState> void lpTestLoop(lpTrainingState &TS) {
 template <typename lpTrainingState> void lpValidateLoop(lpTrainingState &TS) {
   float test_correct = 0;
   size_t test_size = 0;
-  
+
   TS.Module.eval();
   auto criterion = torch::nn::BCEWithLogitsLoss();
-  //torch::NoGradGuard no_grad;
-  for (auto &batch :  *TS.ValidationDataLoader) {
-    test_size +=1;
+  {
+    //torch::NoGradGuard no_grad;
+    //torch::AutoGradMode enable_grad(false);
 
-    TS.Inputs[0] = batch.Features;
-    TS.Inputs[1] = batch.EdgeIndex;
-    TS.Inputs[2] = batch.Mask;
-    TS.Inputs[3] = batch.Batch_Mask;
-    auto groundTruth = batch.Labels;
-    auto output = TS.Module.forward(TS.Inputs).toTensor();
-    auto loss = criterion(output.view(-1), groundTruth);
-    test_correct += loss.template item<float>();
+    
+    for (auto &batch :  *TS.ValidationDataLoader) {
+      test_size +=1;
+
+      TS.Inputs[0] = batch.Features;
+      TS.Inputs[1] = batch.EdgeIndex;
+      TS.Inputs[2] = batch.Mask;
+      TS.Inputs[3] = batch.Batch_Mask;
+      auto groundTruth = batch.Labels;
+      auto output = TS.Module.forward(TS.Inputs).toTensor();
+      auto loss = criterion(output.view(-1), groundTruth);
+      test_correct += loss.template item<float>();
+    }
+    ////torch::AutoGradMode turn_grad(true);
+    //enable_grad=true;
   }
 
   auto localSamplesProcessedPtr =
