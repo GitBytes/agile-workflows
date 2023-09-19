@@ -24,8 +24,10 @@ void ErasePurchaseEdge(Handle & handle, const uint64_t & buyer,
 
 
 void BuyProduct(const uint64_t & id, TraderVertex & seller, uint8_t * result, uint32_t * resSize, RF_args_t & args) {
-  * ((uint64_t *) result) = 0.0;
+  double sale = std::min(seller.bought - seller.sold, args.to_buy);
+  * ((double *) result) = sale;
   * resSize = sizeof(double);
+  seller.sold -= sale;
 }
 
 
@@ -77,11 +79,12 @@ void CancelCoffeePurchase(Handle & handle,
        CoffeeTraders->TryBlockingApplyWithRetBuff(seller, BuyProduct, (uint8_t *) (& result), & resultSize, args);
 
        if (result > 0.0) {                                       // ... if seller had coffee to sell
+          printf("coffee purchased = %lf from seller %lu\n", result, seller);
           edge.seller  = seller;
           edge.amount  = result;
           args.to_buy -= result;
           CoffeePurchases->BufferedAsyncInsert(handle, buyer, edge);
-       }
+       } else printf("no coffee purchased from seller %lu\n", seller);
 
        if (args.to_buy == 0.0) break;                            // ... no more coffee to buy
 } } }

@@ -50,10 +50,10 @@ namespace shad {
   using namespace agile::workflow1;
 
 int main(int argc, char *argv[]) {
-  double time1 = my_timer();
-
   Handle handle;
   Graph_t graph;
+  double time1 = my_timer();
+
   std::string dataFile = argv[1];
   auto Edges  = EdgeType::Create(AGILE_LARGE);
   auto GlobalIDS = GlobalIDType::Create(AGILE_MEDIUM);

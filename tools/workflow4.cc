@@ -141,7 +141,7 @@ int main(int argc, char *argv[]) {
   CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
   waitForCompletion(handle);
 
-  printf("/nTime for Kernel 2 - Coffee subgraph and sale weights = %lf\n", my_timer() - time1);
+  printf("\nTime for Kernel 2 - Coffee subgraph and sale weights = %lf\n", my_timer() - time1);
   printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
   printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
   printf("Number of coffee purchases = %lu\n\n", CoffeePurchases->Size());
