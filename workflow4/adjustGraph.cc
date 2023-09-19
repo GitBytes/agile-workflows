@@ -79,12 +79,11 @@ void CancelCoffeePurchase(Handle & handle,
        CoffeeTraders->TryBlockingApplyWithRetBuff(seller, BuyProduct, (uint8_t *) (& result), & resultSize, args);
 
        if (result > 0.0) {                                       // ... if seller had coffee to sell
-          printf("coffee purchased = %lf from seller %lu\n", result, seller);
           edge.seller  = seller;
           edge.amount  = result;
           args.to_buy -= result;
           CoffeePurchases->BufferedAsyncInsert(handle, buyer, edge);
-       } else printf("no coffee purchased from seller %lu\n", seller);
+       }
 
        if (args.to_buy == 0.0) break;                            // ... no more coffee to buy
 } } }
