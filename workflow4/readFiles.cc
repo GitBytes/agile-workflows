@@ -75,12 +75,15 @@ void SelectSalesMarket(Handle & handle, const uint64_t & id,
   for (auto & sale : sales) {
     if (sale.product != product) continue;
 
-    PurchaseEdge tmp(sale);
-    CoffeeSales->BufferedAsyncInsert(handle, sale.seller, sale);
-    CoffeePurchases->BufferedAsyncInsert(handle, tmp.buyer, tmp);
-    CoffeeTraders->BufferedAsyncInsert(handle, sale.seller, TraderVertex(sale.seller, sale.amount, 0.0, 0.0));
-    CoffeeTraders->BufferedAsyncInsert(handle, tmp.buyer, TraderVertex(tmp.buyer, 0.0, tmp.amount, tmp.amount));
-} }
+    if (sale.seller == sale.buyer) {     // self-edge represents product creation by seller, increase bought amonut
+       CoffeeTraders->BufferedAsyncInsert(handle, sale.seller, TraderVertex(sale.seller, 0.0, sale.amount, 0.0));
+    } else {
+       PurchaseEdge tmp(sale);
+       CoffeeSales->BufferedAsyncInsert(handle, sale.seller, sale);
+       CoffeePurchases->BufferedAsyncInsert(handle, tmp.buyer, tmp);
+       CoffeeTraders->BufferedAsyncInsert(handle, sale.seller, TraderVertex(sale.seller, sale.amount, 0.0, 0.0));
+       CoffeeTraders->BufferedAsyncInsert(handle, tmp.buyer, TraderVertex(tmp.buyer, 0.0, tmp.amount, tmp.amount));
+} } }
 
 void readFileSocial(const RF_args_t & args) {
   std::string line;

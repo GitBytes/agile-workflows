@@ -23,53 +23,63 @@ void ErasePurchaseEdge(Handle & handle, const uint64_t & buyer,
 } }
 
 
-void BuyProduct(const uint64_t & id, TraderVertex & seller, uint8_t * result, uint32_t * resSize, RF_args_t & args) {
-  double sale = std::min(seller.bought - seller.sold, args.to_buy);
-  * ((double *) result) = sale;
-  * resSize = sizeof(double);
-  seller.sold -= sale;
-}
+void BuyProduct(const uint64_t & seller, TraderVertex & sellerVertex,
+     uint8_t * result, uint32_t * resSize, RF_args_t & args) {
+
+  if (sellerVertex.bought > sellerVertex.sold) {     // seller has something to sell
+     double sale = std::min(sellerVertex.bought - sellerVertex.sold, args.to_buy);
+     double old_sold = sellerVertex.sold;
+     sellerVertex.sold -= sale;
+
+     * ((double *) result) = sale;
+     * resSize = sizeof(double);
+
+  } else {                                           // seller has nothing to sell
+     * ((double *) result) = 0.0;
+     * resSize = sizeof(double);
+} }
 
 
 // Initiated by the purchaser at the site of the seller, this routine adjusts the seller's sold amount
 // and removes the sale edge from the seller to the purchaser.
-void CancelCoffeeSale(Handle & handle,
-     const uint64_t & seller, TraderVertex & sellerVertex, PurchaseEdge & purchase, RF_args_t & args) {
+void CancelCoffeeSale(const uint64_t & seller, TraderVertex & sellerVertex, PurchaseEdge & edge, RF_args_t & args) {
+  Handle handle = args.handle;
   auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
   
   if (sellerVertex.sold > 0)  {      // if seller has not been canceled
-     sellerVertex.sold -= purchase.amount;
-     CoffeeSales->AsyncBlockingApply(handle, seller, EraseSaleEdge, purchase.buyer, purchase.amount, purchase.date);
+     double old_sold = sellerVertex.sold;
+     sellerVertex.sold -= edge.amount;
+     // CoffeeSales->AsyncBlockingApply(handle, seller, EraseSaleEdge, edge.buyer, edge.amount, edge.date);
 } }
 
 
 // Initiated by the seller at the site of the buyer, this routine adjusts the buyer's purchase amount,
 // removes the purchase edge from the buyer to the seller and searches for one or more suppliers that
 // can replace the lost purchase.
-void CancelCoffeePurchase(Handle & handle,
-     const uint64_t & buyer, TraderVertex & buyerVertex, SaleEdge & sale, RF_args_t & args) {
-  auto CoffeeTraders = TraderVertexType::GetPtr((TraderVertexType::ObjectID) args.CoffeeTraders_OID);
+void CancelCoffeePurchase(const uint64_t & buyer, TraderVertex & buyerVertex, SaleEdge & edge, RF_args_t & args) {
+  Handle handle = args.handle;
+  auto CoffeeTraders   = TraderVertexType::GetPtr((TraderVertexType::ObjectID) args.CoffeeTraders_OID);
+  auto CoffeeSales     = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
   auto CoffeePurchases = PurchaseEdgeType::GetPtr((PurchaseEdgeType::ObjectID) args.CoffeePurchases_OID);
 
   if (buyerVertex.bought > 0) {                                  // if buyer has not been canceled
-     buyerVertex.bought -= sale.amount;                          // ... reduce amount of coffee being purchased
-     CoffeePurchases->AsyncBlockingApply(handle, buyer, ErasePurchaseEdge, sale.seller, sale.amount, sale.date);
+     buyerVertex.bought -= edge.amount;                          // ... reduce amount of coffee being purchased
+     // CoffeePurchases->AsyncBlockingApply(handle, buyer, ErasePurchaseEdge, edge.seller, edge.amount, edge.date);
 
      PurchaseEdgeType::LookupResult purchases;                   // ... lookup coffee suppliers for this buyer
      CoffeePurchases->Lookup(buyer, & purchases);
      if (! purchases.found) return;                              // ... this buyer has no other suppliers
 
      args.buyer  = buyer;
-     args.handle = handle;
      args.to_buy = buyerVertex.desired - buyerVertex.bought;     // ... amount of coffee to be bought
 
-     PurchaseEdge edge;
-     edge.buyer    = buyer;
-     edge.product  = 8486;
-     edge.date     = shad::data_types::kNullValue<time_t>;
-     edge.weight   = shad::data_types::kNullValue<double>;
-     edge.src_type = TYPES::NONE;
-     edge.dst_type = TYPES::NONE;
+     SaleEdge sale;
+     sale.buyer    = buyer;
+     sale.product  = 8486;
+     sale.date     = shad::data_types::kNullValue<time_t>;
+     sale.weight   = shad::data_types::kNullValue<double>;
+     sale.src_type = TYPES::PERSON;
+     sale.dst_type = TYPES::PERSON;
 
      for (auto itr = purchases.value.begin(); itr != purchases.value.end(); ++ itr) {
        double   result;
@@ -78,14 +88,19 @@ void CancelCoffeePurchase(Handle & handle,
 
        CoffeeTraders->TryBlockingApplyWithRetBuff(seller, BuyProduct, (uint8_t *) (& result), & resultSize, args);
 
-       if (result > 0.0) {                                       // ... if seller had coffee to sell
-          edge.seller  = seller;
-          edge.amount  = result;
-          args.to_buy -= result;
-          CoffeePurchases->BufferedAsyncInsert(handle, buyer, edge);
+       if (result > 0.0) {                                                   // ... if seller had coffee to sell
+          sale.seller = seller;
+          sale.amount = result;
+          CoffeeSales->BufferedAsyncInsert(handle, seller, sale);            // ... ... add sale edge
+
+          PurchaseEdge purchase(sale);
+          CoffeePurchases->BufferedAsyncInsert(handle, buyer, purchase);     // ... ... add purchase edge
+
+          buyerVertex.bought += result;                                      // ... ... increment amount bought
+          args.to_buy -= result;                                             // ... ... decrement amount to buy
        }
 
-       if (args.to_buy == 0.0) break;                            // ... no more coffee to buy
+       if (args.to_buy == 0.0) break;                                    // ... all done
 } } }
 
 
@@ -105,10 +120,10 @@ void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & tra
   CoffeePurchases->Lookup(id, & purchases);     // get my coffee purchases
   CoffeePurchases->Erase(id);                   // erase my purchase edges from the graph
 
-  for (auto & purchase : purchases.value)         // alert my suppliers
-      CoffeeTraders->AsyncApply(handle, purchase.seller, CancelCoffeeSale, purchase, args);
-  for (auto & sale : sales.value)                 // alert my customers
-      CoffeeTraders->AsyncApply(handle, sale.buyer, CancelCoffeePurchase, sale, args);
+  for (auto & purchase : purchases.value)       // alert my suppliers
+      CoffeeTraders->TryBlockingApply(purchase.seller, CancelCoffeeSale, purchase, args);
+  for (auto & sale : sales.value)               // alert my customers
+      CoffeeTraders->TryBlockingApply(sale.buyer, CancelCoffeePurchase, sale, args);
 }
 
 
@@ -133,8 +148,7 @@ void CoffeeSalesWeight(Handle & handle, const uint64_t & seller, std::vector<Sal
 
   TraderVertex trader;
   CoffeeTraders->Lookup(seller, & trader);
-  for (auto & sale : sales) {
-    sale.weight = sale.amount / trader.sold;
-} }
+  for (auto & sale : sales) sale.weight = sale.amount / trader.sold;
+}
 
 } // namespace

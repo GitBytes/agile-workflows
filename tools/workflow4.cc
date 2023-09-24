@@ -187,6 +187,10 @@ int main(int argc, char *argv[]) {
   printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
   printf("Number of coffee purchases = %lu\n", CoffeePurchases->Size());
 
+  // TraderVertex tmp;
+  // CoffeeTraders->Lookup(35804, & tmp);
+  // printf("grower 35804, desired = %lf, bought = %lf, sold = %lf\n", tmp.desired, tmp.bought, tmp.sold);
+
   return 0;
 }
 
