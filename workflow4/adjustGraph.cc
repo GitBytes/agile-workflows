@@ -49,7 +49,7 @@ void CancelCoffeeSale(const uint64_t & seller, TraderVertex & sellerVertex, Purc
   if (sellerVertex.sold > 0)  {      // if seller has not been canceled
      double old_sold = sellerVertex.sold;
      sellerVertex.sold -= edge.amount;
-     // CoffeeSales->AsyncBlockingApply(handle, seller, EraseSaleEdge, edge.buyer, edge.amount, edge.date);
+     CoffeeSales->AsyncBlockingApply(handle, seller, EraseSaleEdge, edge.buyer, edge.amount, edge.date);
 } }
 
 
@@ -64,7 +64,7 @@ void CancelCoffeePurchase(const uint64_t & buyer, TraderVertex & buyerVertex, Sa
 
   if (buyerVertex.bought > 0) {                                  // if buyer has not been canceled
      buyerVertex.bought -= edge.amount;                          // ... reduce amount of coffee being purchased
-     // CoffeePurchases->AsyncBlockingApply(handle, buyer, ErasePurchaseEdge, edge.seller, edge.amount, edge.date);
+     CoffeePurchases->AsyncBlockingApply(handle, buyer, ErasePurchaseEdge, edge.seller, edge.amount, edge.date);
 
      PurchaseEdgeType::LookupResult purchases;                   // ... lookup coffee suppliers for this buyer
      CoffeePurchases->Lookup(buyer, & purchases);
