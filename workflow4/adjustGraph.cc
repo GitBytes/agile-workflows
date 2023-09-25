@@ -28,9 +28,7 @@ void BuyProduct(const uint64_t & seller, TraderVertex & sellerVertex,
 
   if (sellerVertex.bought > sellerVertex.sold) {     // seller has something to sell
      double sale = std::min(sellerVertex.bought - sellerVertex.sold, args.to_buy);
-     double old_sold = sellerVertex.sold;
-     sellerVertex.sold -= sale;
-
+     sellerVertex.sold += sale;
      * ((double *) result) = sale;
      * resSize = sizeof(double);
 
