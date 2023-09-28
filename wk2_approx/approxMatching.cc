@@ -295,9 +295,14 @@ static void setMate(Handle & handle, const uint64_t & id, Vertex & vertex, bool 
 }
 
 
-static void resetMate(const uint64_t & id, Vertex & vertex, uint64_t & null) {
+static void initializeMate(const uint64_t & id, Vertex & vertex, uint64_t & null) {
   vertex.taken = false;
   vertex.mate  = {shad::data_types::kNullValue<uint64_t>, 0.0};
+}
+
+
+static void resetMate(const uint64_t & id, Vertex & vertex, uint64_t & null) {
+  if (! vertex.taken) vertex.mate = {shad::data_types::kNullValue<uint64_t>, 0.0};
 }
 
 
@@ -396,7 +401,7 @@ void ApproxMatching(uint64_t & LHS_OID, uint64_t & RHS_OID) {
   args_t args = {LHS_OID, Matched_OID};
   uint64_t num_pattern_vertices = VertexType::GetPtr((VertexOID) LHS_OID)->Size();
 
-  VertexType::GetPtr((VertexOID) LHS_OID)->ForEachEntry(resetMate, null);
+  VertexType::GetPtr((VertexOID) LHS_OID)->ForEachEntry(initializeMate, null);
   shad::rt::executeOnAll(copy_LHS, LHS_OID);                   // copy LHS to each locale
   
   while (prev_matched < num_pattern_vertices) {  
@@ -406,8 +411,13 @@ void ApproxMatching(uint64_t & LHS_OID, uint64_t & RHS_OID) {
 
     waitForCompletion(handle);
     uint64_t matched_now = Matched->Load();
-    if (prev_matched < matched_now) prev_matched = matched_now; else break;     // no more vertices to match
-  }
+
+    if (prev_matched < matched_now) {     // still matching vertices
+       prev_matched = matched_now;
+       VertexType::GetPtr((VertexOID) LHS_OID)->ForEachEntry(resetMate, null);
+    } else {                              // no more vertices to match
+       break;
+  } }
 
 // print match
   printf("\n ********** Match ********** \n");

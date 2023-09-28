@@ -45,7 +45,6 @@ void CancelCoffeeSale(const uint64_t & seller, TraderVertex & sellerVertex, Purc
   auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID);
   
   if (sellerVertex.sold > 0)  {      // if seller has not been canceled
-     double old_sold = sellerVertex.sold;
      sellerVertex.sold -= edge.amount;
      CoffeeSales->AsyncBlockingApply(handle, seller, EraseSaleEdge, edge.buyer, edge.amount, edge.date);
 } }
