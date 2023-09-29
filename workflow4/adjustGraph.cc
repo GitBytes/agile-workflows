@@ -135,7 +135,7 @@ void PrintWeightedSalesEdgesToFile(const RF_args_t & args) {
      file.open(args.filename, std::ios_base::app);
 
   for (auto itr = CoffeeSales->begin(); itr != CoffeeSales->end(); ++ itr)
-    file << (* itr).second.seller << "," << (* itr).second.buyer << "," << (* itr).second.weight << "\n";
+    file << (* itr).second.seller << " " << (* itr).second.buyer << " " << (* itr).second.weight << "\n";
 
   file.close();
 };
