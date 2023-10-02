@@ -76,8 +76,6 @@ namespace shad {
 
 
 int main(int argc, char *argv[]) {
-//   double time1 = my_timer();
-
 // /**********  Graph/Edgelist, Tables, Embeddings  **********/
 
   Handle handle;

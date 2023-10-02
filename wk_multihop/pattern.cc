@@ -247,7 +247,7 @@ void ComputeTopK(uint64_t EntityScoreTableGID,
     top k element in merged list*/
   for (auto i = 0; i < num_locales; i++) {
     std::priority_queue<EntityScoreInfo, std::vector<EntityScoreInfo>,
-			EntityScoreComparator> top_k_elements;
+			EntityScoreComparatorLess> top_k_elements;
     EntityScoreType::LookupResult res;
     EntityScoreTable->Lookup(i, & res);
     if (res.size == 0) {continue;}
@@ -255,6 +255,7 @@ void ComputeTopK(uint64_t EntityScoreTableGID,
       EntityScoreInfo record(e.score_, e.id_);
       top_k_elements.push(record);
     }
+
     for (auto i = 0; i < TOP_K; i++) {
       auto item = top_k_elements.top();
       merged_top_k_list.push_back(item);

@@ -211,6 +211,13 @@ struct EntityScoreComparator {
   }
 };
 
+struct EntityScoreComparatorLess {
+  bool operator()(const EntityScoreInfo & s1, 
+		  const EntityScoreInfo & s2) const {
+    return s1.score_ < s2.score_;
+  }
+};
+
 using WikiDataEdgeType = shad::Multimap<uint64_t, WikiDataEdge>;
 using WikiDataEdgeOID  = shad::ObjectIdentifier<WikiDataEdgeType>;
 
