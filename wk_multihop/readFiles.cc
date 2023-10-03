@@ -122,8 +122,8 @@ void readEdgeFile(Handle & handle, const RF_args_t & args) {
   auto count = 0;
   while (start < end) {
     getline(file, line);
-    if (count == 0 && this_locale == 0) {count++; continue; /*skip first line*/}
     start += line.size() + 1;
+    if (count == 0 && this_locale == 0) {count++; continue; /*skip first line*/}
     std::vector <std::uint64_t> tokens = split(line, ',', 4);     // delimiter and # tokens set for wikidata data file
 
     auto edge_type_token = tokens[2]; /*0,0,167,2648053*/
@@ -172,9 +172,9 @@ void readEntityEmbeddingFile(Handle & handle, const RF_args_t & args) {
     						      args.entity_embedding_table_OID);
   while (start < end) {
     getline(file, line);
-    if (count == 0 && this_locale == 0) {count++; continue; /*skip first line*/}
     start += line.size() + 1;
-
+    if (count == 0 && this_locale == 0) {count++; continue; /*skip first line*/}
+    
     auto id = std::stoull (line.substr(0, line.find_first_of(",")));
 
     std::vector <float> tokens = split_embedding(line, ',', EMBEDDING_DIM + 1); 
@@ -228,8 +228,8 @@ void readRelationEmbeddingFile(Handle & handle, const RF_args_t & args) {
 
   while (start < end) {
     getline(file, line);
-    if (count == 0 && this_locale == 0) {count++; continue; /*skip first line*/}
     start += line.size() + 1;
+    if (count == 0 && this_locale == 0) {count++; continue; /*skip first line*/}
 
     auto id = std::stoull (line.substr(0, line.find_first_of(",")));
     std::vector <float> tokens = split_embedding(line, ',', EMBEDDING_DIM + 1);     // delimiter and # tokens set for wikidata data file
