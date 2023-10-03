@@ -89,14 +89,14 @@ int main(int argc, char *argv[]) {
   std::string entityEmbeddingDataFile = argv[2];
   std::string relationEmbeddingDataFile = argv[3];
 
-  /* Create 1386 (relation) tables, each for one type of relations in 
+  /* Create 1387 (relation) tables, each for one type of relations in 
     "head, relation, tail" format (edge). */
 
-  for (auto i = 0; i < 1386; i++) {
+  for (auto i = 0; i < 1387; i++) {
     graph[i] = (uint64_t) (WikiDataEdgeType::Create(AGILE_MEDIUM))->GetGlobalID();
   }
 
-  /*Since passing around 1386 global ids in the arglist is not feasible due to some runtime 
+  /*Since passing around 1387 global ids in the arglist is not feasible due to some runtime 
     restriction, to make these ids available on all locales, "broadcast" these global ids 
     for the relation table to each locale */
 
@@ -124,15 +124,15 @@ int main(int argc, char *argv[]) {
   shad::rt::waitForCompletion(handle);
 
   // insert the rest
-  current_end = current_begin + 86;
-  std::array<uint64_t, 86> tmp;
+  current_end = current_begin + 87;
+  std::array<uint64_t, 87> tmp;
   std::copy(current_begin, current_end, tmp.begin());
   uint64_t begin_idx = i;
-  uint64_t end_idx = i + 86;
+  uint64_t end_idx = i + 87;
   auto indices_payload = std::make_tuple(begin_idx, end_idx, tmp);
   shad::rt::asyncExecuteOnAll(handle, [](shad::rt::Handle &, 
 					 const std::tuple<uint64_t, uint64_t, 
-					 std::array<uint64_t, 86> > &
+					 std::array<uint64_t, 87> > &
 					 indices_payload) {
 				std::copy(std::get<2>(indices_payload).begin(), 
 					  std::get<2>(indices_payload).end(), 
@@ -157,7 +157,7 @@ int main(int argc, char *argv[]) {
   shad::rt::waitForCompletion(handle);
 
 
-  for (auto i = 0; i< 1386; i++) {
+  for (auto i = 0; i< 1387; i++) {
     auto CurrentEdgeTable = WikiDataEdgeType::GetPtr( (WikiDataEdgeOID) 
     						      graph[i]);
     CurrentEdgeTable->WaitForBufferedInsert(); //AsyncWaitForBufferedInsert(handle);
@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
   // TODO: replace with the async variant
   //  shad::rt::waitForCompletion(handle);
 #ifdef DEBUG
-  for (auto i = 0; i< 1386; i++){
+  for (auto i = 0; i< 1387; i++){
     auto CurrentEdgeTable = WikiDataEdgeType::GetPtr( (WikiDataEdgeOID) 
     						      graph[i]);
     auto table_size = CurrentEdgeTable->Size();
@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
 
 
   std::cout << "Reading embedding data file for all relations "  
-	    << relationEmbeddingDataFile.c_str();
+	    << relationEmbeddingDataFile.c_str() << std::endl;
   shad::rt::asyncExecuteOnAll(handle, readRelationEmbeddingFile, args);
   shad::rt::waitForCompletion(handle);
   RelationEmbeddingTable->WaitForBufferedInsert();
