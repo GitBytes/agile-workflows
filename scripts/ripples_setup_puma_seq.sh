@@ -7,6 +7,7 @@ if [ ! -d $HOME/ripples ]; then
     git clone https://github.com/pnnl/ripples.git $HOME/ripples
 fi
 cd $HOME/ripples
+git checkout v2.2
 
 conan create conan/waf-generator user/stable
 conan create conan/trng 4.22@user/stable
