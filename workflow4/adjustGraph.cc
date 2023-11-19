@@ -148,4 +148,30 @@ void CoffeeSalesWeight(Handle & handle, const uint64_t & seller, std::vector<Sal
   for (auto & sale : sales) sale.weight = sale.amount / trader.sold;
 }
 
+
+void FriendsEdgeWeights(Handle & handle, const uint64_t & id, std::vector<FriendOfEdge> & edges, RF_args_t & args) {
+  double denom = 1.0 / edges.size();
+  for (auto & edge : edges) edge.weight = denom;
+}
+
+
+void UsesEdgeWeights(Handle & handle, const uint64_t & id, std::vector<UsesEdge> & edges, RF_args_t & args) {
+  double denom = 1.0 / edges.size();
+  for (auto & edge : edges) edge.weight = denom;
+}
+
+
+void SendsEdgeWeights(Handle & handle, const uint64_t & id, std::vector<SendsEdge> & edges, RF_args_t & args) {
+  auto ServerToServer = ServerToServerEdgeType::GetPtr((ServerToServerEdgeType::ObjectID) args.ServerToServer_OID);
+
+  double denom = 1.0 / edges.size();
+  std::map<uint64_t, uint64_t> servers;
+  for (auto edge : edges) servers[edge.dst_device] ++;           // count edges to each destination device
+
+  for (auto server : servers) {     // weight is (number of edges to destination device) / number of edges
+    uint64_t dst_device = server.first;
+    double weight = server.second * denom;
+    ServerToServer->BufferedAsyncInsert(handle, id, ServerToServerEdge(id, dst_device, weight));
+} }
+
 } // namespace

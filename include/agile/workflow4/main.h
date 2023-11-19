@@ -71,14 +71,15 @@ struct RF_args_t {
     char filename [120];
     uint64_t Purchases_OID;
     uint64_t Sales_OID;
-    uint64_t CoffeeSales_OID;
-    uint64_t CoffeePurchases_OID;
-    uint64_t CoffeeTraders_OID;
     uint64_t Friends_OID;
     uint64_t Persons_OID;
     uint64_t Servers_OID;
     uint64_t Sends_OID;
     uint64_t Uses_OID;
+    uint64_t CoffeeSales_OID;
+    uint64_t CoffeePurchases_OID;
+    uint64_t CoffeeTraders_OID;
+    uint64_t ServerToServer_OID;
 };
 
 void readFileSocial(const RF_args_t & args);

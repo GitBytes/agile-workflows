@@ -51,10 +51,11 @@ enum class TYPES {
   PERSON,
   SERVER,
   TOPIC,
-  SALE,
-  PURCHASE,
-  USES,
-  SENDS,
+  SALE,       // as before
+  PURCHASE,   // as before
+  USES,       // 1.0 / number of uses edges
+  FRIENDOF,   // 1.0 / number of friends
+  SENDS,      // number of sends from A to B divided by total sends by A
   NONE
 };
 
