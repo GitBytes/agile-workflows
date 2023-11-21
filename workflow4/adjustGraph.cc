@@ -124,20 +124,62 @@ void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & tra
 }
 
 
-void PrintWeightedSalesEdgesToFile(const RF_args_t & args) {
+void PrintWeightedSaleEdges(const RF_args_t & args) {
   std::ofstream file;
+  file.open(args.filename, std::ios_base::app);
   auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID)->GetLocalMultimap();
 
-  if (shad::rt::thisLocality() == (shad::rt::Locality) 0)
-     file.open(args.filename);
-  else
-     file.open(args.filename, std::ios_base::app);
+  for (auto itr = CoffeeSales->begin(); itr != CoffeeSales->end(); ++ itr) {
+    uint64_t buyer  = (* itr).second.buyer;
+    uint64_t seller = (* itr).second.seller;
+    double   weight = (* itr).second.weight;
+    uint64_t type   = (uint64_t) TYPES::PERSON;
+    file << seller << " " << type << " " << buyer << " " << type << " " << weight << "\n";
+} };
 
-  for (auto itr = CoffeeSales->begin(); itr != CoffeeSales->end(); ++ itr)
-    file << (* itr).second.seller << " " << (* itr).second.buyer << " " << (* itr).second.weight << "\n";
 
-  file.close();
-};
+void PrintWeightedFriendEdges(const RF_args_t & args) {
+  std::ofstream file;
+  file.open(args.filename, std::ios_base::app);
+  auto Friends = FriendOfEdgeType::GetPtr((FriendOfEdgeType::ObjectID) args.Friends_OID)->GetLocalMultimap();
+
+  for (auto itr = Friends->begin(); itr != Friends->end(); ++ itr) {
+    uint64_t person1 = (* itr).second.person1;
+    uint64_t person2 = (* itr).second.person2;
+    double   weight  = (* itr).second.weight;
+    uint64_t type   = (uint64_t) TYPES::PERSON;
+    file << person1 << " " << type << " " << person2 << " " << type << " " << weight << "\n";
+} };
+
+
+void PrintWeightedUsesEdges(const RF_args_t & args) {
+  std::ofstream file;
+  file.open(args.filename, std::ios_base::app);
+  auto Uses = UsesEdgeType::GetPtr((UsesEdgeType::ObjectID) args.Uses_OID)->GetLocalMultimap();
+
+  for (auto itr = Uses->begin(); itr != Uses->end(); ++ itr) {
+    uint64_t person = (* itr).second.person;
+    uint64_t server = (* itr).second.server;
+    double   weight = (* itr).second.weight;
+    uint64_t type1  = (uint64_t) TYPES::PERSON;
+    uint64_t type2  = (uint64_t) TYPES::SERVER;
+    file << person << " " << type1 << " " << server << " " << type2 << " " << weight << "\n";
+} };
+
+
+void PrintWeightedServerToServerEdges(const RF_args_t & args) {
+  std::ofstream file;
+  file.open(args.filename, std::ios_base::app);
+  auto ServerToServer = ServerToServerEdgeType::GetPtr((ServerToServerEdgeType::ObjectID)
+       args.ServerToServer_OID)->GetLocalMultimap();
+
+  for (auto itr = ServerToServer->begin(); itr != ServerToServer->end(); ++ itr) {
+    uint64_t src_device = (* itr).second.src_device;
+    uint64_t dst_device = (* itr).second.dst_device;
+    double   weight = (* itr).second.weight;
+    uint64_t type   = (uint64_t) TYPES::SERVER;
+    file << src_device << " " << type << " " << dst_device << " " << type << " " << weight << "\n";
+} };
 
 
 void CoffeeSalesWeight(Handle & handle, const uint64_t & seller, std::vector<SaleEdge> & sales, RF_args_t & args) {

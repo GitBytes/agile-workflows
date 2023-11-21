@@ -167,8 +167,23 @@ int main(int argc, char *argv[]) {
      dataFile = argv[5];
      memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
 
-     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedSalesEdgesToFile, args);
-     printf("weighted sales edge file printed ... exiting\n");
+     std::ofstream file;
+     file.open(dataFile);
+     if (! file.is_open()) { printf("Cannot open file %s\n", dataFile.c_str()); exit(-1); }
+
+     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedSaleEdges, args);
+     printf("weighted sales edges printed ...\n");
+
+     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedFriendEdges, args);
+     printf("weighted friends edges printed ...\n");
+
+     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedUsesEdges, args);
+     printf("weighted uses edges printed ...\n");
+
+     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedServerToServerEdges, args);
+     printf("weighted server to server edges printed ... exiting\n");
+
+     file.close();
      exit(0);
   }
 
