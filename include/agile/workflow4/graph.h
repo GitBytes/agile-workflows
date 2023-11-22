@@ -72,6 +72,15 @@ inline void atomic_double_add(double * lhs, double rhs) {
     if (__sync_bool_compare_and_swap((uint64_t *) lhs, * old_value_ptr, * new_value_ptr)) break;
 } }
 
+inline void atomic_uint64_max(uint64_t * lhs, uint64_t rhs) {
+  while (true) {
+    uint64_t old_value = * lhs;
+    uint64_t new_value = std::max(old_value, rhs);
+    int64_t * old_value_ptr = (int64_t *) lhs;
+    int64_t * new_value_ptr = (int64_t *) & new_value;
+    if (__sync_bool_compare_and_swap(lhs, * old_value_ptr, * new_value_ptr)) break;
+} }
+
 template <typename T>
 struct TraderInserter {
   
@@ -80,6 +89,7 @@ struct TraderInserter {
        atomic_double_add(& lhs->sold, rhs.sold);
        atomic_double_add(& lhs->bought, rhs.bought);
        atomic_double_add(& lhs->desired, rhs.desired);
+       atomic_uint64_max(& lhs->type, rhs.type);
     } else {            // entry not in hashmap, assign next local id
        T temp = rhs;
        * lhs = std::move(temp);
@@ -127,19 +137,22 @@ class TraderVertex {
     double sold;        // amount of coffee sold
     double bought;      // amount of coffee bought  (>= coffee sold)
     double desired;     // amount of coffee desired (>= coffee bought)
+    uint64_t type;      // 0: retail customer; 1: distributor/wholesaler; 2: grower
 
     TraderVertex () {
       id = shad::data_types::kNullValue<uint64_t>;
       sold = 0.0;
       bought = 0.0;
       desired = 0.0;
+      type = shad::data_types::kNullValue<uint64_t>;
     }
 
-    TraderVertex (uint64_t id_, double sold_, double bought_, double desired_) {
+    TraderVertex (uint64_t id_, double sold_, double bought_, double desired_, uint64_t type_) {
       id = id_;
       sold = sold_;
       bought = bought_;
       desired = desired_;
+      type = type_;
     }
 
     uint64_t key() { return id; }

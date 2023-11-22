@@ -51,11 +51,14 @@ enum class TYPES {
   PERSON,
   SERVER,
   TOPIC,
-  SALE,       // as before
-  PURCHASE,   // as before
-  USES,       // 1.0 / number of uses edges
-  FRIENDOF,   // 1.0 / number of friends
-  SENDS,      // number of sends from A to B divided by total sends by A
+  RETAIL,         // retail customer, buys only
+  DISTRIBUTOR,    // middle man, buys and sells goods
+  PRODUCER,       // produces goods, quantity represented as self-edge, sells only
+  SALE,
+  PURCHASE,
+  USES,
+  FRIENDOF,
+  SENDS,
   NONE
 };
 

@@ -72,17 +72,25 @@ void SelectSalesMarket(Handle & handle, const uint64_t & id,
   auto CoffeeSales     = SaleEdgeType::GetPtr( (SaleEdgeOID) args.CoffeeSales_OID);
   auto CoffeePurchases = PurchaseEdgeType::GetPtr( (PurchaseEdgeOID) args.CoffeePurchases_OID);
 
+  uint64_t retail = (uint64_t) TYPES::RETAIL;
+  uint64_t grower = (uint64_t) TYPES::PRODUCER;
+  uint64_t distributor = (uint64_t) TYPES::DISTRIBUTOR;
+
   for (auto & sale : sales) {
     if (sale.product != product) continue;
 
     if (sale.seller == sale.buyer) {     // self-edge represents product creation by seller, increase bought amonut
-       CoffeeTraders->BufferedAsyncInsert(handle, sale.seller, TraderVertex(sale.seller, 0.0, sale.amount, 0.0));
+       TraderVertex vertex(sale.seller, 0.0, sale.amount, 0.0, grower);
+       CoffeeTraders->BufferedAsyncInsert(handle, sale.seller, vertex);
     } else {
-       PurchaseEdge tmp(sale);
+       PurchaseEdge purchase(sale);
        CoffeeSales->BufferedAsyncInsert(handle, sale.seller, sale);
-       CoffeePurchases->BufferedAsyncInsert(handle, tmp.buyer, tmp);
-       CoffeeTraders->BufferedAsyncInsert(handle, sale.seller, TraderVertex(sale.seller, sale.amount, 0.0, 0.0));
-       CoffeeTraders->BufferedAsyncInsert(handle, tmp.buyer, TraderVertex(tmp.buyer, 0.0, tmp.amount, tmp.amount));
+       CoffeePurchases->BufferedAsyncInsert(handle, purchase.buyer, purchase);
+
+       TraderVertex sV(sale.seller, sale.amount, 0.0, 0.0, distributor);
+       TraderVertex bV(purchase.buyer, 0.0, purchase.amount, purchase.amount, retail);
+       CoffeeTraders->BufferedAsyncInsert(handle, sale.seller, sV);
+       CoffeeTraders->BufferedAsyncInsert(handle, purchase.buyer, bV);
 } } }
 
 void readFileSocial(const RF_args_t & args) {

@@ -127,14 +127,39 @@ void CancelCoffeeTrader(Handle & handle, const uint64_t & id, TraderVertex & tra
 void PrintWeightedSaleEdges(const RF_args_t & args) {
   std::ofstream file;
   file.open(args.filename, std::ios_base::app);
+  auto CoffeeTraders = TraderVertexType::GetPtr((TraderVertexType::ObjectID) args.CoffeeTraders_OID);
   auto CoffeeSales = SaleEdgeType::GetPtr((SaleEdgeType::ObjectID) args.CoffeeSales_OID)->GetLocalMultimap();
+
+  std::map<uint64_t, uint64_t> traders;
 
   for (auto itr = CoffeeSales->begin(); itr != CoffeeSales->end(); ++ itr) {
     uint64_t buyer  = (* itr).second.buyer;
     uint64_t seller = (* itr).second.seller;
     double   weight = (* itr).second.weight;
-    uint64_t type   = (uint64_t) TYPES::PERSON;
-    file << seller << " " << type << " " << buyer << " " << type << " " << weight << "\n";
+
+    auto bV = traders.find(buyer);
+    auto sV = traders.find(seller);
+    uint64_t buyerType, sellerType;
+
+    if (bV == traders.end()) {
+       TraderVertex tmp;
+       CoffeeTraders->Lookup(buyer, & tmp);
+       traders.insert(std::make_pair(buyer, tmp.type));
+       buyerType = tmp.type;
+    } else {
+       buyerType = (* bV).second;
+    }
+
+    if (sV == traders.end()) {
+       TraderVertex tmp;
+       CoffeeTraders->Lookup(seller, & tmp);
+       traders.insert(std::make_pair(seller, tmp.type));
+       sellerType = tmp.type;
+    } else {
+       sellerType = (* sV).second;
+    }
+
+    file << seller << " " << sellerType << " " << buyer << " " << buyerType << " " << weight << "\n";
 } };
 
 
