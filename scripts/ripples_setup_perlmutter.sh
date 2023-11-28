@@ -7,8 +7,6 @@ if [ ! -d $HOME/ripples ]; then
     git clone https://github.com/pnnl/ripples.git $HOME/ripples
 fi
 cd $HOME/ripples
-
-cd $HOME/ripples
 if [ ! -d $HOME/ripples/.venv ]; then
     python -m venv --prompt ripples .venv
     source $HOME/ripples/.venv/bin/activate

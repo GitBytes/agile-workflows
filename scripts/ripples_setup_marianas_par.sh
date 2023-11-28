@@ -5,6 +5,7 @@ echo 'Running setup script for `ripples` - MPI version'
 export agile_WF=$PWD
 git clone https://github.com/pnnl/ripples.git $HOME/ripples
 cd $HOME/ripples
+git checkout v2.2
 
 pip install --user pipenv
 export PATH=$HOME/.local/bin:$PATH

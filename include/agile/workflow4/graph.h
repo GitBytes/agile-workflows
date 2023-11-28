@@ -72,6 +72,15 @@ inline void atomic_double_add(double * lhs, double rhs) {
     if (__sync_bool_compare_and_swap((uint64_t *) lhs, * old_value_ptr, * new_value_ptr)) break;
 } }
 
+inline void atomic_uint64_max(uint64_t * lhs, uint64_t rhs) {
+  while (true) {
+    uint64_t old_value = * lhs;
+    uint64_t new_value = std::max(old_value, rhs);
+    int64_t * old_value_ptr = (int64_t *) lhs;
+    int64_t * new_value_ptr = (int64_t *) & new_value;
+    if (__sync_bool_compare_and_swap(lhs, * old_value_ptr, * new_value_ptr)) break;
+} }
+
 template <typename T>
 struct TraderInserter {
   
@@ -80,6 +89,7 @@ struct TraderInserter {
        atomic_double_add(& lhs->sold, rhs.sold);
        atomic_double_add(& lhs->bought, rhs.bought);
        atomic_double_add(& lhs->desired, rhs.desired);
+       atomic_uint64_max(& lhs->type, rhs.type);
     } else {            // entry not in hashmap, assign next local id
        T temp = rhs;
        * lhs = std::move(temp);
@@ -127,19 +137,22 @@ class TraderVertex {
     double sold;        // amount of coffee sold
     double bought;      // amount of coffee bought  (>= coffee sold)
     double desired;     // amount of coffee desired (>= coffee bought)
+    uint64_t type;      // 0: retail customer; 1: distributor/wholesaler; 2: grower
 
     TraderVertex () {
       id = shad::data_types::kNullValue<uint64_t>;
       sold = 0.0;
       bought = 0.0;
       desired = 0.0;
+      type = shad::data_types::kNullValue<uint64_t>;
     }
 
-    TraderVertex (uint64_t id_, double sold_, double bought_, double desired_) {
+    TraderVertex (uint64_t id_, double sold_, double bought_, double desired_, uint64_t type_) {
       id = id_;
       sold = sold_;
       bought = bought_;
       desired = desired_;
+      type = type_;
     }
 
     uint64_t key() { return id; }
@@ -244,12 +257,14 @@ class FriendOfEdge {
   public:
     uint64_t person1;     // vertex id
     uint64_t person2;     // vertex id
+    double   weight;
     TYPES    src_type;
     TYPES    dst_type;
 
     FriendOfEdge () {
       person1  = shad::data_types::kNullValue<uint64_t>;
       person2  = shad::data_types::kNullValue<uint64_t>;
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::NONE;
       dst_type = TYPES::NONE;
     }
@@ -257,6 +272,7 @@ class FriendOfEdge {
     FriendOfEdge (std::vector <std::string> & tokens) {
       person1  = ENCODE<uint64_t, std::string, UINT>(tokens[0]);
       person2  = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::PERSON;
       dst_type = TYPES::PERSON;
     }
@@ -270,19 +286,22 @@ class UsesEdge {
   public:
     uint64_t person;      // vertex id
     uint64_t server;      // vertex id
+    double   weight;
     TYPES    src_type;
     TYPES    dst_type;
 
     UsesEdge () {
       person   = shad::data_types::kNullValue<uint64_t>;
       server   = shad::data_types::kNullValue<uint64_t>;
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::NONE;
       dst_type = TYPES::NONE;
     }
 
     UsesEdge (std::vector <std::string> & tokens) {
-      person  = ENCODE<uint64_t, std::string, UINT>(tokens[0]);
+      person   = ENCODE<uint64_t, std::string, UINT>(tokens[0]);
       server   = ENCODE<uint64_t, std::string, UINT>(tokens[1]);
+      weight   = shad::data_types::kNullValue<double>;
       src_type = TYPES::PERSON;
       dst_type = TYPES::SERVER;
     }
@@ -345,6 +364,29 @@ class SendsEdge {
     uint64_t dst() { return dst_device; }
 };
 
+class ServerToServerEdge {
+  public:
+    uint64_t src_device;     // vertex id
+    uint64_t dst_device;     // vertex id
+    double   weight;
+ 
+    ServerToServerEdge () {
+      src_device = shad::data_types::kNullValue<uint64_t>;
+      dst_device = shad::data_types::kNullValue<uint64_t>;
+      weight     = shad::data_types::kNullValue<double>;
+    }
+
+    ServerToServerEdge (uint64_t src_, uint64_t dst_, double weight_) {
+      src_device  = src_;
+      dst_device  = dst_;
+      weight      = weight_;
+    }
+
+    uint64_t key() { return src_device; }
+    uint64_t src() { return src_device; }
+    uint64_t dst() { return dst_device; }
+};
+
 using PersonVertexType = shad::Hashmap<uint64_t, PersonVertex>;
 using PersonVertexOID  = shad::ObjectIdentifier<PersonVertexType>;
 
@@ -369,9 +411,15 @@ using SendsEdgeOID  = shad::ObjectIdentifier<SendsEdgeType>;
 using TraderVertexType = shad::Hashmap<uint64_t, TraderVertex, shad::MemCmp<uint64_t>, TraderInserter<TraderVertex>>;
 using TraderVertexOID = shad::ObjectIdentifier<TraderVertexType>;
 
+using ServerToServerEdgeType = shad::Multimap<uint64_t, ServerToServerEdge>;
+using ServerToServerEdgeOID  = shad::ObjectIdentifier<ServerToServerEdgeType>;
+
 void CancelCoffeeTrader(Handle &, const uint64_t &, TraderVertex &, RF_args_t &);
 void CoffeeSalesWeight(Handle &, const uint64_t &, std::vector<SaleEdge> &, RF_args_t &);
 void SelectSalesMarket(Handle &, const uint64_t &, std::vector<SaleEdge> &, uint64_t &, RF_args_t &);
+void UsesEdgeWeights(Handle &, const uint64_t &, std::vector<UsesEdge> &, RF_args_t &);
+void SendsEdgeWeights(Handle &, const uint64_t &, std::vector<SendsEdge> &, RF_args_t &);
+void FriendsEdgeWeights(Handle &, const uint64_t &, std::vector<FriendOfEdge> &, RF_args_t &);
 } // namespace agile::workflow4
 
 #endif // GRAPH_H

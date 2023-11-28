@@ -51,9 +51,13 @@ enum class TYPES {
   PERSON,
   SERVER,
   TOPIC,
+  RETAIL,         // retail customer, buys only
+  DISTRIBUTOR,    // middle man, buys and sells goods
+  PRODUCER,       // produces goods, quantity represented as self-edge, sells only
   SALE,
   PURCHASE,
   USES,
+  FRIENDOF,
   SENDS,
   NONE
 };
