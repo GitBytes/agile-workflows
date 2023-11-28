@@ -9,11 +9,25 @@ fi
 cd $HOME/ripples
 
 cd $HOME/ripples
-conan create conan/waf-generator user/stable
-conan create conan/trng 4.22@user/stable
-conan install --install-folder build . --build 
+if [ ! -d $HOME/ripples/.venv ]; then
+    python -m venv --prompt ripples .venv
+    source $HOME/ripples/.venv/bin/activate
+    pip install conan
+    conan profile detect
+    cat << EOF >> $(conan profile path default)
+[buildenv]
+*:CC=$(which gcc)
+*:CXX=$(which g++)
+EOF
 
-env CXX=CC CC=cc ./waf configure --enable-mpi build_release
+    deactivate
+fi
+source $HOME/ripples/.venv/bin/activate
+
+conan create conan/trng
+conan install --build missing .
+conan build .
+deactivate
 
 echo $PWD
 cd $agile_WF

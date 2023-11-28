@@ -3,18 +3,30 @@
 echo 'Running setup script for `ripples`'
 
 export agile_WF=$PWD
-if [ ! -d $HOME/ripples ]; then 
+if [ ! -d $HOME/ripples ]; then
     git clone https://github.com/pnnl/ripples.git $HOME/ripples
 fi
-cd $HOME/ripples
 
 cd $HOME/ripples
-conan create conan/waf-generator user/stable
-conan create conan/trng 4.22@user/stable
-conan create conan/nvidia-cub user/stable
-conan install --install-folder build . -onvidia_cub=True --build 
+if [ ! -d $HOME/ripples/.venv ]; then
+    python -m venv --prompt ripples .venv
+    source $HOME/ripples/.venv/bin/activate
+    pip install conan
+    conan profile detect
+    cat << EOF >> $(conan profile path default)
+[buildenv]
+*:CC=$(which gcc)
+*:CXX=$(which g++)
+EOF
 
-env CXX=CC CC=cc ./waf configure --enable-mpi --enable-cuda build_release
+    deactivate
+fi
+source $HOME/ripples/.venv/bin/activate
+
+conan create conan/trng
+conan install --build missing . -o gpu=nvidia
+conan build . -o gpu=nvidia
+deactivate
 
 echo $PWD
 cd $agile_WF
