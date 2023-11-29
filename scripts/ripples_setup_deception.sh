@@ -9,15 +9,25 @@ fi
 cd $HOME/ripples
 
 cd $HOME/ripples
-conan profile new --detect deception-gcc-11
-conan profile update settings.compiler.libcxx=libstdc++11 deception-gcc-11
-conan profile update env.CXX=$(which g++) deception-gcc-11
-conan profile update env.CC=$(which gcc) deception-gcc-11
-conan create conan/waf-generator user/stable
-conan create conan/trng 4.22@user/stable -pr deception-gcc-11
-conan install --install-folder build . --build -pr deception-gcc-11
+if [ ! -d $HOME/ripples/.venv ]; then
+    python -m venv --prompt ripples .venv
+    source $HOME/ripples/.venv/bin/activate
+    pip install conan
+    conan profile detect
+    cat << EOF >> $(conan profile path default)
+[buildenv]
+*:CC=$(which gcc)
+*:CXX=$(which g++)
+EOF
 
-./waf configure --enable-mpi build_release
+    deactivate
+fi
+source $HOME/ripples/.venv/bin/activate
+
+conan create conan/trng
+conan install --build missing .
+conan build .
+deactivate
 
 echo $PWD
 cd $agile_WF
