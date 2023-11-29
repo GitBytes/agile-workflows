@@ -75,11 +75,12 @@ struct RF_args_t {
   uint64_t Includes_OID;
   uint64_t HasTopic_OID;
   uint64_t HasOrg_OID;
+  uint64_t Forums_2_OID;
   char filename [120];
 };
 
 void readFile(Handle & handle, const RF_args_t & args);
-void WMD_pattern(Graph_t & graph);
+void WMD_pattern(RF_args_t & args);
 
 } // namespace agile::wk2_exact
 

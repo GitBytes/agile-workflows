@@ -50,51 +50,60 @@
 namespace agile::wk2_exact {
 
 template <typename T>
-struct intTimeInserter {
-  intTimeInserter() { }
+struct ForumMapInserter {
 
-  bool operator()(T * const lhs, const T & rhs, bool same_key) {
-    if (same_key) {     // entry in hashmap, value = min(current value, new value)
-       if (* lhs > rhs) * lhs = rhs;
-    } else {            // entry not in hashmap, value = new value
-       * lhs = rhs;
-    }
+  bool operator()(Handle & handle, T * const lhs, const T & rhs, bool same_key) {
+    if (same_key) {     // entry in hashmap, update value
+       (* lhs).FE4 |= rhs.FE4;
+       (* lhs).FE5 |= rhs.FE5;
+       (* lhs).date = std::min((* lhs).date, rhs.date);
+     } else {            // entry not in hashmap, set value
+       * lhs = std::move(rhs);
+     }
 
-    return true;
+     return true;
   }
 
-  bool Insert(T *const lhs, const T &rhs, bool same_key) {
-    if (same_key) {     // entry in hashmap, value = minimum(current value, new value)
-       if (* lhs > rhs) * lhs = rhs;
-    } else {            // entry not in hashmap, value = new value
-       * lhs = rhs;
-    }
-       
-    return true;
-  }
-  bool operator()(shad::rt::Handle&, T * const lhs, const T & rhs, bool same_key) {
-    if (same_key) {     // entry in hashmap, value = min(current value, new value)
-       if (* lhs > rhs) * lhs = rhs;
-    } else {            // entry not in hashmap, value = new value
-       * lhs = rhs;
-    }
+  bool Insert(Handle & handle, T * const lhs, const T & rhs, bool same_key) {
+    if (same_key) {     // entry in hashmap, update value
+       (* lhs).FE4 |= rhs.FE4;
+       (* lhs).FE5 |= rhs.FE5;
+       (* lhs).date = std::min((* lhs).date, rhs.date);
+     } else {            // entry not in hashmap, set value
+       * lhs = std::move(rhs);
+     }
 
-    return true;
-  }
-
-  bool Insert(shad::rt::Handle&, T *const lhs, const T &rhs, bool same_key) {
-    if (same_key) {     // entry in hashmap, value = minimum(current value, new value)
-       if (* lhs > rhs) * lhs = rhs;
-    } else {            // entry not in hashmap, value = new value
-       * lhs = rhs;
-    }
-       
-    return true;
+     return true;
   }
 };
 
-using intTimeMap = shad::Hashmap<uint64_t, time_t, shad::MemCmp<uint64_t>, intTimeInserter<time_t> >;
-using intTimeMapOID  = shad::ObjectIdentifier<intTimeMap>;
+
+class ForumMapVertex {
+  public:
+    uint64_t forum;
+    bool     FE4;
+    bool     FE5;
+    time_t   date;
+
+    ForumMapVertex () {
+      forum  = shad::data_types::kNullValue<uint64_t>;
+      FE4 = false;
+      FE5 = false;
+      date = shad::data_types::kNullValue<time_t>;
+    }
+
+    ForumMapVertex (uint64_t forum_, bool FE4_, bool FE5_, time_t date_) {
+      forum = forum_;
+      FE4 = FE4_;
+      FE5 = FE5_;
+      date = date_;
+    }
+
+    uint64_t key() { return forum; }
+};
+
+using ForumMap = shad::Hashmap<uint64_t, ForumMapVertex, shad::MemCmp<uint64_t>, ForumMapInserter<ForumMapVertex>>;
+using ForumMapOID = shad::ObjectIdentifier<ForumMap>;
 
 } // namespace agile::wk2_exact
 

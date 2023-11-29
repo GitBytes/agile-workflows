@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
 
   time1 = my_timer();
 
-  WMD_pattern(graph);
+  WMD_pattern(args);
   printf("Time for Kernel 5 - Exact Pattern Matching = %lf\n", my_timer() - time1);
 
   return 0;
