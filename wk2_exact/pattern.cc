@@ -103,7 +103,7 @@ bool forum_2_subpattern(time_t trans_date, uint64_t forum_event, RF_args_t args)
 
 
 // Check if person authored two forum events satisfying forum 1 SP and a forum event satisfying forum 2 SP
-bool forumEvent_subpattern(uint64_t person, time_t date, RF_args_t & args) {
+bool forumEvent(uint64_t person, time_t date, RF_args_t & args) {
   std::set<uint64_t> jihadForums;
   bool forum_1 = false, forum_2 = false;
   auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.Authors_OID);
@@ -126,7 +126,7 @@ bool forumEvent_subpattern(uint64_t person, time_t date, RF_args_t & args) {
 
 // Check if person bought an electronic product from a seller who published an item
 // on electronic engineering associated with an organization near NYC
-bool electronic_subpattern(uint64_t seller, RF_args_t & args) {
+bool electronic_subpattern(uint64_t seller, TopicVertex & NYC, RF_args_t & args) {
   auto Topics   = TopicVertexType::GetPtr((TopicVertexOID) args.Topics_OID);
   auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.Authors_OID);
   auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopic_OID);
@@ -148,8 +148,7 @@ bool electronic_subpattern(uint64_t seller, RF_args_t & args) {
       HasOrg->Lookup(PUB.item, & organizations);
 
       for (auto & PO : organizations.value) {         // ... ... ... for each organization
-        TopicVertex NYC, org;
-        Topics->Lookup(60, & NYC);
+        TopicVertex org;
         Topics->Lookup(PO.organization, & org);
 
         if (proximity(org, NYC)) return true;         // ... ... ... ... organization is close to NYC
@@ -172,42 +171,48 @@ bool ammunition_subpattern(uint64_t buyer, uint64_t seller, RF_args_t & args) {
 }
 
 
-void PersonPattern(const uint64_t & key, std::vector<PurchaseEdge> & purchases, RF_args_t & args) {
+void PersonPattern(const uint64_t & person, std::vector<PurchaseEdge> & purchases, RF_args_t & args) {
   bool ESP = false;
+  std::vector<PurchaseEdge> ammunitionSales;
+  std::vector<PurchaseEdge> electronicSales;
   time_t latest_BB = 0, latest_PC = 0, latest_AMO = 0;
 
 // ***** TRANSACTION SUBPATTERN ***** //
   for (auto & PO : purchases) {                     // for each purchase
-
     if (PO.product == 2869238) {                    // ... product is a bath bomb
        latest_BB = std::max(latest_BB, PO.date);
 
     } else if (PO.product == 271997) {              // ... product is a pressure cooker
        latest_PC = std::max(latest_PC, PO.date);
 
-    } else if (PO.product == 185785) {              // ... product is a ammunition 
-       if (PO.date > latest_AMO)
-          if (ammunition_subpattern(PO.buyer, PO.seller, args)) latest_AMO = PO.date;
+    } else if (PO.product == 185785) {              // ... safe sale to check for ammunition distributor
+       ammunitionSales.push_back(PO);
 
-    } else if (PO.product == 11650) {               // ... product is a electronics
-       if (! ESP) ESP = electronic_subpattern(PO.seller, args);
+    } else if (PO.product == 11650) {               // ... safe sale to check electronic subpattern
+       electronicSales.push_back(PO);
   } }
+
+  // no bomb bath, pressure cooker, ammunition, or electronic purchase, so return
+  if (latest_BB == 0 || latest_PC == 0 || ammunitionSales.size() == 0 || electronicSales.size() == 0) return;
+
+  for (auto & PO : ammunitionSales)
+    if (PO.date > latest_AMO)
+       if (ammunition_subpattern(PO.buyer, PO.seller, args)) latest_AMO = PO.date;
+
+  if (latest_AMO == 0) return;                      // no ammunition sales by distributor, so return
+
+  TopicVertex NYC;
+  TopicVertexType::GetPtr((TopicVertexOID) args.Topics_OID)->Lookup(60, & NYC);
+
+  for (auto & PO : electronicSales)
+      if ( ESP = electronic_subpattern(PO.seller, NYC, args) ) break;
+
+  if (! ESP) return;                                // no electronic publication subpattern, so return
 
   // earliest of the lastest individual transaction dates
   time_t trans_date = std::min( std::min(latest_BB, latest_PC), latest_AMO );
-  if (( trans_date == 0) || (! ESP)) return;        // person failed the transaction or electronic subpattern
-
-// ***** FORUM SUBPATTERN ***** //
-  if (forumEvent_subpattern(key, trans_date, args)) {
-     printf("pattern found for person %lu\n", key);
-     return;
-} };
-
-
-void transEvents(const uint64_t & key, PersonVertex & person, RF_args_t & args) {
-  auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.Purchases_OID);
-  Purchases->Apply(person.id, PersonPattern, args);
-}
+  if (forumEvent(person, trans_date, args)) printf("pattern found for person %lu\n", person);
+};
 
 
 // Check if forum includes a FE4 and FE5 subpattern
@@ -245,8 +250,8 @@ void forumPattern(const uint64_t & FE, std::vector<HasTopicEdge> & edges, RF_arg
 
 
 void WMD_pattern(RF_args_t & args) {
-  auto Persons  = PersonVertexType::GetPtr((PersonVertexOID) args.Persons_OID);
   auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopic_OID);
+  auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.Purchases_OID);
 
   auto Forums_2 = ForumMap::Create(AGILE_TINY);     // forums that include FE4 and FE5
   args.Forums_2_OID = (uint64_t) (Forums_2->GetGlobalID());
@@ -255,7 +260,7 @@ void WMD_pattern(RF_args_t & args) {
   if (Forums_2->Size() == 0) return;              // no forum includes both FE4 and FE5
 
 // find all persons with the right financial transaction and forum event attendence
-  Persons->ForEachEntry(transEvents, args);
+  Purchases->ForEachEntry(PersonPattern, args);
 }
 
 } // namespace agile::wk2_exact
