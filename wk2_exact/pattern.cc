@@ -57,46 +57,41 @@ bool proximity(TopicVertex & A, TopicVertex & B) {
 
 
 // Check to see forum event has topic Jihad and occurred at a forum with topic NYC
-// if yes, insert the forum id in jihadForums
+// if yes, insert the forum id in jihads
 //    if insertion fails, then second such forum event found for that forum, so RETURN TRUE
-bool forum_1_subpattern(std::set<uint64_t> & jihadForums, uint64_t forum_event, RF_args_t & args) {
+bool forum_1_subpattern(std::set<uint64_t> & jihads, uint64_t forum_event, ForumEventVertex & FEV, RF_args_t & args) {
+  bool found;
   auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeType::ObjectID) args.HasTopic_OID);
   auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID) args.ForumEvents_OID);
 
   // check if forum event has topic Jihad
   HasTopicEdgeType::LookupResult topics;
-  HasTopic->Lookup(forum_event, & topics);          // get forum event's topics
+  HasTopic->Lookup(forum_event, & topics);             // get forum event's topics
 
-  for (auto & T1 : topics.value) {                  // for each forum event topic
-    if (T1.topic != 44311) continue;                // ... topic is not Jihad
+  for (auto & T1 : topics.value)                       // for each forum event topic
+    if (T1.topic == 44311) {found = true; break;}      // ... topic is Jihad
 
-    // check if forum has topic NYC
-    ForumEventVertex FEV;                           // ... get forum event vertex
-    ForumEvents->Lookup(forum_event, & FEV);
+  if (! found) return false;                           // forum event does not discuss jihad
 
-    HasTopicEdgeType::LookupResult forum_topics;    // ... get forum's topics
-    HasTopic->Lookup(FEV.forum, & forum_topics);
+  found = false;
+  HasTopicEdgeType::LookupResult forum_topics;         // get forum's topics
+  HasTopic->Lookup(FEV.forum, & forum_topics);
 
-    for (auto & FT : forum_topics.value) {          // ... for each forum topic
-      if (FT.topic != 60) continue; ;               // ... ... topic is not NYC
+  for (auto & FT : forum_topics.value)                 // for each forum topic
+    if (FT.topic == 60) {found = true; break;}         // ... topic is NYC
 
-      auto insert = jihadForums.insert(FEV.forum);
-      return (insert.second == false);              // false -> second insertion of forum id
-  } }
+  if (! found) return false;                           // forum does not discuss NYC
 
-  return false;                                     // forum event does not have topic Jihad
+  auto insert = jihads.insert(FEV.forum);
+  return (insert.second == false);                     // false -> second insertion of forum id
 }
 
 
 // Check if forum event is in a forum that satisfies forum 2 subpattern
-bool forum_2_subpattern(time_t trans_date, uint64_t forum_event, RF_args_t args) {
-  auto ForumsMap    = ForumMap::GetPtr((ForumMapOID) args.ForumsMap_OID);
-  auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID) args.ForumEvents_OID);
-
-  ForumEventVertex FEV;                       // get forum event vertex
-  ForumEvents->Lookup(forum_event, & FEV);
-
+bool forum_2_subpattern(time_t trans_date, ForumEventVertex & FEV, RF_args_t args) {
   ForumMapVertex FMV;         
+  auto ForumsMap = ForumMap::GetPtr((ForumMapOID) args.ForumsMap_OID);
+
   bool found = ForumsMap->Lookup(FEV.forum, & FMV);
   return ( found && FMV.FE4 && FMV.FE5 && (FMV.date < trans_date) );
 }
@@ -104,23 +99,26 @@ bool forum_2_subpattern(time_t trans_date, uint64_t forum_event, RF_args_t args)
 
 // Check if person authored two forum events satisfying forum 1 SP and a forum event satisfying forum 2 SP
 bool forumEvent(uint64_t person, time_t date, RF_args_t & args) {
-  std::set<uint64_t> jihadForums;
+  std::set<uint64_t> jihads;
   bool forum_1 = false, forum_2 = false;
-  auto Authors  = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.Authors_OID);
+  auto Authors = AuthorEdgeType::GetPtr((AuthorEdgeOID) args.Authors_OID);
+  auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID) args.ForumEvents_OID);
 
-  AuthorEdgeType::LookupResult events;             // get person's events
+  AuthorEdgeType::LookupResult events;       // get person's events
   Authors->Lookup(person, & events);
 
-  for (auto & EV : events.value) {                 // for each P -> FE
+  for (auto & EV : events.value) {           // for each P -> FE
     if (EV.dst_type != TYPES::FORUMEVENT) continue;
 
-    if (! forum_1) forum_1 = forum_1_subpattern(jihadForums, EV.item, args);
-    if (! forum_2) forum_2 = forum_2_subpattern(date, EV.item, args);
-    if (forum_1 && forum_2) return true;            // ... forum event subpattern satisfied
+    ForumEventVertex FEV;                    // ... get forum event vertex
+    ForumEvents->Lookup(EV.item, & FEV);
+
+    if (! forum_1) forum_1 = forum_1_subpattern(jihads, EV.item, FEV, args);
+    if (! forum_2) forum_2 = forum_2_subpattern(date, FEV, args);
+    if (forum_1 && forum_2) return true;     // ... forum event subpattern satisfied
   }
 
-  return false;                                     // person failed forum subpattern
-
+  return false;                              // person failed forum subpattern
 }
 
 
@@ -212,8 +210,8 @@ void PersonPattern(const uint64_t & person, std::vector<PurchaseEdge> & purchase
 
 // Check if forum includes a FE4 and FE5 subpattern
 void forumPattern(Handle & handle, const uint64_t & FE, std::vector<HasTopicEdge> & edges, RF_args_t & args) {
-  uint64_t FE4 = 0;
-  uint64_t FE5 = 0;
+  uint64_t FE4 = 0, FE5 = 0;
+  time_t maxTime = shad::data_types::kNullValue<time_t>;
   auto ForumsMap = ForumMap::GetPtr((ForumMapOID) args.ForumsMap_OID);
   auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexOID) args.ForumEvents_OID);
 
@@ -227,17 +225,13 @@ void forumPattern(Handle & handle, const uint64_t & FE, std::vector<HasTopicEdge
     else if (edge.topic == 127197)   FE5 |= 4;            // ... topic is Bomb
   }
 
-  if (FE4 == 3) {                                         // forum includes FE4
-     ForumEventVertex FEV;
-     ForumEvents->Lookup(FE, & FEV);
-     time_t maxTime = shad::data_types::kNullValue<time_t>;
-     ForumsMap->AsyncInsert(handle, FEV.forum, ForumMapVertex(FEV.forum, true, false, maxTime));
-  }
-  if (FE5 == 7) {                                         // forum includes FE5
-     ForumEventVertex FEV;
-     ForumEvents->Lookup(FE, & FEV);
-     ForumsMap->AsyncInsert(handle, FEV.forum, ForumMapVertex(FEV.forum, false, true, FEV.date));
-} }
+  if (FE4 != 3 && FE5 != 7) return;                       // forum includes neither FE4 nor FE5
+
+  ForumEventVertex FEV;
+  ForumEvents->Lookup(FE, & FEV);
+  if (FE4 == 3) ForumsMap->AsyncInsert(handle, FEV.forum, ForumMapVertex(FEV.forum, true, false, maxTime));
+  if (FE5 == 7) ForumsMap->AsyncInsert(handle, FEV.forum, ForumMapVertex(FEV.forum, false, true, FEV.date));
+}
 
 
 void WMD_pattern(RF_args_t & args) {
