@@ -130,27 +130,29 @@ bool electronic_subpattern(uint64_t seller, TopicVertex & NYC, RF_args_t & args)
   auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopic_OID);
   auto HasOrg   = HasOrgEdgeType::GetPtr((HasOrgEdgeOID) args.HasOrg_OID);
 
-  AuthorEdgeType::LookupResult documents;             // get seller's documents
+  AuthorEdgeType::LookupResult documents;               // get seller's documents
   Authors->Lookup(seller, & documents);
 
-  for (auto & PUB : documents.value) {                // for each publication
+  for (auto & PUB : documents.value) {                  // for each publication
     if (PUB.dst_type != TYPES::PUBLICATION) continue;
 
-    HasTopicEdgeType::LookupResult topics;            // ... get publication's topics
+    bool found = false;
+    HasTopicEdgeType::LookupResult topics;              // ... get publication's topics
     HasTopic->Lookup(PUB.item, & topics);
 
-    for (auto & PT : topics.value) {                  // ... for each topic
-      if (PT.topic != 43035) continue;                // ... ... topic is not electrical engineering
+    for (auto & PT : topics.value)                      // ... for each topic
+      if (PT.topic == 43035) {found = true; break;}     // ... ... topic is electrical engineering
 
-      HasOrgEdgeType::LookupResult organizations;     // ... ... get publication's organizations
-      HasOrg->Lookup(PUB.item, & organizations);
+    if (! found) continue;
 
-      for (auto & PO : organizations.value) {         // ... ... ... for each organization
-        TopicVertex org;
-        Topics->Lookup(PO.organization, & org);
+    HasOrgEdgeType::LookupResult organizations;         // ... get publication's organizations
+    HasOrg->Lookup(PUB.item, & organizations);
 
-        if (proximity(org, NYC)) return true;         // ... ... ... ... organization is close to NYC
-  } } }
+    for (auto & PO : organizations.value) {             // ... for each organization
+      TopicVertex org;
+      Topics->Lookup(PO.organization, & org);
+      if (proximity(org, NYC)) return true;             // ... ... organization is close to NYC
+  } }
 
   return false;
 }
@@ -196,16 +198,17 @@ void PersonPattern(const uint64_t & person, std::vector<PurchaseEdge> & purchase
     if (PO.date > latest_AMO)
        if (ammunition_subpattern(PO.buyer, PO.seller, args)) latest_AMO = PO.date;
 
-  if (latest_AMO == 0) return;                           // no ammunition sales by distributor, so return
+  if (latest_AMO == 0) return;                             // no ammunition sales by distributor, so return
 
   TopicVertex NYC;
   TopicVertexType::GetPtr((TopicVertexOID) args.Topics_OID)->Lookup(60, & NYC);
   time_t trans_date = std::min( std::min(latest_BB, latest_PC), latest_AMO );
 
   for (auto & PO : electronicSales)
-    if (electronic_subpattern(PO.seller, NYC, args))     // electronic publication subpattern found
-       if (forumEvent(person, trans_date, args)) {printf("pattern found for person %lu\n", person); break;}
-};
+    if (electronic_subpattern(PO.seller, NYC, args)) {     // publication subpattern found, check forum events
+       if (forumEvent(person, trans_date, args)) printf("pattern found for person %lu\n", person);
+       break;
+}   };
 
 
 // Check if forum includes a FE4 and FE5 subpattern
