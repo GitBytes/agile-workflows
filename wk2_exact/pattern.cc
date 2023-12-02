@@ -90,14 +90,14 @@ bool forum_1_subpattern(std::set<uint64_t> & jihadForums, uint64_t forum_event, 
 
 // Check if forum event is in a forum that satisfies forum 2 subpattern
 bool forum_2_subpattern(time_t trans_date, uint64_t forum_event, RF_args_t args) {
-  auto Forums_2    = ForumMap::GetPtr((ForumMapOID) args.Forums_2_OID);
+  auto ForumsMap    = ForumMap::GetPtr((ForumMapOID) args.ForumsMap_OID);
   auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexType::ObjectID) args.ForumEvents_OID);
 
   ForumEventVertex FEV;                       // get forum event vertex
   ForumEvents->Lookup(forum_event, & FEV);
 
   ForumMapVertex FMV;         
-  bool found = Forums_2->Lookup(FEV.forum, & FMV);
+  bool found = ForumsMap->Lookup(FEV.forum, & FMV);
   return ( found && FMV.FE4 && FMV.FE5 && (FMV.date < trans_date) );
 }
 
@@ -172,7 +172,6 @@ bool ammunition_subpattern(uint64_t buyer, uint64_t seller, RF_args_t & args) {
 
 
 void PersonPattern(const uint64_t & person, std::vector<PurchaseEdge> & purchases, RF_args_t & args) {
-  bool ESP = false;
   std::vector<PurchaseEdge> ammunitionSales;
   std::vector<PurchaseEdge> electronicSales;
   time_t latest_BB = 0, latest_PC = 0, latest_AMO = 0;
@@ -199,28 +198,23 @@ void PersonPattern(const uint64_t & person, std::vector<PurchaseEdge> & purchase
     if (PO.date > latest_AMO)
        if (ammunition_subpattern(PO.buyer, PO.seller, args)) latest_AMO = PO.date;
 
-  if (latest_AMO == 0) return;                      // no ammunition sales by distributor, so return
+  if (latest_AMO == 0) return;                           // no ammunition sales by distributor, so return
 
   TopicVertex NYC;
   TopicVertexType::GetPtr((TopicVertexOID) args.Topics_OID)->Lookup(60, & NYC);
+  time_t trans_date = std::min( std::min(latest_BB, latest_PC), latest_AMO );
 
   for (auto & PO : electronicSales)
-      if ( ESP = electronic_subpattern(PO.seller, NYC, args) ) break;
-
-  if (! ESP) return;                                // no electronic publication subpattern, so return
-
-  // earliest of the lastest individual transaction dates
-  time_t trans_date = std::min( std::min(latest_BB, latest_PC), latest_AMO );
-  if (forumEvent(person, trans_date, args)) printf("pattern found for person %lu\n", person);
+    if (electronic_subpattern(PO.seller, NYC, args))     // electronic publication subpattern found
+       if (forumEvent(person, trans_date, args)) {printf("pattern found for person %lu\n", person); break;}
 };
 
 
 // Check if forum includes a FE4 and FE5 subpattern
-void forumPattern(const uint64_t & FE, std::vector<HasTopicEdge> & edges, RF_args_t & args) {
-  Handle handle;
+void forumPattern(Handle & handle, const uint64_t & FE, std::vector<HasTopicEdge> & edges, RF_args_t & args) {
   uint64_t FE4 = 0;
   uint64_t FE5 = 0;
-  auto Forums_2 = ForumMap::GetPtr((ForumMapOID) args.Forums_2_OID);
+  auto ForumsMap = ForumMap::GetPtr((ForumMapOID) args.ForumsMap_OID);
   auto ForumEvents = ForumEventVertexType::GetPtr((ForumEventVertexOID) args.ForumEvents_OID);
 
   if (edges[0].src_type != TYPES::FORUMEVENT) return;     // src is not a forum event
@@ -237,27 +231,26 @@ void forumPattern(const uint64_t & FE, std::vector<HasTopicEdge> & edges, RF_arg
      ForumEventVertex FEV;
      ForumEvents->Lookup(FE, & FEV);
      time_t maxTime = shad::data_types::kNullValue<time_t>;
-     Forums_2->AsyncInsert(handle, FEV.forum, ForumMapVertex(FEV.forum, true, false, maxTime));
+     ForumsMap->AsyncInsert(handle, FEV.forum, ForumMapVertex(FEV.forum, true, false, maxTime));
   }
   if (FE5 == 7) {                                         // forum includes FE5
      ForumEventVertex FEV;
      ForumEvents->Lookup(FE, & FEV);
-     Forums_2->AsyncInsert(handle, FEV.forum, ForumMapVertex(FEV.forum, false, true, FEV.date));
-  }
-
-  waitForCompletion(handle);
-}
+     ForumsMap->AsyncInsert(handle, FEV.forum, ForumMapVertex(FEV.forum, false, true, FEV.date));
+} }
 
 
 void WMD_pattern(RF_args_t & args) {
+  Handle handle;
   auto HasTopic = HasTopicEdgeType::GetPtr((HasTopicEdgeOID) args.HasTopic_OID);
   auto Purchases = PurchaseEdgeType::GetPtr((PurchaseEdgeOID) args.Purchases_OID);
 
-  auto Forums_2 = ForumMap::Create(AGILE_TINY);     // forums that include FE4 and FE5
-  args.Forums_2_OID = (uint64_t) (Forums_2->GetGlobalID());
+  auto ForumsMap = ForumMap::Create(AGILE_TINY);               // forums that include FE4 and FE5
+  args.ForumsMap_OID = (uint64_t) (ForumsMap->GetGlobalID());
+  HasTopic->AsyncForEachEntry(handle, forumPattern, args);     // for each forum, check for FE4 and FE5
 
-  HasTopic->ForEachEntry(forumPattern, args);     // for each forum, check for FE4 and FE5
-  if (Forums_2->Size() == 0) return;              // no forum includes both FE4 and FE5
+  waitForCompletion(handle);
+  if (ForumsMap->Size() == 0) return;                          // no forum includes both FE4 and FE5
 
 // find all persons with the right financial transaction and forum event attendence
   Purchases->ForEachEntry(PersonPattern, args);
