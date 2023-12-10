@@ -75,7 +75,7 @@ struct RF_args_t {
   uint64_t Includes_OID;
   uint64_t HasTopic_OID;
   uint64_t HasOrg_OID;
-  uint64_t ForumsMap_OID;
+  uint64_t TopicsMap_OID;
   char filename [120];
 };
 

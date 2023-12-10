@@ -50,8 +50,10 @@ namespace shad {
   using namespace agile::workflow4;
 
 int main(int argc, char *argv[]) {
+  bool cmplx;
   Graph_t graph;
   Handle handle;
+  std::string dataFile;
   double time1 = my_timer();
 
 /********** KERNEL 1 - Graph Construction **********/
@@ -80,28 +82,29 @@ int main(int argc, char *argv[]) {
   graph["ServerToServer"]  = (uint64_t) (ServerToServer->GetGlobalID());
 
   RF_args_t args;
-  args.handle        = handle;
-  args.Persons_OID   = graph["Persons"];
-  args.Purchases_OID = graph["Purchases"];
-  args.Sales_OID     = graph["Sales"];
-  args.Friends_OID   = graph["Friends"];
-  args.Servers_OID   = graph["Servers"];
-  args.Sends_OID     = graph["Sends"];
-  args.Uses_OID      = graph["Uses"];
+  args.handle             = handle;
+  args.Persons_OID        = graph["Persons"];
+  args.Purchases_OID      = graph["Purchases"];
+  args.Sales_OID          = graph["Sales"];
+  args.Friends_OID        = graph["Friends"];
+  args.Servers_OID        = graph["Servers"];
+  args.Sends_OID          = graph["Sends"];
+  args.Uses_OID           = graph["Uses"];
+  args.ServerToServer_OID = graph["ServerToServer"];
 
-  std::string dataFile = argv[1];
+  if (argc >= 2) dataFile = argv[1]; else {printf("No social file\n"); exit(-1);}
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   shad::rt::executeOnAll(readFileSocial, args);
 
-  dataFile = argv[2];
+  if (argc >= 3) dataFile = argv[2]; else {printf("No cyber file\n"); exit(-1);}
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   shad::rt::executeOnAll(readFileCyber, args);
 
-  dataFile = argv[3];
+  if (argc >= 4) dataFile = argv[3]; else {printf("No uses file\n"); exit(-1);}
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   shad::rt::executeOnAll(readFileUses, args);
 
-  dataFile = argv[4];
+  if (argc >= 5) dataFile = argv[4]; else {printf("No commercial file\n"); exit(-1);}
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   shad::rt::executeOnAll(readFileCommercial, args);
 
@@ -129,21 +132,19 @@ int main(int argc, char *argv[]) {
 
 // Select coffee submarket;
   uint64_t product = 8486;     // coffee market
-  args.CoffeeTraders_OID   = graph["CoffeeTraders"];
-  args.CoffeeSales_OID     = graph["CoffeeSales"];
-  args.CoffeePurchases_OID = graph["CoffeePurchases"];
+  args.CoffeeTraders_OID   = graph["CoffeeTraders"];                      // coffee trader vertices
+  args.CoffeeSales_OID     = graph["CoffeeSales"];                        // coffee sale edges
+  args.CoffeePurchases_OID = graph["CoffeePurchases"];                    // coffee purchase edges
+  Sales->AsyncForEachEntry(handle, SelectSalesMarket, product, args);     // select coffee sales market
 
-  Sales->AsyncForEachEntry(handle, SelectSalesMarket, product, args);
+  if (argc >= 6) { dataFile = argv[5]; cmplx = (dataFile == "complex"); printf("complex switch = %lu\n", cmplx);
+  } else { printf("No simple/complex switch\n"); exit(-1); }
 
-// Compute Friends edge weights
-  Friends->AsyncForEachEntry(handle, FriendsEdgeWeights, args);
-
-// Compute Uses edge weights
-  Uses->AsyncForEachEntry(handle, UsesEdgeWeights, args);
-
-// Compute ServerToServer edge weights
-  args.ServerToServer_OID = graph["ServerToServer"];
-  Sends->AsyncForEachEntry(handle, SendsEdgeWeights, args);
+  if (cmplx) {
+     Friends->AsyncForEachEntry(handle, FriendsEdgeWeights, args);        // update friend edge with weights
+     Uses->AsyncForEachEntry(handle, UsesEdgeWeights, args);              // update uses edge with weights 
+     Sends->AsyncForEachEntry(handle, SendsEdgeWeights, args);            // create server to server edges
+  }
 
   waitForCompletion(handle);
   CoffeeTraders->WaitForBufferedInsert();
@@ -151,37 +152,42 @@ int main(int argc, char *argv[]) {
   CoffeePurchases->WaitForBufferedInsert();
   ServerToServer->WaitForBufferedInsert();
 
-  // Compute coffee market edge weights
-  CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);
+  CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);        // update coffee sale edges with weights
   waitForCompletion(handle);
 
   printf("\nTime for Kernel 2 - Coffee subgraph and sale weights = %lf\n", my_timer() - time1);
   printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
   printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
   printf("Number of coffee purchases = %lu\n", CoffeePurchases->Size());
-  printf("Number of Server to Server edges = %lu\n\n", ServerToServer->Size());
+  if (cmplx) printf("Number of Server to Server edges = %lu\n\n", ServerToServer->Size());
 
   // ... output input file for influence maximization kernel ... exit ...
   // ... and run influence maximization kernel off line ...
-  if (argc <= 6) {
-     dataFile = argv[5];
+  if (argc <= 7) {
+     dataFile = argv[6];
      memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
 
      std::ofstream file;
      file.open(dataFile);
      if (! file.is_open()) { printf("Cannot open file %s\n", dataFile.c_str()); exit(-1); }
 
-     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedSaleEdges, args);
-     printf("weighted sales edges printed ...\n");
+     if (cmplx) {
+        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedSaleEdgesComplex, args);
+        printf("weighted sales edges printed ...\n");
 
-     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedFriendEdges, args);
-     printf("weighted friends edges printed ...\n");
+        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedFriendEdges, args);
+        printf("weighted friends edges printed ...\n");
 
-     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedUsesEdges, args);
-     printf("weighted uses edges printed ...\n");
+        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedUsesEdges, args);
+        printf("weighted uses edges printed ...\n");
 
-     for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedServerToServerEdges, args);
-     printf("weighted server to server edges printed ... exiting\n");
+        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedServerToServerEdges, args);
+        printf("weighted server to server edges printed ... exiting\n");
+
+     } else {
+       for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedSaleEdgesSimple, args);
+       printf("weighted sales edges printed ... exiting\n");
+     }
 
      file.close();
      exit(0);

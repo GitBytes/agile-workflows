@@ -99,18 +99,19 @@ int main(int argc, char *argv[]) {
   shad::rt::asyncExecuteOnAll(handle, readFile, args);
   shad::rt::waitForCompletion(handle);
 
-  Persons->WaitForBufferedInsert();
-  ForumEvents->WaitForBufferedInsert();
-  Forums->WaitForBufferedInsert();
-  Publications->WaitForBufferedInsert();
-  Topics->WaitForBufferedInsert();
+  Persons->AsyncWaitForBufferedInsert(handle);
+  ForumEvents->AsyncWaitForBufferedInsert(handle);
+  Forums->AsyncWaitForBufferedInsert(handle);
+  Publications->AsyncWaitForBufferedInsert(handle);
+  Topics->AsyncWaitForBufferedInsert(handle);
 
-  Purchases->WaitForBufferedInsert();
-  Sales->WaitForBufferedInsert();
-  Authors->WaitForBufferedInsert();
-  Includes->WaitForBufferedInsert();
-  HasTopic->WaitForBufferedInsert();
-  HasOrg->WaitForBufferedInsert();
+  Purchases->AsyncWaitForBufferedInsert(handle);
+  Sales->AsyncWaitForBufferedInsert(handle);
+  Authors->AsyncWaitForBufferedInsert(handle);
+  Includes->AsyncWaitForBufferedInsert(handle);
+  HasTopic->AsyncWaitForBufferedInsert(handle);
+  HasOrg->AsyncWaitForBufferedInsert(handle);
+  shad::rt::waitForCompletion(handle);
 
   printf("Time for Kernel 1 - Graph Construction = %lf\n\n", my_timer() - time1);
 
@@ -128,16 +129,9 @@ int main(int argc, char *argv[]) {
   printf("Number of hasTopic edges = %lu\n", HasTopic->Size());
   printf("Number of hasOrg edges   = %lu\n", HasOrg->Size());
 
-  printf("\n");
-  printf("Total number of vertices = %lu\n",
-       Persons->Size() + ForumEvents->Size() + Forums->Size() + Publications->Size() + Topics->Size());
-  printf("Total number of edges    = %lu\n", 
-       Purchases->Size() + Sales->Size() + Authors->Size() + Includes->Size() + HasTopic->Size() + HasOrg->Size());
-
 /********** Kernel 5 - Exact Match **********/
 
   time1 = my_timer();
-
   WMD_pattern(args);
   printf("Time for Kernel 5 - Exact Pattern Matching = %lf\n", my_timer() - time1);
 
