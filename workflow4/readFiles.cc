@@ -68,9 +68,9 @@ std::vector <std::string> split(std::string & line, char delim, uint64_t size = 
 
 void SelectSalesMarket(Handle & handle, const uint64_t & id,
      std::vector<SaleEdge> & sales, uint64_t & product, RF_args_t & args) {
-  auto CoffeeTraders   = TraderVertexType::GetPtr( (TraderVertexOID) args.CoffeeTraders_OID);
-  auto CoffeeSales     = SaleEdgeType::GetPtr( (SaleEdgeOID) args.CoffeeSales_OID);
-  auto CoffeePurchases = PurchaseEdgeType::GetPtr( (PurchaseEdgeOID) args.CoffeePurchases_OID);
+  auto CoffeeTraders   = TraderVertexType::GetPtr( (TraderVertexOID) args.Persons_OID);
+  auto CoffeeSales     = SaleEdgeType::GetPtr( (SaleEdgeOID) args.Sales_OID);
+  auto CoffeePurchases = PurchaseEdgeType::GetPtr( (PurchaseEdgeOID) args.Purchases_OID);
 
   uint64_t retail = (uint64_t) TYPES::RETAIL;
   uint64_t grower = (uint64_t) TYPES::PRODUCER;
@@ -118,7 +118,7 @@ void readFileSocial(const RF_args_t & args) {
 
   if (this_locale == num_locales - 1) end = stats.st_size;      // last locale processes to end of file
 
-  auto Friends = FriendOfEdgeType::GetPtr ((FriendOfEdgeOID) args.Friends_OID);
+  auto Friends = FriendEdgeType::GetPtr ((FriendEdgeOID) args.Friends_OID);
   auto Persons = PersonVertexType::GetPtr( (PersonVertexOID) args.Persons_OID);
 
   while (start < end) {
@@ -132,10 +132,10 @@ void readFileSocial(const RF_args_t & args) {
     Persons->BufferedAsyncInsert(handle, person1.key(), person1);
     Persons->BufferedAsyncInsert(handle, person2.key(), person2);
 
-    FriendOfEdge friends(tokens);
+    FriendEdge friends(tokens);
     Friends->BufferedAsyncInsert(handle, friends.key(), friends);
 
-    FriendOfEdge friends2(tokens);
+    FriendEdge friends2(tokens);
     std::swap(friends2.person1, friends2.person2);
     Friends->BufferedAsyncInsert(handle, friends2.key(), friends2);
   }
@@ -169,7 +169,7 @@ void readFileCyber(const RF_args_t & args) {
   if (this_locale == num_locales - 1) end = stats.st_size;       // last locale processes to end of file
 
   auto Servers = ServerVertexType::GetPtr( (ServerVertexOID) args.Servers_OID);
-  auto Sends   = SendsEdgeType::GetPtr( (SendsEdgeOID) args.Sends_OID);
+  auto Sends   = SendEdgeType::GetPtr( (SendEdgeOID) args.Sends_OID);
 
   while (start < end) {
     getline(file, line);
@@ -177,7 +177,7 @@ void readFileCyber(const RF_args_t & args) {
     if (line[0] == '#') continue;                                // skip comments
     std::vector <std::string> tokens = split(line, ',', 11);     // delimiter and # tokens set for wmd data file
 
-    SendsEdge record(tokens);
+    SendEdge record(tokens);
     Sends->BufferedAsyncInsert(handle, record.key(), record);
 
     ServerVertex server1(tokens[0]);

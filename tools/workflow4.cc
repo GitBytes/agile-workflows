@@ -50,47 +50,37 @@ namespace shad {
   using namespace agile::workflow4;
 
 int main(int argc, char *argv[]) {
-  bool cmplx;
   Graph_t graph;
   Handle handle;
   std::string dataFile;
   double time1 = my_timer();
 
 /********** KERNEL 1 - Graph Construction **********/
-  auto Persons         = PersonVertexType::Create(MEDIUM);
-  auto Purchases       = PurchaseEdgeType::Create(MEDIUM);
-  auto Sales           = SaleEdgeType::Create(MEDIUM);
-  auto Friends         = FriendOfEdgeType::Create(MEDIUM);
-  auto Servers         = ServerVertexType::Create(MEDIUM);
-  auto Sends           = SendsEdgeType::Create(MEDIUM);
-  auto Uses            = UsesEdgeType::Create(MEDIUM);
-  auto CoffeeTraders   = TraderVertexType::Create(MEDIUM);
-  auto CoffeeSales     = SaleEdgeType::Create(MEDIUM);
-  auto CoffeePurchases = PurchaseEdgeType::Create(MEDIUM);
-  auto ServerToServer  = ServerToServerEdgeType ::Create(MEDIUM);
+  auto Persons   = PersonVertexType::Create(MEDIUM);
+  auto Purchases = PurchaseEdgeType::Create(MEDIUM);
+  auto Sales     = SaleEdgeType::Create(MEDIUM);
+  auto Friends   = FriendEdgeType::Create(MEDIUM);
+  auto Servers   = ServerVertexType::Create(MEDIUM);
+  auto Sends     = SendEdgeType::Create(MEDIUM);
+  auto Uses      = UsesEdgeType::Create(MEDIUM);
 
-  graph["Persons"]         = (uint64_t) (Persons->GetGlobalID());
-  graph["Purchases"]       = (uint64_t) (Purchases->GetGlobalID());
-  graph["Sales"]           = (uint64_t) (Sales->GetGlobalID());
-  graph["Friends"]         = (uint64_t) (Friends->GetGlobalID());
-  graph["Servers"]         = (uint64_t) (Servers->GetGlobalID());
-  graph["Sends"]           = (uint64_t) (Sends->GetGlobalID());
-  graph["Uses"]            = (uint64_t) (Uses->GetGlobalID());
-  graph["CoffeeTraders"]   = (uint64_t) (CoffeeTraders->GetGlobalID());
-  graph["CoffeeSales"]     = (uint64_t) (CoffeeSales->GetGlobalID());
-  graph["CoffeePurchases"] = (uint64_t) (CoffeePurchases->GetGlobalID());
-  graph["ServerToServer"]  = (uint64_t) (ServerToServer->GetGlobalID());
+  graph["Persons"]   = (uint64_t) (Persons->GetGlobalID());
+  graph["Purchases"] = (uint64_t) (Purchases->GetGlobalID());
+  graph["Sales"]     = (uint64_t) (Sales->GetGlobalID());
+  graph["Friends"]   = (uint64_t) (Friends->GetGlobalID());
+  graph["Servers"]   = (uint64_t) (Servers->GetGlobalID());
+  graph["Sends"]     = (uint64_t) (Sends->GetGlobalID());
+  graph["Uses"]      = (uint64_t) (Uses->GetGlobalID());
 
   RF_args_t args;
-  args.handle             = handle;
-  args.Persons_OID        = graph["Persons"];
-  args.Purchases_OID      = graph["Purchases"];
-  args.Sales_OID          = graph["Sales"];
-  args.Friends_OID        = graph["Friends"];
-  args.Servers_OID        = graph["Servers"];
-  args.Sends_OID          = graph["Sends"];
-  args.Uses_OID           = graph["Uses"];
-  args.ServerToServer_OID = graph["ServerToServer"];
+  args.handle        = handle;
+  args.Persons_OID   = graph["Persons"];
+  args.Purchases_OID = graph["Purchases"];
+  args.Sales_OID     = graph["Sales"];
+  args.Friends_OID   = graph["Friends"];
+  args.Servers_OID   = graph["Servers"];
+  args.Sends_OID     = graph["Sends"];
+  args.Uses_OID      = graph["Uses"];
 
   if (argc >= 2) dataFile = argv[1]; else {printf("No social file\n"); exit(-1);}
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
@@ -108,14 +98,14 @@ int main(int argc, char *argv[]) {
   memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
   shad::rt::executeOnAll(readFileCommercial, args);
 
+  Persons->AsyncWaitForBufferedInsert(handle);
+  Purchases->AsyncWaitForBufferedInsert(handle);
+  Sales->AsyncWaitForBufferedInsert(handle);
+  Friends->AsyncWaitForBufferedInsert(handle);
+  Servers->AsyncWaitForBufferedInsert(handle);
+  Sends->AsyncWaitForBufferedInsert(handle);
+  Uses->AsyncWaitForBufferedInsert(handle);
   waitForCompletion(handle);
-  Persons->WaitForBufferedInsert();
-  Purchases->WaitForBufferedInsert();
-  Sales->WaitForBufferedInsert();
-  Friends->WaitForBufferedInsert();
-  Servers->WaitForBufferedInsert();
-  Sends->WaitForBufferedInsert();
-  Uses->WaitForBufferedInsert();
 
   printf("Time for Kernel 1 - Graph Construction = %lf\n\n", my_timer() - time1);
 
@@ -128,69 +118,118 @@ int main(int argc, char *argv[]) {
   printf("Number of uses edges     = %lu\n", Uses->Size());
 
 /******** KERNEL 2 - Prepare graph for influence maximization kernel ********/
-  time1 = my_timer();
+  time1 = my_timer();      
 
-// Select coffee submarket;
-  uint64_t product = 8486;     // coffee market
-  args.CoffeeTraders_OID   = graph["CoffeeTraders"];                      // coffee trader vertices
-  args.CoffeeSales_OID     = graph["CoffeeSales"];                        // coffee sale edges
-  args.CoffeePurchases_OID = graph["CoffeePurchases"];                    // coffee purchase edges
-  Sales->AsyncForEachEntry(handle, SelectSalesMarket, product, args);     // select coffee sales market
+  bool cmplx;
+  Graph_t coffeeGraph;
+  uint64_t product = 8486;                                                  // coffee id
 
-  if (argc >= 6) { dataFile = argv[5]; cmplx = (dataFile == "complex"); printf("complex switch = %lu\n", cmplx);
-  } else { printf("No simple/complex switch\n"); exit(-1); }
+  auto CoffeeTraders   = TraderVertexType::Create(MEDIUM);
+  auto CoffeeSales     = SaleEdgeType::Create(MEDIUM);
+  auto CoffeePurchases = PurchaseEdgeType::Create(MEDIUM);
+  auto CoffeeFriends   = FriendEdgeType::Create(MEDIUM);
+  auto CoffeeServers   = ServerVertexType::Create(MEDIUM);
+  auto CoffeeSends     = SendEdgeType::Create(MEDIUM);
+  auto CoffeeUses      = UsesEdgeType::Create(MEDIUM);
+  auto ServerSends     = ServerSendEdgeType::Create(MEDIUM);
 
-  if (cmplx) {
-     Friends->AsyncForEachEntry(handle, FriendsEdgeWeights, args);        // update friend edge with weights
-     Uses->AsyncForEachEntry(handle, UsesEdgeWeights, args);              // update uses edge with weights 
-     Sends->AsyncForEachEntry(handle, SendsEdgeWeights, args);            // create server to server edges
+  coffeeGraph["CoffeeTraders"]   = (uint64_t) (CoffeeTraders->GetGlobalID());
+  coffeeGraph["CoffeeSales"]     = (uint64_t) (CoffeeSales->GetGlobalID());
+  coffeeGraph["CoffeePurchases"] = (uint64_t) (CoffeePurchases->GetGlobalID());
+  coffeeGraph["CoffeeFriends"]   = (uint64_t) (CoffeeFriends->GetGlobalID());
+  coffeeGraph["CoffeeServers"]   = (uint64_t) (CoffeeServers->GetGlobalID());
+  coffeeGraph["CoffeeSends"]     = (uint64_t) (CoffeeSends->GetGlobalID());
+  coffeeGraph["CoffeeUses"]      = (uint64_t) (CoffeeUses->GetGlobalID());
+  coffeeGraph["ServerSends"]     = (uint64_t) (ServerSends->GetGlobalID());
+
+  RF_args_t coffeeArgs;
+  coffeeArgs.handle              = handle;
+  coffeeArgs.Persons_OID         = coffeeGraph["CoffeeTraders"];
+  coffeeArgs.Sales_OID           = coffeeGraph["CoffeeSales"];
+  coffeeArgs.Purchases_OID       = coffeeGraph["CoffeePurchases"];
+  coffeeArgs.Friends_OID         = coffeeGraph["CoffeeFriends"];
+  coffeeArgs.Servers_OID         = coffeeGraph["CoffeeServers"];
+  coffeeArgs.Sends_OID           = coffeeGraph["CoffeeSends"];
+  coffeeArgs.Uses_OID            = coffeeGraph["CoffeeUses"];
+  coffeeArgs.ServerSends_OID     = coffeeGraph["ServerSends"];
+
+  // select coffee traders, sales, and purchases
+  Sales->AsyncForEachEntry(handle, SelectSalesMarket, product, coffeeArgs);
+  waitForCompletion(handle);
+
+  CoffeeTraders->AsyncWaitForBufferedInsert(handle);
+  CoffeeSales->AsyncWaitForBufferedInsert(handle);
+  CoffeePurchases->AsyncWaitForBufferedInsert(handle);
+  waitForCompletion(handle);
+
+  CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, coffeeArgs);              // add weigths to sale edges
+  waitForCompletion(handle);
+
+  // set simple/complex scenario switch
+  if (argc >= 6) cmplx = ( strcmp(argv[5], "complex") == 0 );
+  else { printf("No simple/complex switch\n"); exit(-1); }
+
+  if (cmplx) {                                                                        // if complex ...
+     CoffeeTraders->AsyncForEachEntry(handle, FriendsSubgraph, coffeeArgs, args);     // ... friend edgess
+     CoffeeTraders->AsyncForEachEntry(handle, ServersSubgraph, coffeeArgs, args);     // ... servers and uses edges
+     waitForCompletion(handle);
+
+     CoffeeFriends->AsyncWaitForBufferedInsert(handle);
+     CoffeeServers->AsyncWaitForBufferedInsert(handle);
+     CoffeeUses->AsyncWaitForBufferedInsert(handle);
+     waitForCompletion(handle);
+
+     CoffeeServers->AsyncForEachEntry(handle, SendsSubgraph, coffeeArgs, args);       // ... select sends edges
+     waitForCompletion(handle);
+
+     CoffeeSends->AsyncWaitForBufferedInsert(handle);
+     waitForCompletion(handle);
   }
 
-  waitForCompletion(handle);
-  CoffeeTraders->WaitForBufferedInsert();
-  CoffeeSales->WaitForBufferedInsert();
-  CoffeePurchases->WaitForBufferedInsert();
-  ServerToServer->WaitForBufferedInsert();
+  printf("\nTime for Kernel 2 - Coffee subgraph selection = %lf\n", my_timer() - time1);
+  printf("Number of coffee traders    = %lu\n", CoffeeTraders->Size());
+  printf("Number of coffee sales      = %lu\n", CoffeeSales->Size());
+  printf("Number of coffee purchases  = %lu\n", CoffeePurchases->Size());
 
-  CoffeeSales->AsyncForEachEntry(handle, CoffeeSalesWeight, args);        // update coffee sale edges with weights
-  waitForCompletion(handle);
+  if (cmplx) {
+     printf("Number of coffee friends     = %lu\n", CoffeeFriends->Size());
+     printf("Number of coffee servers     = %lu\n", CoffeeServers->Size());
+     printf("Number of coffee uses edges  = %lu\n", CoffeeUses->Size());
+     printf("Number of coffee sends edges = %lu\n", CoffeeSends->Size());
+  }
 
-  printf("\nTime for Kernel 2 - Coffee subgraph and sale weights = %lf\n", my_timer() - time1);
-  printf("Number of coffee traders   = %lu\n", CoffeeTraders->Size());
-  printf("Number of coffee sales     = %lu\n", CoffeeSales->Size());
-  printf("Number of coffee purchases = %lu\n", CoffeePurchases->Size());
-  if (cmplx) printf("Number of Server to Server edges = %lu\n\n", ServerToServer->Size());
+  return 0;
 
   // ... output input file for influence maximization kernel ... exit ...
   // ... and run influence maximization kernel off line ...
   if (argc <= 7) {
      dataFile = argv[6];
-     memcpy(args.filename, dataFile.c_str(), dataFile.size() + 1);
+     memcpy(coffeeArgs.filename, dataFile.c_str(), dataFile.size() + 1);
 
      std::ofstream file;
      file.open(dataFile);
      if (! file.is_open()) { printf("Cannot open file %s\n", dataFile.c_str()); exit(-1); }
 
      if (cmplx) {
-        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedSaleEdgesComplex, args);
+        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintSaleEdgesComplex, coffeeArgs);
         printf("weighted sales edges printed ...\n");
 
-        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedFriendEdges, args);
+        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintFriendEdges, coffeeArgs);
         printf("weighted friends edges printed ...\n");
 
-        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedUsesEdges, args);
-        printf("weighted uses edges printed ...\n");
+        // for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintServerSendEdges, coffeeArgs);
+        // printf("weighted server send edges printed ... exiting\n");
 
-        for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedServerToServerEdges, args);
-        printf("weighted server to server edges printed ... exiting\n");
+        // for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintUsesEdges, coffeeArgs);
+        // printf("weighted uses edges printed ...\n");
 
      } else {
-       for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintWeightedSaleEdgesSimple, args);
+       for (auto loc : shad::rt::allLocalities()) rt::executeAt(loc, PrintSaleEdgesSimple, coffeeArgs);
        printf("weighted sales edges printed ... exiting\n");
      }
 
      file.close();
-     exit(0);
+     return 0;
   }
 
   // ... read list of influencers ...

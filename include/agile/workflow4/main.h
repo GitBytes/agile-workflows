@@ -76,21 +76,18 @@ struct RF_args_t {
     uint64_t Servers_OID;
     uint64_t Sends_OID;
     uint64_t Uses_OID;
-    uint64_t CoffeeSales_OID;
-    uint64_t CoffeePurchases_OID;
-    uint64_t CoffeeTraders_OID;
-    uint64_t ServerToServer_OID;
+    uint64_t ServerSends_OID;
 };
 
 void readFileUses(const RF_args_t & args);
 void readFileCyber(const RF_args_t & args);
 void readFileSocial(const RF_args_t & args);
 void readFileCommercial(const RF_args_t & args);
-void PrintWeightedUsesEdges(const RF_args_t & args);
-void PrintWeightedFriendEdges(const RF_args_t & args);
-void PrintWeightedSaleEdgesSimple(const RF_args_t & args);
-void PrintWeightedSaleEdgesComplex(const RF_args_t & args);
-void PrintWeightedServerToServerEdges(const RF_args_t & args);
+void PrintUsesEdges(const RF_args_t & args);
+void PrintFriendEdges(const RF_args_t & args);
+void PrintSaleEdgesSimple(const RF_args_t & args);
+void PrintSaleEdgesComplex(const RF_args_t & args);
+void PrintServerSendEdges(const RF_args_t & args);
 
 } // namespace agile::workflow4
 
