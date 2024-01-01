@@ -419,15 +419,17 @@ using ServerSendEdgeType = shad::Multimap<uint64_t, ServerSendEdge>;
 using ServerSendEdgeOID  = shad::ObjectIdentifier<ServerSendEdgeType>;
 
 void CancelCoffeeTrader(Handle &, const uint64_t &, TraderVertex &, RF_args_t &);
-void CoffeeSalesWeight(Handle &, const uint64_t &, std::vector<SaleEdge> &, RF_args_t &);
 void SelectSalesMarket(Handle &, const uint64_t &, std::vector<SaleEdge> &, uint64_t &, RF_args_t &);
-void UsesEdgeWeights(Handle &, const uint64_t &, std::vector<UsesEdge> &, RF_args_t &);
-void ServerEdgeWeights(Handle &, const uint64_t &, std::vector<SendEdge> &, RF_args_t &);
-void FriendsEdgeWeights(Handle &, const uint64_t &, std::vector<FriendEdge> &, RF_args_t &);
-void FriendsEdgeWeights(Handle &, const uint64_t &, std::vector<FriendEdge> &, RF_args_t &);
+
 void FriendsSubgraph(Handle &, const uint64_t &, TraderVertex &, RF_args_t &, RF_args_t &);
 void ServersSubgraph(Handle &, const uint64_t &, TraderVertex &, RF_args_t &, RF_args_t &);
 void SendsSubgraph(Handle &, const uint64_t &, ServerVertex &, RF_args_t &, RF_args_t &);
+
+void UseWeights(Handle &, const uint64_t &, std::vector<UsesEdge> &, RF_args_t &);
+void SaleWeights(Handle &, const uint64_t &, std::vector<SaleEdge> &, RF_args_t &);
+void ServerSendWeights(Handle &, const uint64_t &, std::vector<SendEdge> &, RF_args_t &);
+void FriendWeights(Handle &, const uint64_t &, std::vector<FriendEdge> &, RF_args_t &);
+
 } // namespace agile::workflow4
 
 #endif  // GRAPH_H

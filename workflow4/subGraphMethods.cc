@@ -97,7 +97,7 @@ void PrintServerSendEdges(const RF_args_t & args) {
 } };
 
 
-void CoffeeSalesWeight(Handle & handle, const uint64_t & seller, std::vector<SaleEdge> & sales, RF_args_t & args) {
+void SaleWeights(Handle & handle, const uint64_t & seller, std::vector<SaleEdge> & sales, RF_args_t & args) {
   auto CoffeeTraders = TraderVertexType::GetPtr((TraderVertexType::ObjectID) args.Persons_OID);
 
   TraderVertex trader;
@@ -106,19 +106,19 @@ void CoffeeSalesWeight(Handle & handle, const uint64_t & seller, std::vector<Sal
 }
 
 
-void FriendsEdgeWeights(Handle & handle, const uint64_t & id, std::vector<FriendEdge> & edges, RF_args_t & args) {
+void FriendWeights(Handle & handle, const uint64_t & id, std::vector<FriendEdge> & edges, RF_args_t & args) {
   double denom = 1.0 / edges.size();
   for (auto & edge : edges) edge.weight = denom;
 }
 
 
-void UsesEdgeWeights(Handle & handle, const uint64_t & id, std::vector<UsesEdge> & edges, RF_args_t & args) {
+void UseWeights(Handle & handle, const uint64_t & id, std::vector<UsesEdge> & edges, RF_args_t & args) {
   double denom = 1.0 / edges.size();
   for (auto & edge : edges) edge.weight = denom;
 }
 
 
-void ServerEdgeWeights(Handle & handle, const uint64_t & id, std::vector<SendEdge> & edges, RF_args_t & args) {
+void ServerSendWeights(Handle & handle, const uint64_t & id, std::vector<SendEdge> & edges, RF_args_t & args) {
   auto ServerSends = ServerSendEdgeType::GetPtr((ServerSendEdgeType::ObjectID) args.ServerSends_OID);
 
   double denom = 1.0 / edges.size();
