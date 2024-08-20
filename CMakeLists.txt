@@ -43,6 +43,12 @@ find_package(MPI REQUIRED)
 find_package(Threads REQUIRED)
 find_package(Python REQUIRED COMPONENTS Development)
 
+##### HWLOC #####
+include(FindPkgConfig REQUIRED)
+pkg_check_modules(hwloc REQUIRED IMPORTED_TARGET hwloc)
+link_libraries(PkgConfig::hwloc)
+#################
+
 add_subdirectory(tools)
 add_subdirectory(workflow1)
 add_subdirectory(wk2_approx)
