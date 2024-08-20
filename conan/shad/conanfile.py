@@ -31,6 +31,22 @@ conan_basic_setup()
 
 set(GMT_ROOT ${CONAN_GMT_ROOT})
 ''')
+        tools.replace_in_file("SHAD/CMakeLists.txt", 
+'''if (SHAD_RUNTIME_SYSTEM STREQUAL "GMT")
+  find_package(MPI REQUIRED)
+  include_directories(${MPI_INCLUDE_PATH})
+endif()''',
+'''if (SHAD_RUNTIME_SYSTEM STREQUAL "GMT")
+  find_package(MPI REQUIRED)
+  include_directories(${MPI_INCLUDE_PATH})
+  ##### HWLOC #####
+  include(FindPkgConfig REQUIRED)
+  pkg_check_modules(hwloc REQUIRED IMPORTED_TARGET hwloc)
+  link_libraries(PkgConfig::hwloc)
+  include_directories(${MPI_INCLUDE_PATH} PkgConfig::hwloc)
+  #################
+endif()
+''')
 
     def build(self):
         cmake = CMake(self)
