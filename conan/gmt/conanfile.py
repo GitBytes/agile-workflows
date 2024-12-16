@@ -13,6 +13,7 @@ class GmtConan(ConanFile):
     options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = {"shared": False, "fPIC": True}
     generators = "cmake"
+    requires = "hwloc/2.10@user/stable"
 
     def config_options(self):
         if self.settings.os == "Windows":

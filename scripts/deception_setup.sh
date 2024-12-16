@@ -16,7 +16,7 @@ else
     sed --in-place=.bkp 's/x86/x86, riscv/' $HOME/.conan/settings.yml
 fi
 
-for i in $(ls conan/); do
+for i in hwloc gmt shad libtorch pytorch-scatter pytorch-sparse; do
     if [ -d $HOME/.conan/data/$i ]; then
         rm -rf $HOME/.conan/data/$i
     fi
