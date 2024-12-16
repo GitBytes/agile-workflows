@@ -25,7 +25,7 @@ class AgileWorkflowsConan(ConanFile):
 
     def requirements(self):
         self.requires('nlohmann_json/3.9.1')
-        self.requires('hwloc/2.10.0@user/stable')
+        self.requires('hwloc/2.10@user/stable')
         self.requires('gmt/2.0.0@user/stable')
         self.requires('shad/1.0.0@user/stable')
         self.requires('gtest/1.11.0')
