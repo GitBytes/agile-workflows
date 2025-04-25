@@ -80,6 +80,8 @@ int main(int argc, char *argv[]) {
 
   Handle handle;
 
+  auto time1 = my_timer();
+  
   auto EntityEmbeddingTable = EntityEmbeddingType::Create(AGILE_LARGE);
   auto RelationEmbeddingTable = RelationEmbeddingType::Create(AGILE_SMALL);
   auto PersonTable = PersonVertexType::Create(AGILE_LARGE);
@@ -175,8 +177,6 @@ int main(int argc, char *argv[]) {
     }
   }
 #endif
-
-  auto time1 = my_timer();
 
   std::cout << "Reading embedding data file for all entities "  
 	    << entityEmbeddingDataFile.c_str() << std::endl;
